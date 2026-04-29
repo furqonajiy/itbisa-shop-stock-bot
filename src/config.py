@@ -1,16 +1,15 @@
 """
 config.py
 ---------
-All environment variables in one place. Both Shopee and TikTok Shop
-credentials live here because this bot talks to both platforms.
+All environment variables and constants in one place. Both Shopee and
+TikTok Shop credentials live here because this bot talks to both platforms.
 
 This file is loaded once at import time. If a required variable is
-missing, we fail loudly at startup rather than mid-run. Optional
-variables (USE_FAKE_*) default to safe values.
+missing, we fail loudly at startup rather than mid-run.
 
-Convention: secrets read from env, paths/buffers as module constants.
-Mirrors the layout of config.py in itbisa-shopee-order-bot and
-itbisa-tiktokshop-order-bot so a developer who knows one knows this.
+Convention: secrets read from env, fixed API hosts and paths/buffers as
+module constants. Mirrors the layout of config.py in the order-bot repos
+so a developer who knows one knows this.
 """
 
 import os
@@ -41,14 +40,6 @@ def _optional(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
 
 
-def _flag(name: str, default: bool = False) -> bool:
-    """Boolean from env: 'true', '1', 'yes' = True. Anything else = False."""
-    raw = os.environ.get(name, "").strip().lower()
-    if not raw:
-        return default
-    return raw in ("true", "1", "yes")
-
-
 # ============================================================
 # Shopee
 # ============================================================
@@ -57,13 +48,9 @@ SHOPEE_PARTNER_ID  = _required("SHOPEE_PARTNER_ID")
 SHOPEE_PARTNER_KEY = _required("SHOPEE_PARTNER_KEY")
 SHOPEE_SHOP_ID     = _required("SHOPEE_SHOP_ID")
 
-# Live (https://partner.shopeemobile.com) vs sandbox
-# (https://partner.test-stable.shopeemobile.com). Default = live since
-# the inventory bot only runs after the order bots are already in prod.
-SHOPEE_API_BASE_URL = _optional(
-    "SHOPEE_API_BASE_URL",
-    "https://partner.shopeemobile.com",
-)
+# Live Shopee Open API host. Kept here as a code constant, like the
+# Shopee order bot, because this inventory bot is intended for production.
+SHOPEE_API_BASE_URL = "https://partner.shopeemobile.com"
 
 SHOPEE_TOKEN_FILE = PROJECT_ROOT / "data" / "shopee_tokens.json"
 
@@ -71,9 +58,6 @@ SHOPEE_TOKEN_FILE = PROJECT_ROOT / "data" / "shopee_tokens.json"
 # 10 min is the same value used by itbisa-shopee-order-bot; keeps the
 # two bots in lockstep on token-refresh timing.
 SHOPEE_TOKEN_REFRESH_BUFFER_MINUTES = 10
-
-# Local development knob — swaps in a canned fake client. Off in CI.
-USE_FAKE_SHOPEE = _flag("USE_FAKE_SHOPEE", default=False)
 
 
 # ============================================================
@@ -84,21 +68,13 @@ TIKTOKSHOP_APP_KEY    = _required("TIKTOKSHOP_APP_KEY")
 TIKTOKSHOP_APP_SECRET = _required("TIKTOKSHOP_APP_SECRET")
 TIKTOKSHOP_SHOP_ID    = _required("TIKTOKSHOP_SHOP_ID")
 
-# Two distinct hosts — auth and Open API are not the same domain.
-TIKTOKSHOP_AUTH_BASE_URL = _optional(
-    "TIKTOKSHOP_AUTH_BASE_URL",
-    "https://auth.tiktok-shops.com",
-)
-TIKTOKSHOP_OPEN_API_BASE_URL = _optional(
-    "TIKTOKSHOP_OPEN_API_BASE_URL",
-    "https://open-api.tiktokglobalshop.com",
-)
+# TikTok Shop uses two distinct hosts: auth and Open API.
+TIKTOKSHOP_AUTH_BASE_URL = "https://auth.tiktok-shops.com"
+TIKTOKSHOP_OPEN_API_BASE_URL = "https://open-api.tiktokglobalshop.com"
 
 TIKTOKSHOP_TOKEN_FILE = PROJECT_ROOT / "data" / "tiktokshop_tokens.json"
 
 TIKTOKSHOP_TOKEN_REFRESH_BUFFER_MINUTES = 10
-
-USE_FAKE_TIKTOKSHOP = _flag("USE_FAKE_TIKTOKSHOP", default=False)
 
 
 # ============================================================

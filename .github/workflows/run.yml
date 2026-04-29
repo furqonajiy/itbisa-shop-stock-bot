@@ -57,8 +57,7 @@ jobs:
       # 2. Overlay state from bot-state if it exists
       # ----------------------------------------------------
       # On first-ever run, bot-state may not exist — fall back to
-      # whatever data/ files were committed to main (typically empty
-      # tokens placeholders that the operator filled before push).
+      # whatever data/ files were committed to main.
       - name: Sync data/ from bot-state
         run: |
           if git ls-remote --exit-code --heads origin bot-state >/dev/null 2>&1; then
@@ -85,26 +84,23 @@ jobs:
       # ----------------------------------------------------
       # 4. Run the script
       # ----------------------------------------------------
-      # Branch on whether `sku` is provided. The Telegram Worker
-      # always provides sku+pieces; manual UI dispatch may use either.
+      # API base URLs live in src/config.py. Secrets below are only
+      # credentials and operator/runtime configuration.
       - name: Run inventory update
         env:
-          SHOPEE_PARTNER_ID:           ${{ secrets.SHOPEE_PARTNER_ID }}
-          SHOPEE_PARTNER_KEY:          ${{ secrets.SHOPEE_PARTNER_KEY }}
-          SHOPEE_SHOP_ID:              ${{ secrets.SHOPEE_SHOP_ID }}
-          SHOPEE_API_BASE_URL:         ${{ secrets.SHOPEE_API_BASE_URL }}
-          TIKTOKSHOP_APP_KEY:          ${{ secrets.TIKTOKSHOP_APP_KEY }}
-          TIKTOKSHOP_APP_SECRET:       ${{ secrets.TIKTOKSHOP_APP_SECRET }}
-          TIKTOKSHOP_SHOP_ID:          ${{ secrets.TIKTOKSHOP_SHOP_ID }}
-          TIKTOKSHOP_AUTH_BASE_URL:    ${{ secrets.TIKTOKSHOP_AUTH_BASE_URL }}
-          TIKTOKSHOP_OPEN_API_BASE_URL: ${{ secrets.TIKTOKSHOP_OPEN_API_BASE_URL }}
-          TELEGRAM_BOT_TOKEN:          ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:            ${{ secrets.TELEGRAM_CHAT_ID }}
-          MAX_SKUS_PER_RUN:            ${{ secrets.MAX_SKUS_PER_RUN }}
-          INPUT_SKU:        ${{ inputs.sku }}
-          INPUT_PIECES:     ${{ inputs.pieces }}
-          INPUT_EXCEL_PATH: ${{ inputs.excel_path }}
-          INPUT_DRY_RUN:    ${{ inputs.dry_run }}
+          SHOPEE_PARTNER_ID:      ${{ secrets.SHOPEE_PARTNER_ID }}
+          SHOPEE_PARTNER_KEY:     ${{ secrets.SHOPEE_PARTNER_KEY }}
+          SHOPEE_SHOP_ID:         ${{ secrets.SHOPEE_SHOP_ID }}
+          TIKTOKSHOP_APP_KEY:     ${{ secrets.TIKTOKSHOP_APP_KEY }}
+          TIKTOKSHOP_APP_SECRET:  ${{ secrets.TIKTOKSHOP_APP_SECRET }}
+          TIKTOKSHOP_SHOP_ID:     ${{ secrets.TIKTOKSHOP_SHOP_ID }}
+          TELEGRAM_BOT_TOKEN:     ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:       ${{ secrets.TELEGRAM_CHAT_ID }}
+          MAX_SKUS_PER_RUN:       ${{ secrets.MAX_SKUS_PER_RUN }}
+          INPUT_SKU:              ${{ inputs.sku }}
+          INPUT_PIECES:           ${{ inputs.pieces }}
+          INPUT_EXCEL_PATH:       ${{ inputs.excel_path }}
+          INPUT_DRY_RUN:          ${{ inputs.dry_run }}
         run: |
           set -e
           DRY_FLAG=""
@@ -127,9 +123,7 @@ jobs:
       # 5. Persist refreshed tokens back to bot-state
       # ----------------------------------------------------
       # Inventory bot does NOT track processed orders, so the only
-      # mutable state in data/ is the two token files (rotated when
-      # access_token gets refreshed). We commit them back so the next
-      # run picks up the fresh refresh_token.
+      # mutable state in data/ is the two token files.
       - name: Commit token rotation to bot-state
         if: always() && !inputs.dry_run
         run: |

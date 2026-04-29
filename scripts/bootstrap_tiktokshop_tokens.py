@@ -1,12 +1,13 @@
 """
-bootstrap_tokens.py
--------------------
-One-time script to seed data/tiktokshop_tokens.json with initial tokens.
+bootstrap_tiktokshop_tokens.py
+------------------------------
+One-time script to seed data/tiktokshop_tokens.json with initial
+TikTok Shop tokens.
 
 When to run this:
   - The very first time you set up the bot.
-  - After the refresh_token expires, and you need to re-authorize.
-  - When switching apps or environments.
+  - After the refresh_token expires and you need to re-authorize.
+  - When switching TikTok Shop apps.
 
 How to use it:
   1. Log into TikTok Shop Open Platform.
@@ -23,7 +24,7 @@ from pathlib import Path
 
 import requests
 
-# Add project root to path so we can import src.config
+# Add project root to path so we can import src.config.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -75,19 +76,14 @@ def main():
         sys.exit(1)
 
     # STEP 5: Extract the payload from the response.
-    payload = data.get("data", {})
-    access_token = payload.get("access_token")
-    refresh_token = payload.get("refresh_token")
-    access_token_expire_in = payload.get("access_token_expire_in")
-    refresh_token_expire_in = payload.get("refresh_token_expire_in")
-
-    if not access_token or not refresh_token:
-        print("\nTikTok Shop response is missing tokens:")
-        print(json.dumps(data, indent=2, ensure_ascii=False))
-        sys.exit(1)
+    payload = data["data"]
+    access_token = payload["access_token"]
+    refresh_token = payload["refresh_token"]
+    access_token_expire_in = payload["access_token_expire_in"]
+    refresh_token_expire_in = payload["refresh_token_expire_in"]
 
     # STEP 6: Convert TikTok Shop expiry timestamps into ISO format.
-    # In the real response, these values are Unix timestamps, not durations.
+    # These values are Unix timestamps, not durations.
     access_token_expires_at = _unix_to_iso(access_token_expire_in)
     refresh_token_expires_at = _unix_to_iso(refresh_token_expire_in)
 
@@ -99,7 +95,7 @@ def main():
     }
 
     # STEP 7: Write the tokens file.
-    tokens_path = Path(config.TOKENS_FILE_PATH)
+    tokens_path = Path(config.TIKTOKSHOP_TOKEN_FILE)
     tokens_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(tokens_path, "w", encoding="utf-8") as f:

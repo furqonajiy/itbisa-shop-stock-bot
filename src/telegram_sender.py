@@ -8,7 +8,7 @@ shape — this is a transactional report, not an order label.
 Public functions:
   send_run_summary(report)          — bulk Excel run
   send_single_sku_summary(report)   — single-SKU /update_inventory run
-  send_alert(text)                  — error path (e.g., RT expired)
+  send_alert(text)                  — error path
 
 The `report` dicts are produced by main.py and have a fully-defined
 shape — see the docstrings below. Keep this module dumb (formatting
@@ -60,7 +60,7 @@ def send_run_summary(report: dict) -> None:
 
     if report["skipped_missing"]:
         lines.append("")
-        lines.append("*Tidak ditemukan di Shopee & TikTok:*")
+        lines.append("*Tidak ditemukan di Shopee & TikTok Shop:*")
         for sku in report["skipped_missing"][:20]:
             lines.append(f"  • `{sku}`")
         if len(report["skipped_missing"]) > 20:
@@ -84,7 +84,7 @@ def send_run_summary(report: dict) -> None:
 
     if report["dry_run"]:
         lines.append("")
-        lines.append("_Dry run — tidak ada API yang dipanggil._")
+        lines.append("_Dry run — tidak ada write API yang dipanggil._")
 
     _send(_join(lines))
 
@@ -94,16 +94,16 @@ def send_single_sku_summary(report: dict) -> None:
     Single-SKU run (from /update_inventory SKU AMOUNT).
 
     report = {
-      "mode":         "single",
-      "base_sku":     str,
-      "total_pieces": int,
-      "shopee_pieces":  int,
-      "tiktok_pieces":  int,
-      "shopee_lines":   list[str],   # already-formatted "  • SKU: 5000 (= 5000 pcs)"
-      "tiktok_lines":   list[str],
-      "shopee_status":  str,         # "✅ berhasil" | "⏭️ dilewati: ..." | "❌ gagal: ..."
-      "tiktok_status":  str,
-      "dry_run":      bool,
+      "mode":              "single",
+      "base_sku":          str,
+      "total_pieces":      int,
+      "shopee_pieces":     int,
+      "tiktokshop_pieces": int,
+      "shopee_lines":      list[str],
+      "tiktokshop_lines":  list[str],
+      "shopee_status":     str,
+      "tiktokshop_status": str,
+      "dry_run":           bool,
     }
     """
     header = "📦 *Update Inventory* — DRY RUN" if report["dry_run"] else "📦 *Update Inventory* — Selesai"
@@ -118,18 +118,21 @@ def send_single_sku_summary(report: dict) -> None:
     ]
     lines.extend(report["shopee_lines"] or ["  _(tidak ada varian)_"])
     lines.append("")
-    lines.append(f"*TikTok Shop* — {_fmt_int(report['tiktok_pieces'])} pcs — {report['tiktok_status']}")
-    lines.extend(report["tiktok_lines"] or ["  _(tidak ada varian)_"])
+    lines.append(
+        f"*TikTok Shop* — {_fmt_int(report['tiktokshop_pieces'])} pcs — "
+        f"{report['tiktokshop_status']}"
+    )
+    lines.extend(report["tiktokshop_lines"] or ["  _(tidak ada varian)_"])
 
     if report["dry_run"]:
         lines.append("")
-        lines.append("_Dry run — tidak ada API yang dipanggil._")
+        lines.append("_Dry run — tidak ada write API yang dipanggil._")
 
     _send(_join(lines))
 
 
 def send_alert(text: str) -> None:
-    """One-off error alert (e.g., refresh token expired, file not found)."""
+    """One-off error alert, for example refresh token expired or file not found."""
     _send(f"🚨 *Update Inventory* — Error\n\n{text}")
 
 
@@ -138,8 +141,7 @@ def send_alert(text: str) -> None:
 # ============================================================
 
 def _send(text: str) -> None:
-    """POST sendMessage with Markdown parse mode. Errors are non-fatal:
-    a Telegram outage shouldn't make the inventory run fail."""
+    """POST sendMessage with Markdown parse mode. Errors are non-fatal."""
     if len(text) > _MAX_MESSAGE_CHARS:
         text = text[:_MAX_MESSAGE_CHARS - 50] + "\n\n_(pesan dipotong)_"
 

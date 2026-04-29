@@ -11,5 +11,3 @@ __pycache__/
 # in the working directory at runtime, either committed to a private
 # branch or uploaded by the operator on dispatch).
 inventory.xlsx
-shopee_inventory.xlsx
-tiktokshop_inventory.xlsx

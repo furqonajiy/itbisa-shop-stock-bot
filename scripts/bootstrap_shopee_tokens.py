@@ -1,26 +1,25 @@
 """
-bootstrap_shopee_tokens.py
---------------------------
-One-time setup script. Exchanges a fresh Shopee authorization code for
-the initial access_token + refresh_token pair, and writes
-data/shopee_tokens.json.
+bootstrap_tokens.py
+-------------------
+One-time script to seed data/shopee_tokens.json with initial tokens.
 
-You only need to run this:
-  - The very first time you set up this repo locally.
-  - If the refresh_token has fully expired (rare, ~30 day inactivity).
+When to run this:
+  - The very first time you set up the bot.
+  - After the refresh_token expires (every 30 days) and you need to re-authorize.
+  - When switching between sandbox and live environments.
 
-Steps:
-  1. In Shopee Open Platform Console (https://open.shopee.com), open
-     your app and click "Authorize" for the shop. Shopee redirects to
-     your configured redirect URL with ?code=XXXX&shop_id=YYYY.
-  2. Copy the `code` value (valid for ~10 minutes, single-use).
-  3. Run:  python scripts/bootstrap_shopee_tokens.py <CODE>
-  4. The script writes data/shopee_tokens.json. Commit + push to
-     bot-state branch (the run.yml workflow expects it there).
+How to use it:
+  1. Log into Shopee Open Platform Console.
+  2. Go to App List and click "Authorize" on your app.
+  3. Paste the shop URL (or use the test shop for sandbox) and confirm.
+  4. After redirect, copy the "code" value from the URL.
+     Example: https://example.com/?code=ABC123...&shop_id=XXX
+  5. Run this script and paste the code when prompted.
+  6. The script writes data/shopee_tokens.json with valid tokens.
 
-NOTE: This bot uses the SAME app credentials as itbisa-shopee-order-bot,
-but a SEPARATE token chain. So the order bot's tokens are unaffected
-by running this script (and vice versa).
+Make sure SHOPEE_API_BASE_URL in config.py points to the right environment
+(sandbox or live) BEFORE running this script. The tokens you receive will
+only work for that specific environment.
 """
 
 import hashlib
@@ -33,36 +32,44 @@ from pathlib import Path
 
 import requests
 
+# Add project root to path so we can import src.config
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src import config
 
 
-def main() -> int:
-    if len(sys.argv) < 2:
-        print("Usage: python scripts/bootstrap_shopee_tokens.py <AUTH_CODE>")
-        print()
-        print("Get AUTH_CODE from Shopee Open Platform Console → Authorize.")
-        return 1
-
-    auth_code = sys.argv[1].strip()
+def main():
+    """Interactive bootstrap flow."""
 
     print("=" * 60)
-    print("Shopee token bootstrap")
+    print("Shopee Tokens Bootstrap")
     print("=" * 60)
+    print(f"Target environment: {config.SHOPEE_API_BASE_URL}")
     print(f"Partner ID: {config.SHOPEE_PARTNER_ID}")
-    print(f"Shop ID:    {config.SHOPEE_SHOP_ID}")
-    print(f"Base URL:   {config.SHOPEE_API_BASE_URL}")
+    print(f"Shop ID: {config.SHOPEE_SHOP_ID}")
+    print()
+    print("Make sure the target environment above matches where you got")
+    print("the authorization code from. Sandbox codes do not work on live,")
+    print("and vice versa.")
     print()
 
-    # AUTH endpoint signature: base = partner_id + path + timestamp.
+    # STEP 1: Prompt for the authorization code.
+    code = input("Paste the authorization code from the Shopee Console URL: ").strip()
+    if not code:
+        print("No code provided. Aborting.")
+        sys.exit(1)
+
+    # STEP 2: Build the signed request to exchange the code for tokens.
+    # The auth endpoint uses a simpler signature format than shop-level calls:
+    # only partner_id + path + timestamp (no access_token, no shop_id).
     path = "/api/v2/auth/token/get"
     timestamp = int(time.time())
-    base = f"{config.SHOPEE_PARTNER_ID}{path}{timestamp}"
-    sign = hmac.new(
+
+    base_string = f"{config.SHOPEE_PARTNER_ID}{path}{timestamp}"
+    signature = hmac.new(
         config.SHOPEE_PARTNER_KEY.encode("utf-8"),
-        base.encode("utf-8"),
+        base_string.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
 
@@ -70,42 +77,58 @@ def main() -> int:
         f"{config.SHOPEE_API_BASE_URL}{path}"
         f"?partner_id={config.SHOPEE_PARTNER_ID}"
         f"&timestamp={timestamp}"
-        f"&sign={sign}"
+        f"&sign={signature}"
     )
+
     body = {
-        "code":       auth_code,
-        "shop_id":    int(config.SHOPEE_SHOP_ID),
-        "partner_id": int(config.SHOPEE_PARTNER_ID),
+        "code": code,
+        "partner_id": config.SHOPEE_PARTNER_ID,
+        "shop_id": config.SHOPEE_SHOP_ID,
     }
 
-    print(f"POST {url}")
+    # STEP 3: Call the endpoint.
+    print(f"\nCalling {path}...")
     response = requests.post(url, json=body, timeout=30)
-    response.raise_for_status()
+    print(f"Status: {response.status_code}")
     data = response.json()
 
-    if data.get("error"):
-        print(f"✗ Failed: {data.get('error')}: {data.get('message')}")
-        return 1
+    # STEP 4: Check for errors.
+    if response.status_code != 200 or data.get("error"):
+        print(f"\nShopee rejected the request:")
+        print(json.dumps(data, indent=2))
+        print("\nCommon causes:")
+        print("  - Code already used (each code is single-use)")
+        print("  - Code expired (codes are valid for ~10 minutes)")
+        print("  - Wrong environment (sandbox code used against live URL or vice versa)")
+        print("  - Wrong partner_id or partner_key")
+        sys.exit(1)
 
-    expire_in = int(data.get("expire_in", 4 * 3600))
+    # STEP 5: Extract the tokens and compute the absolute expiry timestamp.
+    access_token = data["access_token"]
+    refresh_token = data["refresh_token"]
+    expire_in_seconds = data["expire_in"]
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expire_in_seconds)
+
     tokens = {
-        "access_token":  data["access_token"],
-        "refresh_token": data["refresh_token"],
-        "access_token_expires_at": (
-            datetime.now(timezone.utc) + timedelta(seconds=expire_in)
-        ).isoformat(),
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "access_token_expires_at": expires_at.isoformat(),
     }
 
-    out = Path(config.SHOPEE_TOKEN_FILE)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, "w") as f:
-        json.dump(tokens, f, indent=2)
+    # STEP 6: Write the tokens file.
+    tokens_path = Path(config.TOKENS_FILE_PATH)
+    tokens_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(tokens_path, "w") as f:
+        json.dump(tokens, f, indent=2, sort_keys=True)
 
-    print(f"✓ Wrote {out}")
-    print()
-    print("Next: commit data/shopee_tokens.json to the bot-state branch.")
-    return 0
+    print(f"\n✓ Wrote tokens to {tokens_path}")
+    print(f"  access_token:  {access_token[:12]}... (truncated)")
+    print(f"  refresh_token: {refresh_token[:12]}... (truncated)")
+    print(f"  expires at:    {expires_at.isoformat()}")
+    print(f"\nYou can now run the bot normally. The bot will auto-refresh")
+    print(f"the access_token every 4 hours. You only need to run this")
+    print(f"script again when the refresh_token expires in 30 days.")
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

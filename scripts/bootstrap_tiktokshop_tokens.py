@@ -1,17 +1,19 @@
 """
-bootstrap_tiktokshop_tokens.py
-------------------------------
-One-time setup. Exchanges an authorization code (from TikTok Shop
-Open Platform Console) for the initial access_token + refresh_token
-pair, and writes data/tiktokshop_tokens.json.
+bootstrap_tokens.py
+-------------------
+One-time script to seed data/tiktokshop_tokens.json with initial tokens.
 
-Steps:
-  1. In TikTok Shop Partner Center, authorize your app for the shop.
-     The redirect URL receives ?code=XXXX (and shop_id, etc.).
-  2. Copy the `code` value (single-use, ~10-minute validity).
-  3. Run:  python scripts/bootstrap_tiktokshop_tokens.py <CODE>
+When to run this:
+  - The very first time you set up the bot.
+  - After the refresh_token expires, and you need to re-authorize.
+  - When switching apps or environments.
 
-Same app credentials as itbisa-tiktokshop-order-bot, separate token chain.
+How to use it:
+  1. Log into TikTok Shop Open Platform.
+  2. Authorize your app for the target shop.
+  3. After redirect, copy the auth_code value from the URL.
+  4. Run this script and paste the auth_code when prompted.
+  5. The script writes data/tiktokshop_tokens.json with valid tokens.
 """
 
 import json
@@ -21,68 +23,104 @@ from pathlib import Path
 
 import requests
 
+# Add project root to path so we can import src.config
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src import config
 
 
-def main() -> int:
-    if len(sys.argv) < 2:
-        print("Usage: python scripts/bootstrap_tiktokshop_tokens.py <AUTH_CODE>")
-        return 1
-
-    auth_code = sys.argv[1].strip()
+def main():
+    """Interactive bootstrap flow."""
 
     print("=" * 60)
-    print("TikTok Shop token bootstrap")
+    print("TikTok Shop Tokens Bootstrap")
     print("=" * 60)
-    print(f"App key:   {config.TIKTOKSHOP_APP_KEY}")
-    print(f"Shop ID:   {config.TIKTOKSHOP_SHOP_ID}")
-    print(f"Auth URL:  {config.TIKTOKSHOP_AUTH_BASE_URL}")
+    print(f"Target environment: {config.TIKTOKSHOP_AUTH_BASE_URL}")
+    print(f"App Key: {config.TIKTOKSHOP_APP_KEY}")
     print()
 
-    # /api/v2/token/get: plain GET, NOT signed.
-    url = f"{config.TIKTOKSHOP_AUTH_BASE_URL}/api/v2/token/get"
+    # STEP 1: Prompt for the authorization code.
+    auth_code = input("Paste the auth_code from the TikTok Shop redirect URL: ").strip()
+    if not auth_code:
+        print("No auth_code provided. Aborting.")
+        sys.exit(1)
+
+    # STEP 2: Build the request exactly as TikTok Shop expects it.
+    path = "/api/v2/token/get"
+    url = f"{config.TIKTOKSHOP_AUTH_BASE_URL}{path}"
     params = {
-        "app_key":    config.TIKTOKSHOP_APP_KEY,
+        "app_key": config.TIKTOKSHOP_APP_KEY,
         "app_secret": config.TIKTOKSHOP_APP_SECRET,
-        "auth_code":  auth_code,
+        "auth_code": auth_code,
         "grant_type": "authorized_code",
     }
 
-    print(f"GET {url}")
+    # STEP 3: Call the endpoint.
+    print(f"\nCalling {path}...")
     response = requests.get(url, params=params, timeout=30)
-    response.raise_for_status()
-    payload = response.json()
+    print(f"Status: {response.status_code}")
 
-    if payload.get("code") != 0:
-        print(f"✗ Failed: code={payload.get('code')} message={payload.get('message')}")
-        return 1
+    try:
+        data = response.json()
+    except ValueError:
+        print("\nTikTok Shop did not return valid JSON:")
+        print(response.text)
+        sys.exit(1)
 
-    data = payload["data"]
-    access_expiry  = datetime.fromtimestamp(data["access_token_expire_in"], tz=timezone.utc)
-    refresh_expiry = datetime.fromtimestamp(data["refresh_token_expire_in"], tz=timezone.utc)
+    # STEP 4: Check for HTTP or API errors.
+    if response.status_code != 200 or data.get("code") not in (0, "0"):
+        print("\nTikTok Shop rejected the request:")
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+        sys.exit(1)
+
+    # STEP 5: Extract the payload from the response.
+    payload = data.get("data", {})
+    access_token = payload.get("access_token")
+    refresh_token = payload.get("refresh_token")
+    access_token_expire_in = payload.get("access_token_expire_in")
+    refresh_token_expire_in = payload.get("refresh_token_expire_in")
+
+    if not access_token or not refresh_token:
+        print("\nTikTok Shop response is missing tokens:")
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+        sys.exit(1)
+
+    # STEP 6: Convert TikTok Shop expiry timestamps into ISO format.
+    # In the real response, these values are Unix timestamps, not durations.
+    access_token_expires_at = _unix_to_iso(access_token_expire_in)
+    refresh_token_expires_at = _unix_to_iso(refresh_token_expire_in)
 
     tokens = {
-        "access_token":             data["access_token"],
-        "refresh_token":            data["refresh_token"],
-        "access_token_expires_at":  access_expiry.isoformat(),
-        "refresh_token_expires_at": refresh_expiry.isoformat(),
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "access_token_expires_at": access_token_expires_at,
+        "refresh_token_expires_at": refresh_token_expires_at,
     }
 
-    out = Path(config.TIKTOKSHOP_TOKEN_FILE)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, "w") as f:
-        json.dump(tokens, f, indent=2)
+    # STEP 7: Write the tokens file.
+    tokens_path = Path(config.TOKENS_FILE_PATH)
+    tokens_path.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"✓ Wrote {out}")
-    print(f"  access_token expires:  {access_expiry.isoformat()}")
-    print(f"  refresh_token expires: {refresh_expiry.isoformat()}")
-    print()
-    print("Next: commit data/tiktokshop_tokens.json to the bot-state branch.")
-    return 0
+    with open(tokens_path, "w", encoding="utf-8") as f:
+        json.dump(tokens, f, indent=2, sort_keys=True)
+
+    print(f"\n✓ Wrote tokens to {tokens_path}")
+    print(f"  access_token:  {access_token[:12]}... (truncated)")
+    print(f"  refresh_token: {refresh_token[:12]}... (truncated)")
+    print(f"  access_token_expires_at:  {access_token_expires_at}")
+    print(f"  refresh_token_expires_at: {refresh_token_expires_at}")
+
+
+def _unix_to_iso(value):
+    """
+    Converts a Unix timestamp in seconds to ISO 8601 UTC string.
+
+    Example:
+      1777539662 -> 2026-04-29T...
+    """
+    return datetime.fromtimestamp(int(value), tz=timezone.utc).isoformat()
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

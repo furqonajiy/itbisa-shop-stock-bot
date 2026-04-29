@@ -1,0 +1,15 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.tmp
+.DS_Store
+.vscode/
+.idea/
+
+# Operator-supplied input file (kept off main; the workflow expects it
+# in the working directory at runtime, either committed to a private
+# branch or uploaded by the operator on dispatch).
+inventory.xlsx
+shopee_inventory.xlsx
+tiktokshop_inventory.xlsx

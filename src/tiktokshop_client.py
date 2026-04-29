@@ -145,19 +145,18 @@ def fetch_catalog() -> dict[str, list[dict]]:
 
 
 def update_stock_batch(
-    product_id: str,
-    sku_updates: list[tuple[str, str, int]],
+        product_id: str,
+        sku_updates: list[tuple[str, str, int]],
 ) -> None:
     """
     POST /product/202309/products/{product_id}/inventory/update.
 
     Args:
-      product_id:  TikTok product id (string).
+      product_id:  TikTok Shop product id (string).
       sku_updates: list of (sku_id, warehouse_id, quantity) tuples — all
-                   SKUs MUST belong to product_id (TikTok's endpoint
-                   rejects mixed-product batches).
+                   SKUs MUST belong to product_id.
 
-    Raises RuntimeError on platform-level error or per-SKU failure.
+    Raises RuntimeError on HTTP or platform-level error.
     """
     path = f"/product/{_INVENTORY_API_VERSION}/products/{product_id}/inventory/update"
     body = {

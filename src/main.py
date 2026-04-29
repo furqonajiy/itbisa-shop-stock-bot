@@ -22,16 +22,15 @@ Failure model:
   - One SKU's failure does NOT abort the run. We accumulate failures
     and report them in the summary.
   - One PLATFORM failing for a SKU does NOT abort the other platform
-    for the same SKU. Shopee may succeed while TikTok fails; we report
-    a partial success.
-  - A refresh-token-expired exception aborts the whole run and sends
-    a manual-intervention alert (matches order-bot behaviour).
+    for the same SKU. Shopee may succeed while TikTok Shop fails; we
+    report a partial success.
+  - A Shopee refresh-token-expired exception aborts the whole run and
+    sends a manual-intervention alert.
 """
 
 from __future__ import annotations
 
 import time
-import traceback
 from pathlib import Path
 
 from src import (
@@ -99,8 +98,8 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
         print()
 
         print("[3/4] Walking TikTok Shop catalog...")
-        tiktok_catalog = tiktokshop_client.fetch_catalog()
-        print(f"  → {len(tiktok_catalog)} base SKU(s) discovered on TikTok Shop")
+        tiktokshop_catalog = tiktokshop_client.fetch_catalog()
+        print(f"  → {len(tiktokshop_catalog)} base SKU(s) discovered on TikTok Shop")
         print()
     except shopee_auth.RefreshTokenExpiredError as e:
         msg = (
@@ -114,53 +113,55 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
 
     print("[4/4] Pushing per SKU...")
     succeeded: list[str] = []
-    skipped_missing: list[str] = []      # not on either platform
-    skipped_one_side: list[tuple[str, str]] = []  # (sku, platform_name)
+    skipped_missing: list[str] = []
+    skipped_one_side: list[tuple[str, str]] = []
     failed: list[tuple[str, str]] = []
 
     for base_sku, total in desired.items():
         on_shopee = base_sku in shopee_catalog
-        on_tiktok = base_sku in tiktok_catalog
+        on_tiktokshop = base_sku in tiktokshop_catalog
 
-        if not on_shopee and not on_tiktok:
-            print(f"  ⏭️  {base_sku}: tidak ditemukan di Shopee maupun TikTok — dilewati")
+        if not on_shopee and not on_tiktokshop:
+            print(f"  ⏭️  {base_sku}: tidak ditemukan di Shopee maupun TikTok Shop — dilewati")
             skipped_missing.append(base_sku)
             continue
         if not on_shopee:
-            print(f"  ⏭️  {base_sku}: hanya di TikTok — dilewati (sesuai aturan)")
-            skipped_one_side.append((base_sku, "TikTok"))
+            print(f"  ⏭️  {base_sku}: hanya di TikTok Shop — dilewati (sesuai aturan)")
+            skipped_one_side.append((base_sku, "TikTok Shop"))
             continue
-        if not on_tiktok:
+        if not on_tiktokshop:
             print(f"  ⏭️  {base_sku}: hanya di Shopee — dilewati (sesuai aturan)")
             skipped_one_side.append((base_sku, "Shopee"))
             continue
 
-        shopee_pieces, tiktok_pieces = split_across_platforms(total)
+        shopee_pieces, tiktokshop_pieces = split_across_platforms(total)
 
-        # Try Shopee first, then TikTok. Independent failure surfaces.
+        # Try Shopee first, then TikTok Shop. Independent failure surfaces.
         shopee_err = _push_shopee(
             base_sku, shopee_pieces, shopee_catalog[base_sku], dry_run
         )
-        tiktok_err = _push_tiktok(
-            base_sku, tiktok_pieces, tiktok_catalog[base_sku], dry_run
+        tiktokshop_err = _push_tiktokshop(
+            base_sku, tiktokshop_pieces, tiktokshop_catalog[base_sku], dry_run
         )
 
-        if shopee_err is None and tiktok_err is None:
+        if shopee_err is None and tiktokshop_err is None:
             succeeded.append(base_sku)
         else:
             err_parts = []
             if shopee_err:
                 err_parts.append(f"Shopee: {shopee_err}")
-            if tiktok_err:
-                err_parts.append(f"TikTok: {tiktok_err}")
+            if tiktokshop_err:
+                err_parts.append(f"TikTok Shop: {tiktokshop_err}")
             failed.append((base_sku, " | ".join(err_parts)))
 
     print()
     print("=" * 70)
-    print(f"Done. {len(succeeded)} ok, "
-          f"{len(failed)} failed, "
-          f"{len(skipped_missing)} missing, "
-          f"{len(skipped_one_side)} one-side-only.")
+    print(
+        f"Done. {len(succeeded)} ok, "
+        f"{len(failed)} failed, "
+        f"{len(skipped_missing)} missing, "
+        f"{len(skipped_one_side)} one-side-only."
+    )
     print("=" * 70)
 
     telegram_sender.send_run_summary({
@@ -192,54 +193,54 @@ def run_single_sku_mode(base_sku: str, total_pieces: int, dry_run: bool) -> int:
     try:
         print("Walking catalogs...")
         shopee_catalog = shopee_client.fetch_catalog()
-        tiktok_catalog = tiktokshop_client.fetch_catalog()
+        tiktokshop_catalog = tiktokshop_client.fetch_catalog()
     except shopee_auth.RefreshTokenExpiredError as e:
         msg = f"🔐 Otorisasi Shopee kadaluarsa. ({e})"
         telegram_sender.send_alert(msg)
         return 1
 
     on_shopee = base_sku in shopee_catalog
-    on_tiktok = base_sku in tiktok_catalog
+    on_tiktokshop = base_sku in tiktokshop_catalog
 
-    if not on_shopee and not on_tiktok:
-        msg = f"SKU `{base_sku}` tidak ditemukan di Shopee maupun TikTok. Periksa SKU dan coba lagi."
+    if not on_shopee and not on_tiktokshop:
+        msg = f"SKU `{base_sku}` tidak ditemukan di Shopee maupun TikTok Shop. Periksa SKU dan coba lagi."
         telegram_sender.send_alert(msg)
         return 1
 
     if not on_shopee:
-        msg = f"SKU `{base_sku}` hanya ada di TikTok (tidak di Shopee). Tidak diproses (sesuai aturan)."
+        msg = f"SKU `{base_sku}` hanya ada di TikTok Shop (tidak di Shopee). Tidak diproses (sesuai aturan)."
         telegram_sender.send_alert(msg)
         return 1
 
-    if not on_tiktok:
-        msg = f"SKU `{base_sku}` hanya ada di Shopee (tidak di TikTok). Tidak diproses (sesuai aturan)."
+    if not on_tiktokshop:
+        msg = f"SKU `{base_sku}` hanya ada di Shopee (tidak di TikTok Shop). Tidak diproses (sesuai aturan)."
         telegram_sender.send_alert(msg)
         return 1
 
-    shopee_pieces, tiktok_pieces = split_across_platforms(total_pieces)
+    shopee_pieces, tiktokshop_pieces = split_across_platforms(total_pieces)
 
     shopee_lines, shopee_status = _format_and_push_shopee(
         base_sku, shopee_pieces, shopee_catalog[base_sku], dry_run
     )
-    tiktok_lines, tiktok_status = _format_and_push_tiktok(
-        base_sku, tiktok_pieces, tiktok_catalog[base_sku], dry_run
+    tiktokshop_lines, tiktokshop_status = _format_and_push_tiktokshop(
+        base_sku, tiktokshop_pieces, tiktokshop_catalog[base_sku], dry_run
     )
 
     telegram_sender.send_single_sku_summary({
-        "mode":          "single",
-        "base_sku":      base_sku,
-        "total_pieces":  total_pieces,
-        "shopee_pieces": shopee_pieces,
-        "tiktok_pieces": tiktok_pieces,
-        "shopee_lines":  shopee_lines,
-        "tiktok_lines":  tiktok_lines,
-        "shopee_status": shopee_status,
-        "tiktok_status": tiktok_status,
-        "dry_run":       dry_run,
+        "mode":              "single",
+        "base_sku":          base_sku,
+        "total_pieces":      total_pieces,
+        "shopee_pieces":     shopee_pieces,
+        "tiktokshop_pieces": tiktokshop_pieces,
+        "shopee_lines":      shopee_lines,
+        "tiktokshop_lines":  tiktokshop_lines,
+        "shopee_status":     shopee_status,
+        "tiktokshop_status": tiktokshop_status,
+        "dry_run":           dry_run,
     })
 
     # Exit non-zero only if BOTH sides failed; partial success is still ok.
-    if "❌" in shopee_status and "❌" in tiktok_status:
+    if "❌" in shopee_status and "❌" in tiktokshop_status:
         return 1
     return 0
 
@@ -249,10 +250,10 @@ def run_single_sku_mode(base_sku: str, total_pieces: int, dry_run: bool) -> int:
 # ============================================================
 
 def _push_shopee(
-    base_sku: str,
-    pieces: int,
-    variants: list[dict],
-    dry_run: bool,
+        base_sku: str,
+        pieces: int,
+        variants: list[dict],
+        dry_run: bool,
 ) -> str | None:
     """Pushes pieces to Shopee. Returns error message string or None on success."""
     try:
@@ -261,8 +262,10 @@ def _push_shopee(
         return f"allocate failed: {e}"
 
     lost = verify_allocation(pieces, allocations)
-    print(f"  → Shopee {base_sku}: {pieces} pcs across {len(variants)} variant(s)" +
-          (f", {lost} pcs unrepresentable" if lost else ""))
+    print(
+        f"  → Shopee {base_sku}: {pieces} pcs across {len(variants)} variant(s)"
+        + (f", {lost} pcs unrepresentable" if lost else "")
+    )
 
     for variant, units in allocations:
         raw = variant["raw_sku"]
@@ -283,11 +286,11 @@ def _push_shopee(
     return None
 
 
-def _push_tiktok(
-    base_sku: str,
-    pieces: int,
-    variants: list[dict],
-    dry_run: bool,
+def _push_tiktokshop(
+        base_sku: str,
+        pieces: int,
+        variants: list[dict],
+        dry_run: bool,
 ) -> str | None:
     """Pushes pieces to TikTok Shop. Returns error message string or None."""
     try:
@@ -296,10 +299,12 @@ def _push_tiktok(
         return f"allocate failed: {e}"
 
     lost = verify_allocation(pieces, allocations)
-    print(f"  → TikTok {base_sku}: {pieces} pcs across {len(variants)} variant(s)" +
-          (f", {lost} pcs unrepresentable" if lost else ""))
+    print(
+        f"  → TikTok Shop {base_sku}: {pieces} pcs across {len(variants)} variant(s)"
+        + (f", {lost} pcs unrepresentable" if lost else "")
+    )
 
-    # Group allocations by product_id (TikTok requires same-product batches).
+    # Group allocations by product_id. TikTok Shop requires same-product batches.
     by_product: dict[str, list[tuple[str, str, int]]] = {}
     for variant, units in allocations:
         raw = variant["raw_sku"]
@@ -327,10 +332,10 @@ def _push_tiktok(
 # ============================================================
 
 def _format_and_push_shopee(
-    base_sku: str,
-    pieces: int,
-    variants: list[dict],
-    dry_run: bool,
+        base_sku: str,
+        pieces: int,
+        variants: list[dict],
+        dry_run: bool,
 ) -> tuple[list[str], str]:
     """Returns (formatted_lines, status_string)."""
     try:
@@ -364,11 +369,11 @@ def _format_and_push_shopee(
     return lines, "✅ berhasil"
 
 
-def _format_and_push_tiktok(
-    base_sku: str,
-    pieces: int,
-    variants: list[dict],
-    dry_run: bool,
+def _format_and_push_tiktokshop(
+        base_sku: str,
+        pieces: int,
+        variants: list[dict],
+        dry_run: bool,
 ) -> tuple[list[str], str]:
     """Returns (formatted_lines, status_string)."""
     try:

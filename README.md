@@ -1,265 +1,225 @@
 # ITBisa Shop Stock Bot
 
-Cross-platform stock setter for Shopee Indonesia and TikTok Shop
-Indonesia. Replaces the two separate `scripts/update_inventory.py`
-files that previously lived in `itbisa-shopee-order-bot` and
-`itbisa-tiktokshop-order-bot`.
+Cross-platform stock setter for Shopee Indonesia and TikTok Shop Indonesia.
+
+This repo replaces the stock-update logic that previously lived separately
+inside the Shopee and TikTok Shop order bots. It is designed to run once from
+GitHub Actions, update stock, persist refreshed token files to `bot-state`, send
+Telegram output, then exit.
 
 ## What it does
 
-You give it ONE total stock count per SKU (in physical pieces), and it:
+You provide **one total physical stock count** for a base SKU.
 
-1. Splits the count 50:50 between Shopee and TikTok Shop. Odd totals
-   give the +1 to Shopee.
-2. On each platform, discovers all pack-size variants of that base
-   SKU (e.g. `ITBISA-IC-NE555P-DIP8`, `25PCS-ITBISA-IC-NE555P-DIP8`,
-   `500PCS-ITBISA-IC-NE555P-DIP8`).
-3. Allocates the platform's share across those variants so the
-   resulting unit counts multiply back to (or as close as possible to)
-   the input piece count.
-4. Pushes the result via each platform's stock-update API.
-5. Sends a single Bahasa Indonesia summary to Telegram.
-
-### Worked example: 10,000 × ITBISA-IC-NE555P-DIP8
-
-```
-Excel:  ITBISA-IC-NE555P-DIP8 = 10000
-
-Cross-platform 50:50:
-  Shopee = 5000 pcs
-  TikTok = 5000 pcs
-
-Shopee (separate products per pack-size):
-  ITBISA-IC-NE555P-DIP8       (×1)   ← 5000 units
-  25PCS-ITBISA-IC-NE555P-DIP8 (×25)  ← (separate Excel row, separate run)
-
-TikTok Shop (all variants under one product):
-  Suppose variants are {1pc, 20pc, 500pc}, all on product P.
-  share = 5000 // 3 = 1666 pcs/variant
-    1pc:   1666 // 1   = 1666 units
-    20pc:  1666 // 20  =   83 units (= 1660 pcs)
-    500pc: 1666 // 500 =    3 units (= 1500 pcs)
-  represented = 4826
-  remainder = 174 → 174 extra units on smallest variant (1pc)
-  Final 1pc = 1840
-  Verify: 1840 + 1660 + 1500 = 5000 pcs ✓
-  → ONE batched PUT carrying all three SKUs.
-```
-
-> **Important about Shopee pack-size variants.** On Shopee, pack-size
-> variants live as **separate products** (separate `item_id`s), not as
-> models under one item. The bot discovers them by parsing the leaf
-> SKU, so `25PCS-ITBISA-IC-NE555P-DIP8` is automatically grouped with
-> `ITBISA-IC-NE555P-DIP8` even though they are different Shopee
-> products. **You only enter the base SKU in Excel.**
-
-## Project structure
+Example:
 
 ```text
-itbisa-shop-stock-bot/
-├── .github/workflows/
-│   └── run.yml                          # workflow_dispatch only, no cron
-├── data/                                # bot-state (token files only)
-│   ├── shopee_tokens.json
-│   └── tiktokshop_tokens.json
-├── scripts/
-│   ├── bootstrap_shopee_tokens.py       # one-time setup
-│   ├── bootstrap_tiktokshop_tokens.py   # one-time setup
-│   └── stock_set.py                     # CLI entry point
-├── src/
-│   ├── __init__.py
-│   ├── main.py                          # orchestrator (Excel + single-SKU)
-│   ├── config.py
-│   ├── excel_reader.py
-│   ├── stock_allocator.py               # 50:50 split + pack-size math (pure)
-│   ├── shopee_auth.py
-│   ├── shopee_client.py
-│   ├── telegram_sender.py
-│   ├── tiktokshop_auth.py
-│   └── tiktokshop_client.py
-├── stock.xlsx                           # operator's stock counts (gitignored)
-├── requirements.txt
-├── .env.example
-├── .gitignore
-└── README.md
+ITBISA-LED-5MM = 4000 pcs
 ```
 
-## Excel format
+The bot then:
 
-One sheet, two columns. Header row text is ignored; column ORDER matters.
+1. Splits the total 50:50 between Shopee and TikTok Shop.
+   - Odd total: Shopee receives the extra +1 piece.
+2. Finds all pack-size variants of the base SKU on each platform.
+   - Base SKU: `ITBISA-LED-5MM`
+   - Pack variants: `20PCS-ITBISA-LED-5MM`, `100PCS-ITBISA-LED-5MM`, etc.
+3. Allocates each platform share into absolute stock units per variant.
+4. Pushes stock through each platform API.
+5. Sends a Bahasa Indonesia summary to Telegram.
 
-| SKU                          | Stock |
-|------------------------------|-------|
-| ITBISA-IC-NE555P-DIP8        | 10000 |
-| ITBISA-LED-SUPERBRIGHT-5MM   | 3000  |
-| ITBISA-BUBBLE-WRAP           | 0     |
+## Important stock allocation rules
 
-Rules:
-- Always provide the **base** SKU. The bot fans out to every pack-size
-  variant on both platforms automatically.
-- Rows starting with `<digits>PCS-` are **rejected** with a warning.
-  The base SKU drives the rebalance.
-- Empty rows: skipped silently.
-- Non-integer or negative stock: skipped with a row-level warning.
-- Duplicate SKU rows: last value wins, with a warning.
+### Shopee
 
-## Two ways to run
+Shopee variants live as separate products, so the bot keeps the existing
+unconstrained allocation:
 
-### Mode A — Excel (bulk)
+```text
+platform pieces ÷ number of variants
+```
 
-Local:
+Any remainder is absorbed by the smallest multiplier variant.
+
+### TikTok Shop
+
+TikTok Shop variants live under one product. A buyer may be blocked by the max
+quantity allowed per variant in one order. Because of that, putting too much
+stock into `1PCS` can reduce the maximum quantity a buyer can purchase in a
+single order.
+
+The bot now uses an **order-aware TikTok Shop allocation**:
+
+1. Keep a small physical stock reserve on the smallest pack-size variant.
+2. Push the remaining stock to the largest pack-size variant.
+3. Use smaller variants only to absorb leftovers that cannot fit into the
+   largest pack size.
+
+Default reserve:
+
+```text
+TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES=200
+```
+
+This reserve is in **physical pieces**, not units per variant.
+
+## Worked example
+
+Input stock:
+
+```text
+Total warehouse stock = 4000 pcs
+Shopee share          = 2000 pcs
+TikTok Shop share     = 2000 pcs
+TikTok Shop variants  = 1PCS and 100PCS
+Reserve               = 200 pcs
+```
+
+Old TikTok Shop result:
+
+```text
+1000 x 1PCS   = 1000 pcs
+10 x 100PCS   = 1000 pcs
+Total         = 2000 pcs
+```
+
+Problem: if a buyer can only select limited units per variant in one order, the
+extra `1PCS` stock does not help large orders.
+
+New TikTok Shop result:
+
+```text
+200 x 1PCS    = 200 pcs
+18 x 100PCS   = 1800 pcs
+Total         = 2000 pcs
+```
+
+This keeps `1PCS` available for small buyers while making large orders much more
+possible through the `100PCS` variant.
+
+## Run modes
+
+### Excel mode
 
 ```bash
 python scripts/stock_set.py stock.xlsx
 python scripts/stock_set.py stock.xlsx --dry-run
 ```
 
-GitHub Actions: open the **Set Stock** workflow, click **Run
-workflow**, and (optionally) override `excel_path` and `dry_run`.
+Excel format:
 
-### Mode B — Single SKU
+| Column | Meaning |
+| --- | --- |
+| A | Base SKU |
+| B | Total physical stock pieces |
 
-Local:
+Only base SKUs should be entered. Variant SKUs like `20PCS-BASESKU` are skipped
+or rejected depending on the path.
+
+### Single-SKU mode
 
 ```bash
-python scripts/stock_set.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000
-python scripts/stock_set.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000 --dry-run
+python scripts/stock_set.py --sku ITBISA-LED-5MM --pieces 4000
+python scripts/stock_set.py --sku ITBISA-LED-5MM --pieces 4000 --dry-run
+```
+
+This is the mode expected from the Telegram Worker command:
+
+```text
+/stock_set SKU PIECES
+```
+
+## GitHub Actions
+
+Workflow:
+
+```text
+.github/workflows/run.yml
+```
+
+Behavior:
+
+- No cron.
+- Deliberate `workflow_dispatch` only.
+- Checkout `main` as source code.
+- Overlay `data/` from `bot-state`.
+- Run the stock setter.
+- Commit refreshed token files back to `bot-state`.
+- Concurrency group: `stock-set`.
+- `cancel-in-progress: true`, because newer stock input should win.
+
+## Required secrets
+
+Shopee:
+
+```text
+SHOPEE_PARTNER_ID
+SHOPEE_PARTNER_KEY
+SHOPEE_SHOP_ID
+```
+
+TikTok Shop:
+
+```text
+TIKTOKSHOP_APP_KEY
+TIKTOKSHOP_APP_SECRET
+TIKTOKSHOP_SHOP_ID
+TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES
 ```
 
 Telegram:
 
-```
-/stock_set ITBISA-IC-NE555P-DIP8 10000
-```
-
-## Initial setup
-
-### 1. Clone and install
-
-```bash
-conda create -n itbisa_shop_stock_bot python=3.11
-conda activate itbisa_shop_stock_bot
-cd C:\path\to\itbisa-shop-stock-bot
-python -m pip install -r requirements.txt
+```text
+TELEGRAM_BOT_TOKEN
+TELEGRAM_CHAT_ID
 ```
 
-### 2. Configure secrets
+Optional:
 
-Copy `.env.example` to `.env` and fill in. Use the **same** Shopee
-partner key and TikTok app secret as the order bots — but the token
-files generated below are independent.
-
-### 3. Bootstrap tokens (independent from the order bots)
-
-The stock bot maintains its own token chain on its own bot-state
-branch. You authorize the shop once for this repo:
-
-```bash
-# Shopee: get AUTH_CODE from Shopee Open Platform Console → Authorize
-python scripts/bootstrap_shopee_tokens.py <AUTH_CODE>
-
-# TikTok Shop: get AUTH_CODE from Partner Center → app authorization
-python scripts/bootstrap_tiktokshop_tokens.py <AUTH_CODE>
+```text
+MAX_SKUS_PER_RUN
 ```
 
-This writes `data/shopee_tokens.json` and `data/tiktokshop_tokens.json`.
+Legacy fallback still accepted during transition:
 
-### 4. Push to GitHub
-
-```bash
-git add .
-git commit -m "Initial commit"
-git push origin main
+```text
+TIKTOKSHOP_MAX_UNITS_PER_VARIANT
 ```
 
-Then commit the `data/` files to a `bot-state` branch (the workflow
-auto-creates it on first run if you skip this step).
+Prefer `TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES` for new setup.
 
-### 5. Configure GitHub Secrets
+## Token/state files
 
-Add the same secrets as in `.env.example`, plus `MAX_SKUS_PER_RUN`
-(optional, default 500).
+Runtime state belongs on `bot-state`.
 
-## State management (the `bot-state` branch)
+Expected mutable files:
 
-This repo uses two branches, exactly like the order bots:
-
-- `main` — source code.
-- `bot-state` — the two `data/*_tokens.json` files only. No
-  `processed_orders.json` (the stock bot is not order-aware).
-
-The workflow checks out `main`, overlays `data/` from `bot-state` if
-the branch exists, runs the script, then commits any rotated tokens
-back to `bot-state`. Token rotation only happens when the access
-token was about to expire during the run, so most runs commit nothing.
-
-`--dry-run` runs intentionally skip the bot-state commit.
-
-### What you should NOT do
-
-- Do not enable branch protection on `bot-state`. The bot writes there.
-- Do not delete `bot-state`. The bot will recreate it but you will
-  need to re-bootstrap the tokens.
-- Do not manually edit token files on `bot-state` unless you are
-  recovering from a failed refresh.
-
-## Telegram integration
-
-The Telegram bot Worker (`itbisa-shop-telegram-bot`) routes
-`/stock_set` to a `workflow_dispatch` on this repo with `sku` and
-`pieces` inputs.
-
-A user types in Telegram:
-
-```
-/stock_set ITBISA-IC-NE555P-DIP8 10000
+```text
+data/shopee_tokens.json
+data/tiktokshop_tokens.json
 ```
 
-The Worker fires `workflow_dispatch` on this repo. The workflow runs
-the script in single-SKU mode and sends a detailed allocation report
-to the same Telegram chat:
+This stock bot does **not** need `processed_orders.json`.
 
-```
-📦 Set Stock — Selesai
+## API hosts
 
-SKU: ITBISA-IC-NE555P-DIP8
-Total: 10.000 pcs
+API base URLs live in `src/config.py`:
 
-Shopee — 5.000 pcs — ✅ berhasil
-  • ITBISA-IC-NE555P-DIP8: 5000 unit (= 5000 pcs)
-
-TikTok Shop — 5.000 pcs — ✅ berhasil
-  • ITBISA-IC-NE555P-DIP8: 1840 unit (= 1840 pcs)
-  • 20PCS-ITBISA-IC-NE555P-DIP8: 83 unit (= 1660 pcs)
-  • 500PCS-ITBISA-IC-NE555P-DIP8: 3 unit (= 1500 pcs)
+```text
+SHOPEE_API_BASE_URL
+TIKTOKSHOP_AUTH_BASE_URL
+TIKTOKSHOP_OPEN_API_BASE_URL
 ```
 
-## Cost
+Do not hardcode API hosts inside client modules.
 
-Free forever. GitHub Actions free-tier minutes only; no scheduled cron;
-each manual run is well under one minute of compute.
+## Safety behaviour
 
-## Troubleshooting
+The bot skips and alerts when:
 
-**`Shopee token file not found`** — Run `bootstrap_shopee_tokens.py`
-locally, commit `data/shopee_tokens.json` to the bot-state branch.
+- SKU is missing on both platforms.
+- SKU exists only on one platform.
+- Excel row count exceeds `MAX_SKUS_PER_RUN`.
+- A platform API update fails.
 
-**`Otorisasi Shopee kadaluarsa`** in Telegram — Refresh token expired
-(rare, ~30 days inactivity). Re-authorize in Shopee Open Platform
-Console, re-run `bootstrap_shopee_tokens.py`, push to bot-state.
-
-**SKU on Shopee but not TikTok (or vice versa)** — Bot skips with a
-warning. Either publish the SKU on the missing platform, or update
-that platform manually outside this bot.
-
-**Allocation says `N pcs unrepresentable`** — The smallest variant on
-that product is bigger than 1pc, and the leftover after rounding is
-smaller than that smallest pack. Either accept the small loss, or
-publish a 1pc variant.
-
-## Important note
-
-The `stock_allocator.py` module is pure-math with no I/O. It is the
-one piece of logic shared between platforms. If you ever need to
-change the allocation algorithm (e.g. weighted split instead of 50:50),
-that's the only file to touch — both clients call into it identically.
+The bot sets absolute stock units per variant, not deltas.

@@ -1,6 +1,6 @@
 """
-inventory_allocator.py
-----------------------
+stock_allocator.py
+------------------
 Pure-math allocation logic shared by Shopee and TikTok Shop.
 
 Two responsibilities, no I/O:
@@ -92,8 +92,8 @@ def split_across_platforms(total_pieces: int) -> tuple[int, int]:
 
 
 def allocate_pack_sizes(
-    pieces: int,
-    variants: list[dict],
+        pieces: int,
+        variants: list[dict],
 ) -> list[tuple[dict, int]]:
     """
     Distributes `pieces` across pack-size variants of one base SKU.

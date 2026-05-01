@@ -1,7 +1,7 @@
 """
 excel_reader.py
 ---------------
-Reads inventory.xlsx (or any path the operator passes on the CLI).
+Reads stock.xlsx (or any path the operator passes on the CLI).
 
 Expected format:
   Row 1: headers (text ignored; column ORDER matters)
@@ -28,10 +28,10 @@ from pathlib import Path
 
 import openpyxl
 
-from src.inventory_allocator import PACK_SIZE_PATTERN
+from src.stock_allocator import PACK_SIZE_PATTERN
 
 
-def read_inventory(path: Path) -> tuple[dict[str, int], list[str]]:
+def read_stock(path: Path) -> tuple[dict[str, int], list[str]]:
     """See module docstring."""
     workbook = openpyxl.load_workbook(path, data_only=True)
     sheet = workbook.active

@@ -88,19 +88,22 @@ jobs:
       # credentials and operator/runtime configuration.
       - name: Run stock set
         env:
-          SHOPEE_PARTNER_ID:      ${{ secrets.SHOPEE_PARTNER_ID }}
-          SHOPEE_PARTNER_KEY:     ${{ secrets.SHOPEE_PARTNER_KEY }}
-          SHOPEE_SHOP_ID:         ${{ secrets.SHOPEE_SHOP_ID }}
-          TIKTOKSHOP_APP_KEY:     ${{ secrets.TIKTOKSHOP_APP_KEY }}
-          TIKTOKSHOP_APP_SECRET:  ${{ secrets.TIKTOKSHOP_APP_SECRET }}
-          TIKTOKSHOP_SHOP_ID:     ${{ secrets.TIKTOKSHOP_SHOP_ID }}
-          TELEGRAM_BOT_TOKEN:     ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:       ${{ secrets.TELEGRAM_CHAT_ID }}
-          MAX_SKUS_PER_RUN:       ${{ secrets.MAX_SKUS_PER_RUN }}
-          INPUT_SKU:              ${{ inputs.sku }}
-          INPUT_PIECES:           ${{ inputs.pieces }}
-          INPUT_EXCEL_PATH:       ${{ inputs.excel_path }}
-          INPUT_DRY_RUN:          ${{ inputs.dry_run }}
+          SHOPEE_PARTNER_ID:                      ${{ secrets.SHOPEE_PARTNER_ID }}
+          SHOPEE_PARTNER_KEY:                     ${{ secrets.SHOPEE_PARTNER_KEY }}
+          SHOPEE_SHOP_ID:                         ${{ secrets.SHOPEE_SHOP_ID }}
+          TIKTOKSHOP_APP_KEY:                     ${{ secrets.TIKTOKSHOP_APP_KEY }}
+          TIKTOKSHOP_APP_SECRET:                  ${{ secrets.TIKTOKSHOP_APP_SECRET }}
+          TIKTOKSHOP_SHOP_ID:                     ${{ secrets.TIKTOKSHOP_SHOP_ID }}
+          TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES:   ${{ secrets.TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES }}
+          # Legacy fallback during transition; prefer TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES.
+          TIKTOKSHOP_MAX_UNITS_PER_VARIANT:       ${{ secrets.TIKTOKSHOP_MAX_UNITS_PER_VARIANT }}
+          TELEGRAM_BOT_TOKEN:                     ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:                       ${{ secrets.TELEGRAM_CHAT_ID }}
+          MAX_SKUS_PER_RUN:                       ${{ secrets.MAX_SKUS_PER_RUN }}
+          INPUT_SKU:                              ${{ inputs.sku }}
+          INPUT_PIECES:                           ${{ inputs.pieces }}
+          INPUT_EXCEL_PATH:                       ${{ inputs.excel_path }}
+          INPUT_DRY_RUN:                          ${{ inputs.dry_run }}
         run: |
           set -e
           DRY_FLAG=""

@@ -49,7 +49,7 @@ SHOPEE_PARTNER_KEY = _required("SHOPEE_PARTNER_KEY")
 SHOPEE_SHOP_ID     = _required("SHOPEE_SHOP_ID")
 
 # Live Shopee Open API host. Kept here as a code constant, like the
-# Shopee order bot, because this inventory bot is intended for production.
+# Shopee order bot, because this stock bot is intended for production.
 SHOPEE_API_BASE_URL = "https://partner.shopeemobile.com"
 
 SHOPEE_TOKEN_FILE = PROJECT_ROOT / "data" / "shopee_tokens.json"
@@ -76,19 +76,25 @@ TIKTOKSHOP_TOKEN_FILE = PROJECT_ROOT / "data" / "tiktokshop_tokens.json"
 
 TIKTOKSHOP_TOKEN_REFRESH_BUFFER_MINUTES = 10
 
-# Per-variant unit cap on TikTok Shop ONLY. The allocator fills the
-# smallest-multiplier variant first up to this cap, then shifts to the
-# next-smallest variant up to this cap, and so on.
+# TikTok Shop order-aware allocation reserve.
 #
-# Worked example: 5000 pcs → [1PCS, 100PCS] with cap=200:
-#   1PCS:   200 units (= 200 pcs)   ← capped
-#   100PCS: 48 units  (= 4800 pcs)
+# This is a PHYSICAL PIECE reserve for the smallest pack-size variant,
+# not a per-variant unit cap.
 #
-# Set very high (e.g. 100000) to effectively disable. Shopee is NOT
-# affected by this setting — Shopee variants live under separate
-# products and the operator already controls per-product caps via the
-# Excel input.
-TIKTOKSHOP_MAX_UNITS_PER_VARIANT = int(_optional("TIKTOKSHOP_MAX_UNITS_PER_VARIANT", "200"))
+# Example: platform share = 2000 pcs, variants = [1PCS, 100PCS], reserve=200:
+#   1PCS:   200 units (= 200 pcs)
+#   100PCS: 18 units  (= 1800 pcs)
+#
+# Why: stock above the practical one-order qty limit on 1PCS does not
+# help large buyers. Bulk stock should be represented by the largest
+# pack-size variant, while the smallest pack stays available for small buyers.
+#
+# The legacy TIKTOKSHOP_MAX_UNITS_PER_VARIANT env name is accepted only
+# as a transition fallback. Prefer TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES.
+_LEGACY_TIKTOKSHOP_RESERVE = _optional("TIKTOKSHOP_MAX_UNITS_PER_VARIANT", "")
+TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES = int(
+    _optional("TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES", _LEGACY_TIKTOKSHOP_RESERVE or "200")
+)
 
 
 # ============================================================
@@ -100,7 +106,7 @@ TELEGRAM_CHAT_ID   = _required("TELEGRAM_CHAT_ID")
 
 
 # ============================================================
-# Inventory bot behaviour
+# Stock bot behaviour
 # ============================================================
 
 # Politeness delay between API calls (seconds). Both platforms have

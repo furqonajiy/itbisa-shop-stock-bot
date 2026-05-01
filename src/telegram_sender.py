@@ -1,13 +1,13 @@
 """
 telegram_sender.py
 ------------------
-Sends a Bahasa Indonesia summary of the inventory run to the operator's
+Sends a Bahasa Indonesia summary of the stock-set run to the operator's
 Telegram chat. Same chat as the order bots, but a different message
 shape — this is a transactional report, not an order label.
 
 Public functions:
   send_run_summary(report)          — bulk Excel run
-  send_single_sku_summary(report)   — single-SKU /update_inventory run
+  send_single_sku_summary(report)   — single-SKU /stock_set run
   send_alert(text)                  — error path
 
 The `report` dicts are produced by main.py and have a fully-defined
@@ -45,7 +45,7 @@ def send_run_summary(report: dict) -> None:
       "dry_run":          bool,
     }
     """
-    header = "📦 *Update Inventory* — DRY RUN" if report["dry_run"] else "📦 *Update Inventory* — Selesai"
+    header = "📦 *Set Stock* — DRY RUN" if report["dry_run"] else "📦 *Set Stock* — Selesai"
 
     lines = [
         header,
@@ -91,7 +91,7 @@ def send_run_summary(report: dict) -> None:
 
 def send_single_sku_summary(report: dict) -> None:
     """
-    Single-SKU run (from /update_inventory SKU AMOUNT).
+    Single-SKU run (from /stock_set SKU AMOUNT).
 
     report = {
       "mode":              "single",
@@ -106,7 +106,7 @@ def send_single_sku_summary(report: dict) -> None:
       "dry_run":           bool,
     }
     """
-    header = "📦 *Update Inventory* — DRY RUN" if report["dry_run"] else "📦 *Update Inventory* — Selesai"
+    header = "📦 *Set Stock* — DRY RUN" if report["dry_run"] else "📦 *Set Stock* — Selesai"
 
     lines = [
         header,
@@ -133,7 +133,7 @@ def send_single_sku_summary(report: dict) -> None:
 
 def send_alert(text: str) -> None:
     """One-off error alert, for example refresh token expired or file not found."""
-    _send(f"🚨 *Update Inventory* — Error\n\n{text}")
+    _send(f"🚨 *Set Stock* — Error\n\n{text}")
 
 
 # ============================================================

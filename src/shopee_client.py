@@ -1,7 +1,7 @@
 """
 shopee_client.py
 ----------------
-Shopee Open API integration for the inventory bot.
+Shopee Open API integration for the stock bot.
 
 Three public functions, all platform-specific:
 
@@ -28,7 +28,7 @@ Three public functions, all platform-specific:
       One-line "live | sandbox" identifier for log/Telegram headers.
 
 This module talks ONLY to Shopee. The cross-platform 50:50 split and
-the pack-size allocation math live in inventory_allocator.py.
+the pack-size allocation math live in stock_allocator.py.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ import time
 import requests
 
 from src import config, shopee_auth
-from src.inventory_allocator import parse_sku
+from src.stock_allocator import parse_sku
 
 
 # Shopee paginates get_item_list at 100 items max per page.

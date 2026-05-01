@@ -4,13 +4,13 @@ main.py
 Orchestrator. Two run modes, one set of helpers:
 
   Mode A — Excel:        run_excel_mode(path, dry_run)
-    Reads inventory.xlsx, iterates over every SKU, and pushes the split
+    Reads stock.xlsx, iterates over every SKU, and pushes the split
     to both platforms. One Telegram summary at the end.
 
   Mode B — Single SKU:   run_single_sku_mode(base_sku, total_pieces, dry_run)
-    Triggered by /update_inventory from the Telegram bot. Same logic
-    as one row of Mode A, but Telegram output is more detailed because
-    we have the room (one SKU = one message).
+    Triggered by /stock_set from the Telegram bot. Same logic as one
+    row of Mode A, but Telegram output is more detailed because we
+    have the room (one SKU = one message).
 
 Both modes share:
   - Catalog walk on each platform (one HTTP traffic burst at the start)
@@ -41,7 +41,7 @@ from src import (
     telegram_sender,
     tiktokshop_client,
 )
-from src.inventory_allocator import (
+from src.stock_allocator import (
     allocate_pack_sizes,
     split_across_platforms,
     verify_allocation,
@@ -49,7 +49,7 @@ from src.inventory_allocator import (
 
 
 # ============================================================
-# Public entry points (called from scripts/update_inventory.py)
+# Public entry points (called from scripts/stock_set.py)
 # ============================================================
 
 def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
@@ -59,7 +59,7 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
     Exit codes: 0 ok, 1 catastrophic error, 2 hit MAX_SKUS_PER_RUN ceiling.
     """
     print("=" * 70)
-    print(f"ITBisa Inventory Bot — Excel mode {'(DRY RUN)' if dry_run else ''}")
+    print(f"ITBisa Shop Stock Bot — Excel mode {'(DRY RUN)' if dry_run else ''}")
     print("=" * 70)
     print(f"Shopee:        {shopee_client.describe()}")
     print(f"TikTok Shop:   {tiktokshop_client.describe()}")
@@ -73,7 +73,7 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
         return 1
 
     print("[1/4] Reading Excel...")
-    desired, skipped_in_excel = excel_reader.read_inventory(excel_path)
+    desired, skipped_in_excel = excel_reader.read_stock(excel_path)
     print(f"  → {len(desired)} base SKU(s) parsed; {len(skipped_in_excel)} variant rows skipped")
     print()
 
@@ -180,11 +180,11 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
 
 def run_single_sku_mode(base_sku: str, total_pieces: int, dry_run: bool) -> int:
     """
-    Single-SKU push, used by /update_inventory from Telegram.
+    Single-SKU push, used by /stock_set from Telegram.
     Returns process exit code.
     """
     print("=" * 70)
-    print(f"ITBisa Inventory Bot — Single SKU mode {'(DRY RUN)' if dry_run else ''}")
+    print(f"ITBisa Shop Stock Bot — Single SKU mode {'(DRY RUN)' if dry_run else ''}")
     print("=" * 70)
     print(f"SKU:    {base_sku}")
     print(f"Total:  {total_pieces} pcs")

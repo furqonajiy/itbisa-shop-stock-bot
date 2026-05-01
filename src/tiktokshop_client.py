@@ -1,7 +1,7 @@
 """
 tiktokshop_client.py
 --------------------
-TikTok Shop Open API integration for the inventory bot.
+TikTok Shop Open API integration for the stock bot.
 
 Public functions:
 
@@ -43,7 +43,7 @@ import time
 import requests
 
 from src import config, tiktokshop_auth
-from src.inventory_allocator import parse_sku
+from src.stock_allocator import parse_sku
 
 
 # Versions per endpoint. The signed `version` query param must match
@@ -184,12 +184,12 @@ def update_stock_batch(
 # ============================================================
 
 def _call_signed(
-    method: str,
-    path: str,
-    *,
-    extra_query: dict[str, str] | None = None,
-    body: dict | list | None = None,
-    include_cipher: bool = True,
+        method: str,
+        path: str,
+        *,
+        extra_query: dict[str, str] | None = None,
+        body: dict | list | None = None,
+        include_cipher: bool = True,
 ) -> requests.Response:
     """
     Signs and dispatches an Open API call.

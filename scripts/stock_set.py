@@ -1,15 +1,15 @@
 """
-update_inventory.py
--------------------
-CLI entry point. Two usages:
+stock_set.py
+------------
+CLI entry point for itbisa-shop-stock-bot. Two usages:
 
   Excel mode (the existing operator workflow):
-    python scripts/update_inventory.py inventory.xlsx
-    python scripts/update_inventory.py inventory.xlsx --dry-run
+    python scripts/stock_set.py stock.xlsx
+    python scripts/stock_set.py stock.xlsx --dry-run
 
-  Single-SKU mode (used by /update_inventory in the Telegram bot):
-    python scripts/update_inventory.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000
-    python scripts/update_inventory.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000 --dry-run
+  Single-SKU mode (used by /stock_set in the Telegram bot):
+    python scripts/stock_set.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000
+    python scripts/stock_set.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000 --dry-run
 
 The CLI is deliberately argparse-based (not just sys.argv positional)
 because the GitHub Actions workflow_dispatch dispatches with named
@@ -31,7 +31,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="ITBisa cross-platform inventory updater (Shopee + TikTok Shop)",
+        description="ITBisa shop stock setter (Shopee + TikTok Shop)",
     )
 
     # Mutually exclusive: either an Excel path OR a single-SKU pair.
@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
         "excel_path",
         nargs="?",
         type=Path,
-        help="Path to inventory.xlsx (Excel mode). Omit when using --sku.",
+        help="Path to stock.xlsx (Excel mode). Omit when using --sku.",
     )
     parser.add_argument(
         "--sku",
@@ -81,12 +81,12 @@ def main() -> int:
 
     # Deferred import: config.py validates env vars at import time, and
     # we want `--help` to work without that.
-    from src import main as inventory_main
+    from src import main as stock_main
 
     if args.excel_path is not None:
-        return inventory_main.run_excel_mode(args.excel_path, args.dry_run)
+        return stock_main.run_excel_mode(args.excel_path, args.dry_run)
 
-    return inventory_main.run_single_sku_mode(
+    return stock_main.run_single_sku_mode(
         base_sku=args.sku.strip(),
         total_pieces=args.pieces,
         dry_run=args.dry_run,

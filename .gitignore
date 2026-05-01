@@ -10,4 +10,4 @@ __pycache__/
 # Operator-supplied input file (kept off main; the workflow expects it
 # in the working directory at runtime, either committed to a private
 # branch or uploaded by the operator on dispatch).
-inventory.xlsx
+stock.xlsx

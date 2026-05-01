@@ -1,6 +1,6 @@
-# ITBisa Inventory Bot
+# ITBisa Shop Stock Bot
 
-Cross-platform inventory updater for Shopee Indonesia and TikTok Shop
+Cross-platform stock setter for Shopee Indonesia and TikTok Shop
 Indonesia. Replaces the two separate `scripts/update_inventory.py`
 files that previously lived in `itbisa-shopee-order-bot` and
 `itbisa-tiktokshop-order-bot`.
@@ -17,7 +17,7 @@ You give it ONE total stock count per SKU (in physical pieces), and it:
 3. Allocates the platform's share across those variants so the
    resulting unit counts multiply back to (or as close as possible to)
    the input piece count.
-4. Pushes the result via each platform's inventory-update API.
+4. Pushes the result via each platform's stock-update API.
 5. Sends a single Bahasa Indonesia summary to Telegram.
 
 ### Worked example: 10,000 × ITBISA-IC-NE555P-DIP8
@@ -56,7 +56,7 @@ TikTok Shop (all variants under one product):
 ## Project structure
 
 ```text
-itbisa-inventory-bot/
+itbisa-shop-stock-bot/
 ├── .github/workflows/
 │   └── run.yml                          # workflow_dispatch only, no cron
 ├── data/                                # bot-state (token files only)
@@ -65,19 +65,19 @@ itbisa-inventory-bot/
 ├── scripts/
 │   ├── bootstrap_shopee_tokens.py       # one-time setup
 │   ├── bootstrap_tiktokshop_tokens.py   # one-time setup
-│   └── update_inventory.py              # CLI entry point
+│   └── stock_set.py                     # CLI entry point
 ├── src/
 │   ├── __init__.py
 │   ├── main.py                          # orchestrator (Excel + single-SKU)
 │   ├── config.py
 │   ├── excel_reader.py
-│   ├── inventory_allocator.py           # 50:50 split + pack-size math (pure)
+│   ├── stock_allocator.py               # 50:50 split + pack-size math (pure)
 │   ├── shopee_auth.py
 │   ├── shopee_client.py
 │   ├── telegram_sender.py
 │   ├── tiktokshop_auth.py
 │   └── tiktokshop_client.py
-├── inventory.xlsx                       # operator's stock counts (gitignored)
+├── stock.xlsx                           # operator's stock counts (gitignored)
 ├── requirements.txt
 ├── .env.example
 ├── .gitignore
@@ -110,11 +110,11 @@ Rules:
 Local:
 
 ```bash
-python scripts/update_inventory.py inventory.xlsx
-python scripts/update_inventory.py inventory.xlsx --dry-run
+python scripts/stock_set.py stock.xlsx
+python scripts/stock_set.py stock.xlsx --dry-run
 ```
 
-GitHub Actions: open the **Update Inventory** workflow, click **Run
+GitHub Actions: open the **Set Stock** workflow, click **Run
 workflow**, and (optionally) override `excel_path` and `dry_run`.
 
 ### Mode B — Single SKU
@@ -122,14 +122,14 @@ workflow**, and (optionally) override `excel_path` and `dry_run`.
 Local:
 
 ```bash
-python scripts/update_inventory.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000
-python scripts/update_inventory.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000 --dry-run
+python scripts/stock_set.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000
+python scripts/stock_set.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000 --dry-run
 ```
 
-Telegram (after the Worker is wired — see "Telegram integration" below):
+Telegram:
 
 ```
-/update_inventory ITBISA-IC-NE555P-DIP8 10000
+/stock_set ITBISA-IC-NE555P-DIP8 10000
 ```
 
 ## Initial setup
@@ -137,9 +137,9 @@ Telegram (after the Worker is wired — see "Telegram integration" below):
 ### 1. Clone and install
 
 ```bash
-conda create -n itbisa_inventory_bot python=3.11
-conda activate itbisa_inventory_bot
-cd C:\path\to\itbisa-inventory-bot
+conda create -n itbisa_shop_stock_bot python=3.11
+conda activate itbisa_shop_stock_bot
+cd C:\path\to\itbisa-shop-stock-bot
 python -m pip install -r requirements.txt
 ```
 
@@ -151,7 +151,7 @@ files generated below are independent.
 
 ### 3. Bootstrap tokens (independent from the order bots)
 
-The inventory bot maintains its own token chain on its own bot-state
+The stock bot maintains its own token chain on its own bot-state
 branch. You authorize the shop once for this repo:
 
 ```bash
@@ -186,7 +186,7 @@ This repo uses two branches, exactly like the order bots:
 
 - `main` — source code.
 - `bot-state` — the two `data/*_tokens.json` files only. No
-  `processed_orders.json` (the inventory bot is not order-aware).
+  `processed_orders.json` (the stock bot is not order-aware).
 
 The workflow checks out `main`, overlays `data/` from `bot-state` if
 the branch exists, runs the script, then commits any rotated tokens
@@ -205,15 +205,14 @@ token was about to expire during the run, so most runs commit nothing.
 
 ## Telegram integration
 
-The Telegram bot Worker (`itbisa-shop-telegram-bot`) needs a new
-`/update_inventory` command that calls `workflow_dispatch` on this
-repo with `sku` and `pieces` inputs. See **Worker side** below for
-the patch.
+The Telegram bot Worker (`itbisa-shop-telegram-bot`) routes
+`/stock_set` to a `workflow_dispatch` on this repo with `sku` and
+`pieces` inputs.
 
 A user types in Telegram:
 
 ```
-/update_inventory ITBISA-IC-NE555P-DIP8 10000
+/stock_set ITBISA-IC-NE555P-DIP8 10000
 ```
 
 The Worker fires `workflow_dispatch` on this repo. The workflow runs
@@ -221,7 +220,7 @@ the script in single-SKU mode and sends a detailed allocation report
 to the same Telegram chat:
 
 ```
-📦 Update Inventory — Selesai
+📦 Set Stock — Selesai
 
 SKU: ITBISA-IC-NE555P-DIP8
 Total: 10.000 pcs
@@ -260,7 +259,7 @@ publish a 1pc variant.
 
 ## Important note
 
-The `inventory_allocator.py` module is pure-math with no I/O. It is
-the one piece of logic shared between platforms. If you ever need to
+The `stock_allocator.py` module is pure-math with no I/O. It is the
+one piece of logic shared between platforms. If you ever need to
 change the allocation algorithm (e.g. weighted split instead of 50:50),
 that's the only file to touch — both clients call into it identically.

@@ -1,10 +1,10 @@
-name: Update Inventory
+name: Set Stock
 
-# No cron — inventory updates are deliberate operator actions.
+# No cron — stock updates are deliberate operator actions.
 # Triggered either:
 #   • Manually from the Actions tab (with optional inputs)
 #   • Via workflow_dispatch from the Telegram bot Worker
-#     (/update_inventory SKU PIECES)
+#     (/stock_set SKU PIECES)
 on:
   workflow_dispatch:
     inputs:
@@ -19,10 +19,10 @@ on:
         type: string
         default: ""
       excel_path:
-        description: "Path to Excel file (Excel mode). Default: inventory.xlsx"
+        description: "Path to Excel file (Excel mode). Default: stock.xlsx"
         required: false
         type: string
-        default: "inventory.xlsx"
+        default: "stock.xlsx"
       dry_run:
         description: "Dry run — print plan without calling write APIs."
         required: false
@@ -30,13 +30,13 @@ on:
         default: false
 
 # Cancel in-flight runs of this workflow if a new dispatch arrives.
-# Inventory is not order-sensitive, so newer always wins.
+# Stock is not order-sensitive, so newer always wins.
 concurrency:
-  group: update-inventory
+  group: stock-set
   cancel-in-progress: true
 
 jobs:
-  update:
+  set-stock:
     runs-on: ubuntu-latest
 
     # The bot reads + writes data/ on the bot-state branch.
@@ -86,7 +86,7 @@ jobs:
       # ----------------------------------------------------
       # API base URLs live in src/config.py. Secrets below are only
       # credentials and operator/runtime configuration.
-      - name: Run inventory update
+      - name: Run stock set
         env:
           SHOPEE_PARTNER_ID:      ${{ secrets.SHOPEE_PARTNER_ID }}
           SHOPEE_PARTNER_KEY:     ${{ secrets.SHOPEE_PARTNER_KEY }}
@@ -110,19 +110,19 @@ jobs:
 
           if [ -n "$INPUT_SKU" ] && [ -n "$INPUT_PIECES" ]; then
             echo "Single-SKU mode: $INPUT_SKU = $INPUT_PIECES pcs"
-            python scripts/update_inventory.py \
+            python scripts/stock_set.py \
               --sku "$INPUT_SKU" \
               --pieces "$INPUT_PIECES" \
               $DRY_FLAG
           else
             echo "Excel mode: $INPUT_EXCEL_PATH"
-            python scripts/update_inventory.py "$INPUT_EXCEL_PATH" $DRY_FLAG
+            python scripts/stock_set.py "$INPUT_EXCEL_PATH" $DRY_FLAG
           fi
 
       # ----------------------------------------------------
       # 5. Persist refreshed tokens back to bot-state
       # ----------------------------------------------------
-      # Inventory bot does NOT track processed orders, so the only
+      # Stock bot does NOT track processed orders, so the only
       # mutable state in data/ is the two token files.
       - name: Commit token rotation to bot-state
         if: always() && !inputs.dry_run
@@ -143,5 +143,5 @@ jobs:
           git stash pop
 
           git add data/
-          git commit -m "chore(state): refresh tokens after inventory run" || echo "Nothing to commit"
+          git commit -m "chore(state): refresh tokens after stock-set run" || echo "Nothing to commit"
           git push --force-with-lease origin bot-state

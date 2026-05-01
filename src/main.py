@@ -18,6 +18,12 @@ Both modes share:
   - Skip-with-warning behaviour for SKUs missing on one or both platforms
   - Dry-run support that exercises everything except the actual write call
 
+Per-platform allocation rules:
+  - Shopee:  unconstrained (variants are separate products; operator
+             controls per-product caps via the Excel input)
+  - TikTok:  capped at config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT units
+             per variant. Smallest multiplier first, then next, etc.
+
 Failure model:
   - One SKU's failure does NOT abort the run. We accumulate failures
     and report them in the summary.
@@ -62,7 +68,8 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
     print(f"ITBisa Shop Stock Bot — Excel mode {'(DRY RUN)' if dry_run else ''}")
     print("=" * 70)
     print(f"Shopee:        {shopee_client.describe()}")
-    print(f"TikTok Shop:   {tiktokshop_client.describe()}")
+    print(f"TikTok Shop:   {tiktokshop_client.describe()} "
+          f"(cap {config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT} unit/varian)")
     print(f"Excel file:    {excel_path}")
     print()
 
@@ -188,6 +195,7 @@ def run_single_sku_mode(base_sku: str, total_pieces: int, dry_run: bool) -> int:
     print("=" * 70)
     print(f"SKU:    {base_sku}")
     print(f"Total:  {total_pieces} pcs")
+    print(f"TikTok cap: {config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT} unit/varian")
     print()
 
     try:
@@ -257,6 +265,8 @@ def _push_shopee(
 ) -> str | None:
     """Pushes pieces to Shopee. Returns error message string or None on success."""
     try:
+        # Shopee: unconstrained (no cap). Variants live as separate
+        # products, so per-product limits are the operator's job.
         allocations = allocate_pack_sizes(pieces, variants)
     except ValueError as e:
         return f"allocate failed: {e}"
@@ -292,15 +302,22 @@ def _push_tiktokshop(
         variants: list[dict],
         dry_run: bool,
 ) -> str | None:
-    """Pushes pieces to TikTok Shop. Returns error message string or None."""
+    """Pushes pieces to TikTok Shop. Returns error message string or None.
+
+    TikTok-only: each variant capped at config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT units."""
     try:
-        allocations = allocate_pack_sizes(pieces, variants)
+        allocations = allocate_pack_sizes(
+            pieces,
+            variants,
+            max_units_per_variant=config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT,
+        )
     except ValueError as e:
         return f"allocate failed: {e}"
 
     lost = verify_allocation(pieces, allocations)
     print(
-        f"  → TikTok Shop {base_sku}: {pieces} pcs across {len(variants)} variant(s)"
+        f"  → TikTok Shop {base_sku}: {pieces} pcs across {len(variants)} variant(s) "
+        f"(cap {config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT} unit/varian)"
         + (f", {lost} pcs unrepresentable" if lost else "")
     )
 
@@ -375,9 +392,15 @@ def _format_and_push_tiktokshop(
         variants: list[dict],
         dry_run: bool,
 ) -> tuple[list[str], str]:
-    """Returns (formatted_lines, status_string)."""
+    """Returns (formatted_lines, status_string).
+
+    TikTok-only: each variant capped at config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT units."""
     try:
-        allocations = allocate_pack_sizes(pieces, variants)
+        allocations = allocate_pack_sizes(
+            pieces,
+            variants,
+            max_units_per_variant=config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT,
+        )
     except ValueError as e:
         return [], f"❌ gagal: {e}"
 

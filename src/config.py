@@ -76,6 +76,20 @@ TIKTOKSHOP_TOKEN_FILE = PROJECT_ROOT / "data" / "tiktokshop_tokens.json"
 
 TIKTOKSHOP_TOKEN_REFRESH_BUFFER_MINUTES = 10
 
+# Per-variant unit cap on TikTok Shop ONLY. The allocator fills the
+# smallest-multiplier variant first up to this cap, then shifts to the
+# next-smallest variant up to this cap, and so on.
+#
+# Worked example: 5000 pcs → [1PCS, 100PCS] with cap=200:
+#   1PCS:   200 units (= 200 pcs)   ← capped
+#   100PCS: 48 units  (= 4800 pcs)
+#
+# Set very high (e.g. 100000) to effectively disable. Shopee is NOT
+# affected by this setting — Shopee variants live under separate
+# products and the operator already controls per-product caps via the
+# Excel input.
+TIKTOKSHOP_MAX_UNITS_PER_VARIANT = int(_optional("TIKTOKSHOP_MAX_UNITS_PER_VARIANT", "200"))
+
 
 # ============================================================
 # Telegram

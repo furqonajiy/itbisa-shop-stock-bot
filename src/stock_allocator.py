@@ -9,28 +9,57 @@ Two responsibilities, no I/O:
      Splits one warehouse stock count between Shopee and TikTok 50:50.
      If total is odd, Shopee absorbs the +1 (operator decision).
 
-  2. allocate_pack_sizes(pieces, variants)
+  2. allocate_pack_sizes(pieces, variants, max_units_per_variant=None)
      Distributes a piece count across N pack-size variants of the same
      base SKU. Returns whole units per variant such that the sum of
      (units * multiplier) is as close to `pieces` as possible.
 
-This module deliberately has no API client imports — it is the one
-piece of logic that is identical on both platforms, and we want it
-unit-testable without network. Both `shopee_client.py` and
-`tiktokshop_client.py` call into it with platform-specific variant
-dicts; the only contract the allocator cares about is the
-`multiplier` field on each variant.
+     Two algorithms, switched by `max_units_per_variant`:
 
-Allocation algorithm (per platform, per base SKU):
-  Given P pieces and N pack-size variants with multipliers m_1..m_N:
-    1. share = P // N           # pieces per variant
-    2. units_i = share // m_i   # whole units per pack size (rounded down)
-    3. represented = sum(units_i * m_i)
-    4. remainder = P - represented
-    5. The smallest pack size absorbs (remainder // m_smallest) extra units.
-       Anything below m_smallest cannot be allocated and is "lost".
-       In practice this only happens when there is no 1-pc variant,
-       which is rare.
+     - max_units_per_variant=None (Shopee): equal-share split. Each
+       variant gets `pieces // N` pieces budgeted, rounded down to whole
+       units, with any leftover absorbed by the smallest-multiplier
+       variant. No per-variant cap.
+
+     - max_units_per_variant=K (TikTok): smallest-first cap. The
+       smallest variant gets up to K units, leftover pieces flow to
+       the next-smallest variant up to K units, and so on. Used because
+       on TikTok every pack-size variant lives under ONE product and
+       the warehouse wants no single SKU to display more than K units
+       in stock.
+
+This module deliberately has no API client imports — it is the one
+piece of logic that is identical on both platforms (parametrised by
+the cap), and we want it unit-testable without network. Both
+`shopee_client.py` and `tiktokshop_client.py` call into it with
+platform-specific variant dicts; the only contract the allocator cares
+about is the `multiplier` field on each variant.
+
+Allocation algorithms (per platform, per base SKU):
+
+  Shopee (no cap):
+    Given P pieces and N pack-size variants with multipliers m_1..m_N:
+      1. share = P // N           # pieces per variant
+      2. units_i = share // m_i   # whole units per pack size (rounded down)
+      3. represented = sum(units_i * m_i)
+      4. remainder = P - represented
+      5. The smallest pack size absorbs (remainder // m_smallest) extra units.
+         Anything below m_smallest cannot be allocated and is "lost".
+
+  TikTok (cap = K units per variant):
+    Sort variants ascending by multiplier. remaining = P.
+    For each variant from smallest to largest:
+      units_i = min(K, remaining // m_i)
+      remaining -= units_i * m_i
+
+    Worked example: P=5000, variants=[(m=1), (m=100)], K=200
+      m=1:   min(200, 5000 // 1)   = 200 units (= 200 pcs); remaining=4800
+      m=100: min(200, 4800 // 100) =  48 units (= 4800 pcs); remaining=0
+      Verify: 200*1 + 48*100 = 5000 ✓
+
+    If the run cannot be fully represented (e.g., very large totals on
+    a SKU with only big pack sizes), the leftover is reported as
+    "unrepresentable" — same convention as the Shopee path.
 """
 
 from __future__ import annotations
@@ -94,18 +123,25 @@ def split_across_platforms(total_pieces: int) -> tuple[int, int]:
 def allocate_pack_sizes(
         pieces: int,
         variants: list[dict],
+        max_units_per_variant: int | None = None,
 ) -> list[tuple[dict, int]]:
     """
     Distributes `pieces` across pack-size variants of one base SKU.
 
     Args:
-      pieces:   total physical pieces to allocate.
-      variants: list of dicts, each with at least a 'multiplier' key.
-                MUST be sorted ascending by multiplier (smallest first)
-                so the remainder can be deposited onto variants[0].
-                Variants may carry any other platform-specific fields
-                (sku_id, item_id, model_id, warehouse_id, etc.); the
-                allocator preserves them untouched.
+      pieces:                total physical pieces to allocate.
+      variants:              list of dicts, each with at least a
+                             'multiplier' key. MUST be sorted ascending
+                             by multiplier (smallest first). Variants
+                             may carry any other platform-specific
+                             fields (sku_id, item_id, model_id,
+                             warehouse_id, etc.); the allocator
+                             preserves them untouched.
+      max_units_per_variant: if None, no cap (Shopee-style: equal share
+                             with smallest absorbing remainder).
+                             If set, each variant gets at most this
+                             many units (TikTok-style: smallest first
+                             up to cap, then move up).
 
     Returns:
       List of (variant_dict, units_to_set) tuples in the same order
@@ -113,28 +149,67 @@ def allocate_pack_sizes(
       to push to that variant (NOT a delta).
 
     Raises:
-      ValueError if variants list is empty (caller should skip such SKUs).
+      ValueError if variants list is empty (caller should skip such SKUs)
+      or if pieces / max_units_per_variant is negative.
 
-    Worked example: pieces=5000, variants=[{m:1}, {m:20}, {m:500}]:
+    Worked example WITHOUT cap (Shopee), pieces=5000, variants=[m:1, m:20, m:500]:
       share = 5000 // 3 = 1666 pcs/variant
-        m=1:   1666 // 1   = 1666 units (= 1666 pcs)
+        m=1:   1666 // 1   = 1666 units
         m=20:  1666 // 20  =   83 units (= 1660 pcs)
         m=500: 1666 // 500 =    3 units (= 1500 pcs)
-      represented = 1666 + 1660 + 1500 = 4826
-      remainder = 5000 - 4826 = 174
-      174 // 1 = 174 extra units to smallest (m=1)
+      represented = 4826; remainder = 174 → +174 units on m=1
       Final: [(v0, 1840), (v1, 83), (v2, 3)]
-      Verify: 1840*1 + 83*20 + 3*500 = 1840 + 1660 + 1500 = 5000 ✓
+      Verify: 1840*1 + 83*20 + 3*500 = 5000 ✓
+
+    Worked example WITH cap=200 (TikTok), pieces=5000, variants=[m:1, m:100]:
+      remaining = 5000
+        m=1:   units = min(200, 5000 // 1)   = 200; remaining = 4800
+        m=100: units = min(200, 4800 // 100) =  48; remaining = 0
+      Final: [(v0, 200), (v1, 48)]
+      Verify: 200*1 + 48*100 = 5000 ✓
     """
     if not variants:
         raise ValueError("variants must contain at least one entry")
     if pieces < 0:
         raise ValueError(f"pieces must be non-negative, got {pieces}")
+    if max_units_per_variant is not None and max_units_per_variant < 0:
+        raise ValueError(
+            f"max_units_per_variant must be non-negative, got {max_units_per_variant}"
+        )
 
-    # Sanity: the caller is supposed to sort, but a defensive sort here
-    # protects against future caller bugs at near-zero cost.
+    # Defensive sort: caller is expected to sort, but a re-sort here is
+    # near-free and prevents future caller bugs from corrupting output.
     variants = sorted(variants, key=lambda v: v["multiplier"])
 
+    if max_units_per_variant is None:
+        return _allocate_unconstrained(pieces, variants)
+    return _allocate_capped(pieces, variants, max_units_per_variant)
+
+
+def verify_allocation(pieces: int, allocations: Iterable[tuple[dict, int]]) -> int:
+    """
+    Returns pieces_lost = pieces - sum(units * multiplier).
+
+    Called by the dry-run formatter so the operator sees when an
+    allocation cannot fully represent the input (e.g., 3 leftover pieces
+    on a product whose smallest variant is 20-pack, OR a TikTok run
+    that exceeded the per-variant cap on every available variant).
+
+    Always >= 0. Zero means perfect allocation.
+    """
+    represented = sum(units * v["multiplier"] for v, units in allocations)
+    return pieces - represented
+
+
+# ============================================================
+# Internals
+# ============================================================
+
+def _allocate_unconstrained(
+        pieces: int,
+        variants: list[dict],
+) -> list[tuple[dict, int]]:
+    """Shopee path: equal share, remainder onto smallest multiplier."""
     n = len(variants)
     share = pieces // n  # pieces budgeted per variant
 
@@ -158,15 +233,25 @@ def allocate_pack_sizes(
     return [(v, u) for v, u in allocations]
 
 
-def verify_allocation(pieces: int, allocations: Iterable[tuple[dict, int]]) -> int:
+def _allocate_capped(
+        pieces: int,
+        variants: list[dict],
+        cap: int,
+) -> list[tuple[dict, int]]:
     """
-    Returns pieces_lost = pieces - sum(units * multiplier).
+    TikTok path: smallest variant first up to `cap` units, then the
+    next-smallest, and so on. The cap is in UNITS, not pieces.
 
-    Called by the dry-run formatter so the operator sees when an
-    allocation cannot fully represent the input (e.g., 3 leftover pieces
-    on a product whose smallest variant is 20-pack).
-
-    Always >= 0. Zero means perfect allocation.
+    The smallest variant being capped first is the operator's stated
+    preference: it ensures the smallest pack always shows non-zero
+    inventory on the storefront (up to `cap`), which is what buyers
+    pick first. Larger packs absorb the surplus.
     """
-    represented = sum(units * v["multiplier"] for v, units in allocations)
-    return pieces - represented
+    allocations: list[list] = []
+    remaining = pieces
+    for variant in variants:
+        units = min(cap, remaining // variant["multiplier"])
+        allocations.append([variant, units])
+        remaining -= units * variant["multiplier"]
+
+    return [(v, u) for v, u in allocations]

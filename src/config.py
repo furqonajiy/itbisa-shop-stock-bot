@@ -7,9 +7,9 @@ TikTok Shop credentials live here because this bot talks to both platforms.
 This file is loaded once at import time. If a required variable is
 missing, we fail loudly at startup rather than mid-run.
 
-Convention: secrets read from env, fixed API hosts and paths/buffers as
-module constants. Mirrors the layout of config.py in the order-bot repos
-so a developer who knows one knows this.
+Convention: secrets read from env, fixed API hosts and bot behaviour
+limits/reserves as module constants. Mirrors the layout of config.py in
+the order-bot repos so a developer who knows one knows this.
 """
 
 import os
@@ -34,10 +34,6 @@ def _required(name: str) -> str:
             f"Set it in .env (local) or GitHub Secrets (CI)."
         )
     return value
-
-
-def _optional(name: str, default: str = "") -> str:
-    return os.environ.get(name, default)
 
 
 # ============================================================
@@ -78,6 +74,9 @@ TIKTOKSHOP_TOKEN_REFRESH_BUFFER_MINUTES = 10
 
 # TikTok Shop order-aware allocation reserve.
 #
+# Fixed code constant, not an env var / GitHub Secret. Change this in code
+# only when you intentionally want to change stock-allocation behaviour.
+#
 # This is a PHYSICAL PIECE reserve for the smallest pack-size variant,
 # not a per-variant unit cap.
 #
@@ -88,13 +87,12 @@ TIKTOKSHOP_TOKEN_REFRESH_BUFFER_MINUTES = 10
 # Why: stock above the practical one-order qty limit on 1PCS does not
 # help large buyers. Bulk stock should be represented by the largest
 # pack-size variant, while the smallest pack stays available for small buyers.
-#
-# The legacy TIKTOKSHOP_MAX_UNITS_PER_VARIANT env name is accepted only
-# as a transition fallback. Prefer TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES.
-_LEGACY_TIKTOKSHOP_RESERVE = _optional("TIKTOKSHOP_MAX_UNITS_PER_VARIANT", "")
-TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES = int(
-    _optional("TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES", _LEGACY_TIKTOKSHOP_RESERVE or "200")
-)
+TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES = 200
+
+# Legacy compatibility constant only. Do not configure this via env and do
+# not use it for new allocation logic; TikTok Shop allocation should use
+# TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES instead.
+TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 200
 
 
 # ============================================================
@@ -116,6 +114,8 @@ DELAY_BETWEEN_CALLS_SECONDS = 1.0
 
 # Safety ceiling: a single run that would touch more than this many
 # SKU rows aborts before any API call. Prevents a typo'd 50,000-row
-# Excel file from being pushed by accident. Override via env if the
-# operator genuinely has a larger catalog.
-MAX_SKUS_PER_RUN = int(_optional("MAX_SKUS_PER_RUN", "500"))
+# Excel file from being pushed by accident.
+#
+# Fixed code constant, not an env var / GitHub Secret. Change this in code
+# only when the catalog is intentionally larger.
+MAX_SKUS_PER_RUN = 500

@@ -55,10 +55,10 @@ The bot now uses an **order-aware TikTok Shop allocation**:
 3. Use smaller variants only to absorb leftovers that cannot fit into the
    largest pack size.
 
-Default reserve:
+Default reserve is a code constant in `src/config.py`, not an env var:
 
-```text
-TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES=200
+```python
+TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES = 200
 ```
 
 This reserve is in **physical pieces**, not units per variant.
@@ -164,7 +164,6 @@ TikTok Shop:
 TIKTOKSHOP_APP_KEY
 TIKTOKSHOP_APP_SECRET
 TIKTOKSHOP_SHOP_ID
-TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES
 ```
 
 Telegram:
@@ -174,19 +173,18 @@ TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID
 ```
 
-Optional:
+## Behaviour constants
 
-```text
-MAX_SKUS_PER_RUN
+These values live in `src/config.py`, not in `.env` and not in GitHub Secrets:
+
+```python
+TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES = 200
+TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 200  # legacy compatibility constant only
+MAX_SKUS_PER_RUN = 500
 ```
 
-Legacy fallback still accepted during transition:
-
-```text
-TIKTOKSHOP_MAX_UNITS_PER_VARIANT
-```
-
-Prefer `TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES` for new setup.
+Change them by editing `src/config.py` and committing the change to `main`.
+Do not configure them as workflow secrets.
 
 ## Token/state files
 

@@ -15,7 +15,7 @@ Both expiry fields are stored as ISO. TikTok returns Unix timestamps;
 we convert at save-time so the on-disk format is human-readable.
 
 Refresh failure raises RuntimeError (not a custom class — matches the
-contract of the existing TikTok order bot, where main.py catches all
+contract of the existing TikTok Shop order bot, where main.py catches all
 exceptions and forwards to Telegram).
 """
 

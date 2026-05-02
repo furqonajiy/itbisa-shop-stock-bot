@@ -19,8 +19,9 @@ Both modes share:
   - Dry-run support that exercises everything except the actual write call
 
 Per-platform allocation rules:
-  - Shopee:      unconstrained (variants are separate products; operator
-                 controls per-product caps via the Excel input)
+  - Shopee:      equal-share allocation with no TikTok Shop small-pack
+                 reserve. Shopee variants can be separate products, so
+                 the stock is spread across discovered pack-size variants.
   - TikTok Shop: order-aware. Keep a small physical stock reserve on the
                  smallest pack-size variant, then put the remaining stock
                  on the largest pack-size variant to avoid blocking large
@@ -145,7 +146,7 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
 
         shopee_pieces, tiktokshop_pieces = split_across_platforms(total)
 
-        # Try Shopee first, then TikTok Shop. Independent failure surfaces.
+        # Try Shopee first, then TikTok Shop. Each platform result is reported.
         shopee_err = _push_shopee(
             base_sku, shopee_pieces, shopee_catalog[base_sku], dry_run
         )
@@ -267,8 +268,7 @@ def _push_shopee(
 ) -> str | None:
     """Pushes pieces to Shopee. Returns error message string or None on success."""
     try:
-        # Shopee: unconstrained (no TikTok Shop reserve). Variants live
-        # as separate products, so per-product limits are the operator's job.
+        # Shopee: equal-share allocation with no TikTok Shop reserve.
         allocations = allocate_pack_sizes(pieces, variants)
     except ValueError as e:
         return f"allocate failed: {e}"

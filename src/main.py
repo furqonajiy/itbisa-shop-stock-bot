@@ -90,7 +90,7 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
         msg = (
             f"Excel berisi {len(desired)} SKU, melebihi MAX_SKUS_PER_RUN="
             f"{config.MAX_SKUS_PER_RUN}. Run dibatalkan untuk keamanan. "
-            f"Naikkan MAX_SKUS_PER_RUN jika ini disengaja."
+            f"Ubah MAX_SKUS_PER_RUN di src/config.py jika ini disengaja."
         )
         print(f"✗ {msg}")
         telegram_sender.send_alert(msg)

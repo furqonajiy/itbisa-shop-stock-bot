@@ -3,11 +3,11 @@ stock_set.py
 ------------
 CLI entry point for itbisa-shop-stock-bot. Two usages:
 
-  Excel mode (the existing operator workflow):
+  Excel mode (manual bulk operator workflow):
     python scripts/stock_set.py stock.xlsx
     python scripts/stock_set.py stock.xlsx --dry-run
 
-  Single-SKU mode (used by /stock_set in the Telegram bot):
+  Single-SKU mode (used by /stock_set in the Telegram bot Worker):
     python scripts/stock_set.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000
     python scripts/stock_set.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000 --dry-run
 

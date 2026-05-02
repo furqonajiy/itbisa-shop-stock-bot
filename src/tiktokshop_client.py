@@ -10,27 +10,29 @@ Public functions:
       returns base_sku -> list of variant dicts. Variant dict shape:
         {
           "multiplier":   int,
-          "sku_id":       str,    # TikTok SKU id within a product
+          "sku_id":       str,    # TikTok Shop SKU id within a product
           "product_id":   str,    # parent product_id
-          "warehouse_id": str,    # which warehouse to update
-          "raw_sku":      str,    # the seller_sku TikTok returned
+          "warehouse_id": str,    # target warehouse for stock updates
+          "raw_sku":      str,    # the seller_sku TikTok Shop returned
         }
-      All variants of a base SKU live under ONE product on TikTok, so
-      the structure is simpler than Shopee's. We sort variants ascending
-      by multiplier per base.
+      All variants of a base SKU live under ONE product on TikTok Shop,
+      so the structure is simpler than Shopee's. We sort variants
+      ascending by multiplier per base.
 
   update_stock_batch(product_id, sku_updates) -> None
-      Single PUT carrying multiple SKU updates that all belong to the
-      same product. sku_updates = list of (sku_id, warehouse_id, qty).
+      One stock update call carrying multiple SKU updates that all belong
+      to the same product. The TikTok Shop API path is named
+      /inventory/update, but this bot treats it as an absolute stock set.
+      sku_updates = list of (sku_id, warehouse_id, qty).
 
   describe() -> str
       Identifier for log/Telegram headers.
 
 Notes on the SKU structure:
-  TikTok returns one product with many `skus`, each with `seller_sku`,
-  `id`, and `inventory[]`. We parse seller_sku for the "<n>PCS-" prefix.
-  All siblings of one base end up in the same product, so the batch
-  PUT covers the whole rebalance in one call.
+  TikTok Shop returns one product with many `skus`, each with
+  `seller_sku`, `id`, and `inventory[]`. We parse seller_sku for the
+  "<n>PCS-" prefix. All siblings of one base end up in the same product,
+  so the batch PUT covers the whole rebalance in one call.
 """
 
 from __future__ import annotations
@@ -48,11 +50,11 @@ from src.stock_allocator import parse_sku
 
 # Versions per endpoint. The signed `version` query param must match
 # the path version, so we set it explicitly per call. 202502 is the
-# newer, denser product/search; 202309 is still current for inventory.
+# newer, denser product/search; 202309 is current for stock updates.
 _SEARCH_API_VERSION    = "202502"
 _INVENTORY_API_VERSION = "202309"
 
-# TikTok docs cap product/search at page_size=100.
+# TikTok Shop docs cap product/search at page_size=100.
 _SEARCH_PAGE_SIZE = 100
 
 
@@ -88,7 +90,7 @@ def fetch_catalog() -> dict[str, list[dict]]:
             extra_query["page_token"] = page_token
 
         # Body filter: only ACTIVATE products. Catalog walk is intentionally
-        # broad — the warehouse needs to update any SKU.
+        # broad because stock can be set for any active SKU.
         response = _call_signed(
             "POST",
             "/product/202502/products/search",
@@ -115,8 +117,8 @@ def fetch_catalog() -> dict[str, list[dict]]:
                 sku_id = sku.get("id")
                 inventories = sku.get("inventory") or []
                 if not sku_id or not inventories:
-                    # No existing inventory record means we don't know
-                    # which warehouse_id to target — skip.
+                    # No existing inventory record means the API does not
+                    # expose which warehouse_id to target for stock updates.
                     continue
 
                 warehouse_id = inventories[0].get("warehouse_id")
@@ -151,6 +153,9 @@ def update_stock_batch(
     """
     POST /product/202309/products/{product_id}/inventory/update.
 
+    The TikTok Shop API path is named inventory/update, but the operation
+    sets absolute stock for the supplied SKUs.
+
     Args:
       product_id:  TikTok Shop product id (string).
       sku_updates: list of (sku_id, warehouse_id, quantity) tuples — all
@@ -170,7 +175,7 @@ def update_stock_batch(
     }
 
     response = _call_signed("POST", path, body=body)
-    _check_ok(response, context=f"inventory update product={product_id}")
+    _check_ok(response, context=f"stock update product={product_id}")
 
     data = response.json().get("data") or {}
     failures = data.get("errors") or data.get("failed_skus") or []
@@ -179,8 +184,7 @@ def update_stock_batch(
 
 
 # ============================================================
-# Signed call helpers (also used by scripts/* — note _underscore name
-# is intentional, see system prompt's TikTok inventory caveat)
+# Signed call helpers
 # ============================================================
 
 def _call_signed(

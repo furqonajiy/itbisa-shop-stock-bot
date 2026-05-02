@@ -7,7 +7,9 @@ __pycache__/
 .vscode/
 .idea/
 
-# Operator-supplied input file (kept off main; the workflow expects it
-# in the working directory at runtime, either committed to a private
-# branch or uploaded by the operator on dispatch).
+# Runtime token/state files belong on bot-state, not main.
+data/*.json
+
+# Operator-supplied input file. Excel mode only works when the file
+# already exists in the GitHub Actions workspace at runtime.
 stock.xlsx

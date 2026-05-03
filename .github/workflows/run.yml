@@ -107,7 +107,12 @@ jobs:
             DRY_FLAG="--dry-run"
           fi
 
-          if [ -n "$INPUT_SKU" ] && [ -n "$INPUT_PIECES" ]; then
+          if [ -n "$INPUT_SKU" ] || [ -n "$INPUT_PIECES" ]; then
+            if [ -z "$INPUT_SKU" ] || [ -z "$INPUT_PIECES" ]; then
+              echo "Provide both sku and pieces for single-SKU mode, or leave both empty for Excel mode." >&2
+              exit 2
+            fi
+
             echo "Single-SKU mode: $INPUT_SKU = $INPUT_PIECES pcs"
             python scripts/stock_set.py \
               --sku "$INPUT_SKU" \

@@ -132,14 +132,14 @@ def _refresh_access_token(refresh_token: str) -> dict:
     if data.get("error"):
         raise RuntimeError(f"Shopee refresh failed: {data.get('error')}: {data.get('message')}")
 
-    new_access  = data["access_token"]
+    new_access = data["access_token"]
     new_refresh = data["refresh_token"]
-    expire_in   = int(data.get("expire_in", 4 * 3600))  # access_token TTL in seconds
+    expire_in = int(data.get("expire_in", 4 * 3600))  # access_token TTL in seconds
 
     return {
-        "access_token":  new_access,
+        "access_token": new_access,
         "refresh_token": new_refresh,
         "access_token_expires_at": (
-            datetime.now(timezone.utc) + timedelta(seconds=expire_in)
+                datetime.now(timezone.utc) + timedelta(seconds=expire_in)
         ).isoformat(),
     }

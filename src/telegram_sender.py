@@ -1,13 +1,14 @@
 """
 telegram_sender.py
 ------------------
-Sends a Bahasa Indonesia summary of the stock-set run to the operator's
-Telegram chat. Same chat as the order bots, but a different message
-shape — this is a transactional report, not an order label.
+Sends a Bahasa Indonesia summary of the stock-set / stock-get run to the
+operator's Telegram chat. Same chat as the order bots, but a different
+message shape — this is a transactional report, not an order label.
 
 Public functions:
   send_run_summary(report)          — bulk Excel run
   send_single_sku_summary(report)   — single-SKU /stock_set run
+  send_stock_get_summary(report)    — single-SKU /stock_get run (read-only)
   send_alert(text)                  — error path
 
 The `report` dicts are produced by main.py and have a fully-defined
@@ -131,6 +132,101 @@ def send_single_sku_summary(report: dict) -> None:
     _send(_join(lines))
 
 
+def send_stock_get_summary(report: dict) -> None:
+    """
+    Single-SKU read-only run (from /stock_get SKU).
+
+    report = {
+      "base_sku":            str,
+      "shopee_variants":     list[dict],   # variants with stock_units + weight_grams
+      "tiktokshop_variants": list[dict],   # same shape
+    }
+
+    Format: per-variant rows showing each platform's units + weight,
+    a per-variant cross-platform total, then the grand totals.
+    """
+    base_sku = report["base_sku"]
+    shopee = report["shopee_variants"]
+    tiktokshop = report["tiktokshop_variants"]
+
+    # Merge variants from both platforms keyed by raw_sku. A variant may
+    # exist on only one side — we still show it so the operator notices
+    # the catalog mismatch.
+    unified: dict[str, dict] = {}
+    for v in shopee:
+        unified.setdefault(v["raw_sku"], {
+            "raw_sku":    v["raw_sku"],
+            "multiplier": v["multiplier"],
+            "shopee":     None,
+            "tiktokshop": None,
+        })["shopee"] = v
+    for v in tiktokshop:
+        unified.setdefault(v["raw_sku"], {
+            "raw_sku":    v["raw_sku"],
+            "multiplier": v["multiplier"],
+            "shopee":     None,
+            "tiktokshop": None,
+        })["tiktokshop"] = v
+
+    rows = sorted(unified.values(), key=lambda r: r["multiplier"])
+
+    lines = [
+        "📊 *Stock Get* — Selesai",
+        "",
+        f"SKU dasar: `{base_sku}`",
+        f"Ditemukan: {len(rows)} varian "
+        f"(Shopee {len(shopee)}, TikTok Shop {len(tiktokshop)})",
+    ]
+
+    shopee_total_pcs = 0
+    tiktokshop_total_pcs = 0
+
+    for row in rows:
+        s = row["shopee"]
+        t = row["tiktokshop"]
+        mult = row["multiplier"]
+
+        lines.append("")
+        lines.append(f"`{row['raw_sku']}` (×{mult})")
+
+        if s is not None:
+            s_pcs = s["stock_units"] * mult
+            shopee_total_pcs += s_pcs
+            lines.append(
+                f"  • Shopee:      {_fmt_int(s['stock_units'])} unit, "
+                f"berat {_fmt_weight(s['weight_grams'])}"
+            )
+        else:
+            lines.append("  • Shopee:      _(tidak ada)_")
+
+        if t is not None:
+            t_pcs = t["stock_units"] * mult
+            tiktokshop_total_pcs += t_pcs
+            lines.append(
+                f"  • TikTok Shop: {_fmt_int(t['stock_units'])} unit, "
+                f"berat {_fmt_weight(t['weight_grams'])}"
+            )
+        else:
+            lines.append("  • TikTok Shop: _(tidak ada)_")
+
+        # Per-variant cross-platform total.
+        s_units = s["stock_units"] if s else 0
+        t_units = t["stock_units"] if t else 0
+        total_units = s_units + t_units
+        lines.append(
+            f"  • Total varian: {_fmt_int(total_units)} unit "
+            f"(= {_fmt_int(total_units * mult)} pcs)"
+        )
+
+    lines.append("")
+    lines.append("*Ringkasan:*")
+    lines.append(f"  • Shopee total:      {_fmt_int(shopee_total_pcs)} pcs")
+    lines.append(f"  • TikTok Shop total: {_fmt_int(tiktokshop_total_pcs)} pcs")
+    lines.append(f"  • Total gabungan:    {_fmt_int(shopee_total_pcs + tiktokshop_total_pcs)} pcs")
+
+    _send(_join(lines))
+
+
 def send_alert(text: str) -> None:
     """One-off error alert, for example refresh token expired or file not found."""
     _send(f"🚨 *Set Stock* — Error\n\n{text}")
@@ -170,3 +266,10 @@ def _truncate(s: str, n: int) -> str:
 def _fmt_int(n: int) -> str:
     """1234567 -> '1.234.567' (Indonesian thousands separator)."""
     return f"{n:,}".replace(",", ".")
+
+
+def _fmt_weight(grams: int) -> str:
+    """0 → '—' (data tidak tersedia), else 'NNN g' with thousands separator."""
+    if not grams:
+        return "—"
+    return f"{_fmt_int(grams)} g"

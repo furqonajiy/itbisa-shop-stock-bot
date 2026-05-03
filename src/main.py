@@ -257,8 +257,8 @@ def run_single_sku_mode(base_sku: str, total_pieces: int, dry_run: bool) -> int:
         "dry_run":           dry_run,
     })
 
-    # Exit non-zero only if BOTH sides failed; partial success is still ok.
-    if "❌" in shopee_status and "❌" in tiktokshop_status:
+    # Exit non-zero if either platform failed. Partial success needs manual attention.
+    if "❌" in shopee_status or "❌" in tiktokshop_status:
         return 1
     return 0
 

@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       sku:
-        description: "Base SKU to inspect (required, no XPCS- prefix)."
+        description: "SKU to inspect."
         required: true
         type: string
 
@@ -33,7 +33,7 @@ jobs:
       # 1. Checkout main (source code)
       # ----------------------------------------------------
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: main
           fetch-depth: 0
@@ -56,7 +56,7 @@ jobs:
       # 3. Python env
       # ----------------------------------------------------
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -69,15 +69,15 @@ jobs:
       # ----------------------------------------------------
       - name: Run stock get
         env:
-          SHOPEE_PARTNER_ID:      ${{ secrets.SHOPEE_PARTNER_ID }}
-          SHOPEE_PARTNER_KEY:     ${{ secrets.SHOPEE_PARTNER_KEY }}
-          SHOPEE_SHOP_ID:         ${{ secrets.SHOPEE_SHOP_ID }}
-          TIKTOKSHOP_APP_KEY:     ${{ secrets.TIKTOKSHOP_APP_KEY }}
-          TIKTOKSHOP_APP_SECRET:  ${{ secrets.TIKTOKSHOP_APP_SECRET }}
-          TIKTOKSHOP_SHOP_ID:     ${{ secrets.TIKTOKSHOP_SHOP_ID }}
-          TELEGRAM_BOT_TOKEN:     ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:       ${{ secrets.TELEGRAM_CHAT_ID }}
-          INPUT_SKU:              ${{ inputs.sku }}
+          SHOPEE_PARTNER_ID: ${{ secrets.SHOPEE_PARTNER_ID }}
+          SHOPEE_PARTNER_KEY: ${{ secrets.SHOPEE_PARTNER_KEY }}
+          SHOPEE_SHOP_ID: ${{ secrets.SHOPEE_SHOP_ID }}
+          TIKTOKSHOP_APP_KEY: ${{ secrets.TIKTOKSHOP_APP_KEY }}
+          TIKTOKSHOP_APP_SECRET: ${{ secrets.TIKTOKSHOP_APP_SECRET }}
+          TIKTOKSHOP_SHOP_ID: ${{ secrets.TIKTOKSHOP_SHOP_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          INPUT_SKU: ${{ inputs.sku }}
         run: |
           set -e
           python scripts/stock_get.py --sku "$INPUT_SKU"
@@ -90,36 +90,36 @@ jobs:
       - name: Commit token rotation to bot-state
         if: always()
         run: |
-          # Skip if nothing changed.
-          if [ -z "$(git status --porcelain data/)" ]; then
-            echo "No state changes to commit."
-            exit 0
-          fi
-          
           git config user.name  "itbisa-bot[bot]"
           git config user.email "itbisa-bot@users.noreply.github.com"
-          
-          # Snapshot rotated files BEFORE switching branches.
-          # We avoid `git stash` here because the stash records a diff
-          # against main (which gitignores data/*.json), and popping that
-          # diff onto bot-state (which tracks data/*.json) triggers a
-          # 3-way merge conflict on the same paths.
+
+          # Stock bot state is token files only. Even dry-run can rotate tokens
+          # during catalog reads, so persist token changes after every run.
           TMP=$(mktemp -d)
-          cp -a data/. "$TMP/"
-          
-          # Switch to bot-state (or create if first run).
+          cp data/shopee_tokens.json "$TMP/" 2>/dev/null || true
+          cp data/tiktokshop_tokens.json "$TMP/" 2>/dev/null || true
+
+          if [ ! -f "$TMP/shopee_tokens.json" ] && [ ! -f "$TMP/tiktokshop_tokens.json" ]; then
+            echo "No token files to commit."
+            rm -rf "$TMP"
+            exit 0
+          fi
+
           git fetch origin bot-state || true
           if git rev-parse --verify origin/bot-state >/dev/null 2>&1; then
             git checkout -B bot-state origin/bot-state
           else
             git checkout --orphan bot-state
+            git rm -rf . >/dev/null 2>&1 || true
           fi
-          
-          # Overwrite bot-state's data/ with the freshly rotated files.
+
           mkdir -p data
-          cp -a "$TMP/." data/
+          cp "$TMP/shopee_tokens.json" data/ 2>/dev/null || true
+          cp "$TMP/tiktokshop_tokens.json" data/ 2>/dev/null || true
           rm -rf "$TMP"
-          
-          git add data/
-          git commit -m "chore(state): refresh tokens after stock-get run" || echo "Nothing to commit"
+
+          [ -f data/shopee_tokens.json ] && git add data/shopee_tokens.json
+          [ -f data/tiktokshop_tokens.json ] && git add data/tiktokshop_tokens.json
+
+          git diff --staged --quiet || git commit -m "chore(state): refresh tokens after stock-get run"
           git push --force-with-lease origin bot-state

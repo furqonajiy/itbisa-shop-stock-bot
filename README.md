@@ -38,12 +38,14 @@ Telegram /stock_get SKU
 Manual GitHub Actions dispatch is also supported on either workflow.
 
 For `run.yml` (set):
+
 - Fill both `sku` and `pieces` for single-SKU mode.
 - Leave `sku` and `pieces` empty for Excel mode.
 - Excel mode expects `excel_path` to already exist in the checked-out workspace.
   The dispatch form does not upload files.
 
 For `get.yml` (get):
+
 - `sku` is required. Only base SKUs are accepted (no `XPCS-` prefix).
 
 `main` is source code only. Runtime token files belong on `bot-state`.
@@ -61,10 +63,10 @@ ITBISA-LED-5MM = 4000 pcs
 The bot then:
 
 1. Splits the total 50:50 between Shopee and TikTok Shop.
-   - Odd total: Shopee receives the extra +1 piece.
+    - Odd total: Shopee receives the extra +1 piece.
 2. Finds all pack-size variants of the base SKU on each platform.
-   - Base SKU: `ITBISA-LED-5MM`
-   - Pack variants: `20PCS-ITBISA-LED-5MM`, `100PCS-ITBISA-LED-5MM`, etc.
+    - Base SKU: `ITBISA-LED-5MM`
+    - Pack variants: `20PCS-ITBISA-LED-5MM`, `100PCS-ITBISA-LED-5MM`, etc.
 3. Allocates each platform share into absolute stock units per variant.
 4. Pushes stock through each platform API.
 5. Sends a Bahasa Indonesia summary to Telegram.
@@ -84,11 +86,11 @@ The bot then:
 1. Walks both Shopee and TikTok Shop catalogs (read-only).
 2. Finds all pack-size variants of the base SKU on each platform.
 3. Sends a Bahasa Indonesia Telegram summary listing every variant with:
-   - Stock units on Shopee
-   - Stock units on TikTok Shop
-   - Weight in grams on each platform
-   - Per-variant cross-platform total (in units and pieces)
-   - Grand totals per platform and combined
+    - Stock units on Shopee
+    - Stock units on TikTok Shop
+    - Weight in grams on each platform
+    - Per-variant cross-platform total (in units and pieces)
+    - Grand totals per platform and combined
 
 Stock-get is read-only — no write APIs are called. The only state-changing
 side effect is access-token rotation, which is committed to `bot-state` like
@@ -205,10 +207,10 @@ python scripts/stock_set.py stock.xlsx --dry-run
 
 Excel format:
 
-| Column | Meaning |
-| --- | --- |
-| A | Base SKU |
-| B | Total physical stock pieces |
+| Column | Meaning                     |
+|--------|-----------------------------|
+| A      | Base SKU                    |
+| B      | Total physical stock pieces |
 
 Excel mode is for deliberate bulk runs. Variant SKUs like `20PCS-BASESKU` are
 skipped with a warning because the bot automatically fans out from the base SKU

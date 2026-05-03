@@ -17,22 +17,16 @@ commits to bot-state.
 """
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+
 # NOTE: src.main imports config.py which validates required env vars at
 # import time. We defer that import until AFTER argparse has run, so
 # `--help` works without the env being fully configured.
-
-# Same pattern as src/stock_allocator.PACK_SIZE_PATTERN. Duplicated here
-# so this CLI can validate a SKU shape without importing the src package
-# (whose config.py validates env vars at import time, which would break
-# `--help` in environments missing those vars).
-_PACK_SIZE_PATTERN = re.compile(r"^\d+PCS-")
 
 
 def parse_args() -> argparse.Namespace:
@@ -43,7 +37,7 @@ def parse_args() -> argparse.Namespace:
         "--sku",
         type=str,
         required=True,
-        help="Base SKU to inspect (e.g. ITBISA-IC-NE555P-DIP8). XPCS- prefix not allowed.",
+        help="SKU to inspect (e.g. ITBISA-IC-NE555P-DIP8).",
     )
     return parser.parse_args()
 
@@ -54,16 +48,6 @@ def main() -> int:
 
     if not base_sku:
         print("✗ --sku must not be empty.", file=sys.stderr)
-        return 2
-
-    # Defense-in-depth: Worker already rejects this, but reject again here
-    # so a manual `gh workflow run` with a variant SKU also gets rejected
-    # cleanly instead of silently fanning out.
-    if _PACK_SIZE_PATTERN.match(base_sku):
-        print(
-            f"✗ '{base_sku}' is a pack-size variant. Use the base SKU.",
-            file=sys.stderr,
-        )
         return 2
 
     # Deferred import: config.py validates env vars at import time, and

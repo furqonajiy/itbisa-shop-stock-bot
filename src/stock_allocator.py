@@ -69,7 +69,6 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
-
 # Pack-size variant pattern: "<digits>PCS-<base_sku>". Anchored so
 # "ITBISA-25PCS-FOO" does NOT match (no digits at start). Case-sensitive
 # because both shops publish the prefix in uppercase by convention.

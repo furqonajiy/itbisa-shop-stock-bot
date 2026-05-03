@@ -90,8 +90,8 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
         return 1
 
     print("[1/4] Reading Excel...")
-    desired, skipped_in_excel = excel_reader.read_stock(excel_path)
-    print(f"  → {len(desired)} base SKU(s) parsed; {len(skipped_in_excel)} variant rows skipped")
+    desired = excel_reader.read_stock(excel_path)
+    print(f"  → {len(desired)} base SKU(s) parsed")
     print()
 
     if len(desired) > config.MAX_SKUS_PER_RUN:
@@ -182,14 +182,14 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
     print("=" * 70)
 
     telegram_sender.send_run_summary({
-        "mode":             "excel",
-        "excel_path":       str(excel_path),
-        "total_skus":       len(desired),
-        "succeeded":        len(succeeded),
-        "skipped_missing":  skipped_missing,
+        "mode": "excel",
+        "excel_path": str(excel_path),
+        "total_skus": len(desired),
+        "succeeded": len(succeeded),
+        "skipped_missing": skipped_missing,
         "skipped_one_side": skipped_one_side,
-        "failed":           failed,
-        "dry_run":          dry_run,
+        "failed": failed,
+        "dry_run": dry_run,
     })
 
     return 0
@@ -245,20 +245,20 @@ def run_single_sku_mode(base_sku: str, total_pieces: int, dry_run: bool) -> int:
     )
 
     telegram_sender.send_single_sku_summary({
-        "mode":              "single",
-        "base_sku":          base_sku,
-        "total_pieces":      total_pieces,
-        "shopee_pieces":     shopee_pieces,
+        "mode": "single",
+        "base_sku": base_sku,
+        "total_pieces": total_pieces,
+        "shopee_pieces": shopee_pieces,
         "tiktokshop_pieces": tiktokshop_pieces,
-        "shopee_lines":      shopee_lines,
-        "tiktokshop_lines":  tiktokshop_lines,
-        "shopee_status":     shopee_status,
+        "shopee_lines": shopee_lines,
+        "tiktokshop_lines": tiktokshop_lines,
+        "shopee_status": shopee_status,
         "tiktokshop_status": tiktokshop_status,
-        "dry_run":           dry_run,
+        "dry_run": dry_run,
     })
 
-    # Exit non-zero only if BOTH sides failed; partial success is still ok.
-    if "❌" in shopee_status and "❌" in tiktokshop_status:
+    # Exit non-zero if either platform failed. Partial success needs manual attention.
+    if "❌" in shopee_status or "❌" in tiktokshop_status:
         return 1
     return 0
 
@@ -297,7 +297,7 @@ def run_stock_get_mode(base_sku: str) -> int:
         telegram_sender.send_alert(msg)
         return 1
 
-    shopee_variants     = shopee_catalog.get(base_sku, [])
+    shopee_variants = shopee_catalog.get(base_sku, [])
     tiktokshop_variants = tiktokshop_catalog.get(base_sku, [])
 
     if not shopee_variants and not tiktokshop_variants:
@@ -319,8 +319,8 @@ def run_stock_get_mode(base_sku: str) -> int:
             )
 
     telegram_sender.send_stock_get_summary({
-        "base_sku":            base_sku,
-        "shopee_variants":     shopee_variants,
+        "base_sku": base_sku,
+        "shopee_variants": shopee_variants,
         "tiktokshop_variants": tiktokshop_variants,
     })
     return 0

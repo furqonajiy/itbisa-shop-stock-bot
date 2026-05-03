@@ -52,16 +52,14 @@ import requests
 from src import config, tiktokshop_auth
 from src.stock_allocator import parse_sku
 
-
 # Versions per endpoint. The signed `version` query param must match
 # the path version, so we set it explicitly per call. 202502 is the
 # newer, denser product/search; 202309 is current for stock updates.
-_SEARCH_API_VERSION    = "202502"
+_SEARCH_API_VERSION = "202502"
 _INVENTORY_API_VERSION = "202309"
 
 # TikTok Shop docs cap product/search at page_size=100.
 _SEARCH_PAGE_SIZE = 100
-
 
 # Cached shop_cipher for the duration of one process run. Fetched
 # lazily on first signed call. Same pattern as the order bot.
@@ -89,7 +87,7 @@ def fetch_catalog() -> dict[str, list[dict]]:
         page_num += 1
         extra_query: dict[str, str] = {
             "page_size": str(_SEARCH_PAGE_SIZE),
-            "version":   _SEARCH_API_VERSION,
+            "version": _SEARCH_API_VERSION,
         }
         if page_token:
             extra_query["page_token"] = page_token
@@ -149,12 +147,12 @@ def fetch_catalog() -> dict[str, list[dict]]:
 
                 base, mult = parse_sku(seller_sku)
                 base_to_variants.setdefault(base, []).append({
-                    "multiplier":   mult,
-                    "sku_id":       sku_id,
-                    "product_id":   product_id,
+                    "multiplier": mult,
+                    "sku_id": sku_id,
+                    "product_id": product_id,
                     "warehouse_id": warehouse_id,
-                    "raw_sku":      seller_sku,
-                    "stock_units":  stock_units,
+                    "raw_sku": seller_sku,
+                    "stock_units": stock_units,
                     "weight_grams": weight_grams,
                 })
 
@@ -191,14 +189,19 @@ def update_stock_batch(
     body = {
         "skus": [
             {
-                "id":        sku_id,
+                "id": sku_id,
                 "inventory": [{"warehouse_id": warehouse_id, "quantity": qty}],
             }
             for sku_id, warehouse_id, qty in sku_updates
         ],
     }
 
-    response = _call_signed("POST", path, body=body)
+    response = _call_signed(
+        "POST",
+        path,
+        extra_query={"version": _INVENTORY_API_VERSION},
+        body=body,
+    )
     _check_ok(response, context=f"stock update product={product_id}")
 
     data = response.json().get("data") or {}
@@ -260,8 +263,8 @@ def _call_signed(
     timestamp = str(int(time.time()))
 
     query: dict[str, str] = {
-        "app_key":   config.TIKTOKSHOP_APP_KEY,
-        "shop_id":   str(config.TIKTOKSHOP_SHOP_ID),
+        "app_key": config.TIKTOKSHOP_APP_KEY,
+        "shop_id": str(config.TIKTOKSHOP_SHOP_ID),
         "timestamp": timestamp,
     }
     if extra_query:
@@ -278,13 +281,13 @@ def _call_signed(
         raw_body = _json.dumps(body, separators=(",", ":"), ensure_ascii=False)
 
     sign = _compute_sign(path, query, raw_body)
-    query["sign"]         = sign
+    query["sign"] = sign
     query["access_token"] = access_token  # transport-only, not signed
 
     url = f"{config.TIKTOKSHOP_OPEN_API_BASE_URL}{path}"
     headers = {
         "x-tts-access-token": access_token,
-        "Content-Type":       "application/json",
+        "Content-Type": "application/json",
     }
 
     if method.upper() == "GET":
@@ -317,7 +320,7 @@ def _compute_sign(path: str, query: dict[str, str], raw_body: str) -> str:
     }
     sorted_params = "".join(f"{k}{v}" for k, v in sorted(filtered.items()))
     canonical = path + sorted_params + (raw_body or "")
-    wrapped   = config.TIKTOKSHOP_APP_SECRET + canonical + config.TIKTOKSHOP_APP_SECRET
+    wrapped = config.TIKTOKSHOP_APP_SECRET + canonical + config.TIKTOKSHOP_APP_SECRET
     return hmac.new(
         config.TIKTOKSHOP_APP_SECRET.encode("utf-8"),
         wrapped.encode("utf-8"),

@@ -47,7 +47,6 @@ import requests
 from src import config, shopee_auth
 from src.stock_allocator import parse_sku
 
-
 # Shopee paginates get_item_list at 100 items max per page.
 _LIST_PAGE_SIZE = 100
 
@@ -102,11 +101,11 @@ def fetch_catalog() -> dict[str, list[dict]]:
                     continue
                 base, mult = parse_sku(parent_sku)
                 base_to_variants.setdefault(base, []).append({
-                    "multiplier":   mult,
-                    "item_id":      item_id,
-                    "model_id":     None,
-                    "raw_sku":      parent_sku,
-                    "stock_units":  _extract_stock_units(item.get("stock_info_v2")),
+                    "multiplier": mult,
+                    "item_id": item_id,
+                    "model_id": None,
+                    "raw_sku": parent_sku,
+                    "stock_units": _extract_stock_units(item.get("stock_info_v2")),
                     "weight_grams": item_weight_grams,
                 })
             else:
@@ -121,11 +120,11 @@ def fetch_catalog() -> dict[str, list[dict]]:
                         continue
                     base, mult = parse_sku(model["model_sku"])
                     base_to_variants.setdefault(base, []).append({
-                        "multiplier":   mult,
-                        "item_id":      item_id,
-                        "model_id":     model["model_id"],
-                        "raw_sku":      model["model_sku"],
-                        "stock_units":  model["stock_units"],
+                        "multiplier": mult,
+                        "item_id": item_id,
+                        "model_id": model["model_id"],
+                        "raw_sku": model["model_sku"],
+                        "stock_units": model["stock_units"],
                         "weight_grams": item_weight_grams,
                     })
 
@@ -151,7 +150,7 @@ def update_stock(item_id: int, model_id: int | None, new_stock: int) -> None:
         stock_info["model_id"] = model_id
 
     body = {
-        "item_id":    item_id,
+        "item_id": item_id,
         "stock_list": [stock_info],
     }
 
@@ -181,8 +180,8 @@ def _fetch_all_item_ids() -> list[int]:
 
     while True:
         params = {
-            "offset":      offset,
-            "page_size":   _LIST_PAGE_SIZE,
+            "offset": offset,
+            "page_size": _LIST_PAGE_SIZE,
             "item_status": "NORMAL",
         }
         data = _signed_get(path, params)
@@ -219,8 +218,8 @@ def _fetch_model_data(item_id: int) -> list[dict]:
     models = (data.get("response") or {}).get("model", [])
     return [
         {
-            "model_id":    m["model_id"],
-            "model_sku":   (m.get("model_sku") or "").strip(),
+            "model_id": m["model_id"],
+            "model_sku": (m.get("model_sku") or "").strip(),
             "stock_units": _extract_stock_units(m.get("stock_info_v2")),
         }
         for m in models

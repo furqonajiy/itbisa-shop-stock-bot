@@ -24,6 +24,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+
 # NOTE: src.main imports config.py which validates required env vars at
 # import time. We defer that import until AFTER argparse has run, so
 # `--help` works without the env being fully configured.
@@ -45,7 +46,7 @@ def parse_args() -> argparse.Namespace:
         "--sku",
         type=str,
         default=None,
-        help="Base SKU for single-SKU mode (e.g. ITBISA-IC-NE555P-DIP8).",
+        help="SKU for single-SKU mode (e.g. ITBISA-IC-NE555P-DIP8).",
     )
     parser.add_argument(
         "--pieces",

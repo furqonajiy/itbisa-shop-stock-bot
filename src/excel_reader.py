@@ -14,12 +14,11 @@ Behaviour:
   - Rows where Stock isn't an integer are skipped with a row-level warning.
   - Negative stock is skipped with a warning.
   - Duplicate SKU rows: last value wins, with a warning printed.
-  - Pack-size variant SKUs (e.g. "25PCS-...") in the Excel are REJECTED
-    with a warning. The operator must supply the BASE SKU only — the
-    bot fans out to every variant on both platforms automatically.
+  - SKU values are trusted as operator-provided base SKUs.
+  - Duplicate SKU rows: last value wins, with a warning printed.
 
 Returns:
-  (desired_stock: dict[base_sku, int], skipped_variants: list[str])
+  desired_stock: dict[base_sku, int]
 """
 
 from __future__ import annotations
@@ -28,16 +27,13 @@ from pathlib import Path
 
 import openpyxl
 
-from src.stock_allocator import PACK_SIZE_PATTERN
 
-
-def read_stock(path: Path) -> tuple[dict[str, int], list[str]]:
+def read_stock(path: Path) -> dict[str, int]:
     """See module docstring."""
     workbook = openpyxl.load_workbook(path, data_only=True)
     sheet = workbook.active
 
     result: dict[str, int] = {}
-    skipped_variants: list[str] = []
 
     for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
         if not row or len(row) < 2:
@@ -49,14 +45,6 @@ def read_stock(path: Path) -> tuple[dict[str, int], list[str]]:
             continue
 
         sku = str(sku_raw).strip()
-
-        if PACK_SIZE_PATTERN.match(sku):
-            print(
-                f"  Row {row_num}: SKU '{sku}' is a pack-size variant; "
-                f"skipping (provide the base SKU instead — variants auto-fan-out)"
-            )
-            skipped_variants.append(sku)
-            continue
 
         try:
             stock = int(stock_raw)
@@ -75,4 +63,4 @@ def read_stock(path: Path) -> tuple[dict[str, int], list[str]]:
             )
         result[sku] = stock
 
-    return result, skipped_variants
+    return result

@@ -87,10 +87,10 @@ def _refresh_access_token(refresh_token: str) -> dict:
     """
     url = f"{config.TIKTOKSHOP_AUTH_BASE_URL}/api/v2/token/refresh"
     params = {
-        "app_key":       config.TIKTOKSHOP_APP_KEY,
-        "app_secret":    config.TIKTOKSHOP_APP_SECRET,
+        "app_key": config.TIKTOKSHOP_APP_KEY,
+        "app_secret": config.TIKTOKSHOP_APP_SECRET,
         "refresh_token": refresh_token,
-        "grant_type":    "refresh_token",
+        "grant_type": "refresh_token",
     }
 
     response = requests.get(url, params=params, timeout=30)
@@ -106,12 +106,12 @@ def _refresh_access_token(refresh_token: str) -> dict:
     data = payload["data"]
 
     # TikTok returns Unix timestamps; store as ISO for readability.
-    access_expiry  = datetime.fromtimestamp(data["access_token_expire_in"], tz=timezone.utc)
+    access_expiry = datetime.fromtimestamp(data["access_token_expire_in"], tz=timezone.utc)
     refresh_expiry = datetime.fromtimestamp(data["refresh_token_expire_in"], tz=timezone.utc)
 
     return {
-        "access_token":             data["access_token"],
-        "refresh_token":            data["refresh_token"],
-        "access_token_expires_at":  access_expiry.isoformat(),
+        "access_token": data["access_token"],
+        "refresh_token": data["refresh_token"],
+        "access_token_expires_at": access_expiry.isoformat(),
         "refresh_token_expires_at": refresh_expiry.isoformat(),
     }

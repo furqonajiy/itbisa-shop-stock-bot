@@ -22,7 +22,6 @@ import requests
 
 from src import config
 
-
 _TELEGRAM_API = "https://api.telegram.org"
 _MAX_MESSAGE_CHARS = 4000  # Telegram caps at 4096; leave headroom
 
@@ -155,16 +154,16 @@ def send_stock_get_summary(report: dict) -> None:
     unified: dict[str, dict] = {}
     for v in shopee:
         unified.setdefault(v["raw_sku"], {
-            "raw_sku":    v["raw_sku"],
+            "raw_sku": v["raw_sku"],
             "multiplier": v["multiplier"],
-            "shopee":     None,
+            "shopee": None,
             "tiktokshop": None,
         })["shopee"] = v
     for v in tiktokshop:
         unified.setdefault(v["raw_sku"], {
-            "raw_sku":    v["raw_sku"],
+            "raw_sku": v["raw_sku"],
             "multiplier": v["multiplier"],
-            "shopee":     None,
+            "shopee": None,
             "tiktokshop": None,
         })["tiktokshop"] = v
 
@@ -243,8 +242,8 @@ def _send(text: str) -> None:
 
     url = f"{_TELEGRAM_API}/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage"
     body = {
-        "chat_id":    config.TELEGRAM_CHAT_ID,
-        "text":       text,
+        "chat_id": config.TELEGRAM_CHAT_ID,
+        "text": text,
         "parse_mode": "Markdown",
     }
     try:

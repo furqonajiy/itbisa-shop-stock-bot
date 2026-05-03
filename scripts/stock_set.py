@@ -24,6 +24,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+
 # NOTE: src.main imports config.py which validates required env vars at
 # import time. We defer that import until AFTER argparse has run, so
 # `--help` works without the env being fully configured.

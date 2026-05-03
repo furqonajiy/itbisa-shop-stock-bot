@@ -69,15 +69,15 @@ jobs:
       # ----------------------------------------------------
       - name: Run stock get
         env:
-          SHOPEE_PARTNER_ID:      ${{ secrets.SHOPEE_PARTNER_ID }}
-          SHOPEE_PARTNER_KEY:     ${{ secrets.SHOPEE_PARTNER_KEY }}
-          SHOPEE_SHOP_ID:         ${{ secrets.SHOPEE_SHOP_ID }}
-          TIKTOKSHOP_APP_KEY:     ${{ secrets.TIKTOKSHOP_APP_KEY }}
-          TIKTOKSHOP_APP_SECRET:  ${{ secrets.TIKTOKSHOP_APP_SECRET }}
-          TIKTOKSHOP_SHOP_ID:     ${{ secrets.TIKTOKSHOP_SHOP_ID }}
-          TELEGRAM_BOT_TOKEN:     ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:       ${{ secrets.TELEGRAM_CHAT_ID }}
-          INPUT_SKU:              ${{ inputs.sku }}
+          SHOPEE_PARTNER_ID: ${{ secrets.SHOPEE_PARTNER_ID }}
+          SHOPEE_PARTNER_KEY: ${{ secrets.SHOPEE_PARTNER_KEY }}
+          SHOPEE_SHOP_ID: ${{ secrets.SHOPEE_SHOP_ID }}
+          TIKTOKSHOP_APP_KEY: ${{ secrets.TIKTOKSHOP_APP_KEY }}
+          TIKTOKSHOP_APP_SECRET: ${{ secrets.TIKTOKSHOP_APP_SECRET }}
+          TIKTOKSHOP_SHOP_ID: ${{ secrets.TIKTOKSHOP_SHOP_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          INPUT_SKU: ${{ inputs.sku }}
         run: |
           set -e
           python scripts/stock_get.py --sku "$INPUT_SKU"

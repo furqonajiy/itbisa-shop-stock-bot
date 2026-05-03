@@ -1,0 +1,110 @@
+name: Get Stock
+
+# Read-only stock inspection. Triggered:
+#   • Manually from the Actions tab with a base SKU
+#   • Via workflow_dispatch from the Telegram bot Worker (/stock_get SKU)
+#
+# Tokens may rotate during this read run, so we still need write access
+# to bot-state to persist refreshed token files.
+on:
+  workflow_dispatch:
+    inputs:
+      sku:
+        description: "Base SKU to inspect (required, no XPCS- prefix)."
+        required: true
+        type: string
+
+# Separate group from stock-set so a get query never cancels a set.
+# Newer get queries DO cancel older ones — operator only cares about the latest.
+concurrency:
+  group: stock-get
+  cancel-in-progress: true
+
+jobs:
+  get-stock:
+    runs-on: ubuntu-latest
+
+    # The bot reads + writes data/ on the bot-state branch (token rotation).
+    permissions:
+      contents: write
+
+    steps:
+      # ----------------------------------------------------
+      # 1. Checkout main (source code)
+      # ----------------------------------------------------
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      # ----------------------------------------------------
+      # 2. Overlay state from bot-state if it exists
+      # ----------------------------------------------------
+      - name: Sync data/ from bot-state
+        run: |
+          if git ls-remote --exit-code --heads origin bot-state >/dev/null 2>&1; then
+            echo "bot-state branch exists — overlaying data/"
+            git fetch origin bot-state
+            git checkout origin/bot-state -- data/ || echo "no data/ on bot-state yet"
+          else
+            echo "bot-state branch not found — using data/ from main"
+          fi
+          ls -la data/ || true
+
+      # ----------------------------------------------------
+      # 3. Python env
+      # ----------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ----------------------------------------------------
+      # 4. Run the script
+      # ----------------------------------------------------
+      - name: Run stock get
+        env:
+          SHOPEE_PARTNER_ID:      ${{ secrets.SHOPEE_PARTNER_ID }}
+          SHOPEE_PARTNER_KEY:     ${{ secrets.SHOPEE_PARTNER_KEY }}
+          SHOPEE_SHOP_ID:         ${{ secrets.SHOPEE_SHOP_ID }}
+          TIKTOKSHOP_APP_KEY:     ${{ secrets.TIKTOKSHOP_APP_KEY }}
+          TIKTOKSHOP_APP_SECRET:  ${{ secrets.TIKTOKSHOP_APP_SECRET }}
+          TIKTOKSHOP_SHOP_ID:     ${{ secrets.TIKTOKSHOP_SHOP_ID }}
+          TELEGRAM_BOT_TOKEN:     ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:       ${{ secrets.TELEGRAM_CHAT_ID }}
+          INPUT_SKU:              ${{ inputs.sku }}
+        run: |
+          set -e
+          python scripts/stock_get.py --sku "$INPUT_SKU"
+
+      # ----------------------------------------------------
+      # 5. Persist refreshed tokens back to bot-state
+      # ----------------------------------------------------
+      # Read-only operation, but token refresh may have rotated access_token
+      # and/or refresh_token. Persist any data/ changes back to bot-state.
+      - name: Commit token rotation to bot-state
+        if: always()
+        run: |
+          # Skip if nothing changed.
+          if [ -z "$(git status --porcelain data/)" ]; then
+            echo "No state changes to commit."
+            exit 0
+          fi
+
+          git config user.name  "itbisa-bot[bot]"
+          git config user.email "itbisa-bot@users.noreply.github.com"
+
+          # Move the data/ changes onto bot-state.
+          git stash push -- data/
+          git fetch origin bot-state || true
+          git checkout -B bot-state origin/bot-state 2>/dev/null || git checkout --orphan bot-state
+          git stash pop
+
+          git add data/
+          git commit -m "chore(state): refresh tokens after stock-get run" || echo "Nothing to commit"
+          git push --force-with-lease origin bot-state

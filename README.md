@@ -1,17 +1,17 @@
 # ITBisa Shop Stock Bot
 
-Cross-platform stock setter for Shopee Indonesia and TikTok Shop Indonesia.
+Cross-platform stock setter and reader for Shopee Indonesia and TikTok Shop Indonesia.
 
 This repo replaces the stock-update logic that previously lived separately
 inside the Shopee and TikTok Shop order bots. It is designed to run once from
-GitHub Actions, update stock, persist refreshed token files to `bot-state`, send
-Telegram output, then exit.
+GitHub Actions, update or read stock, persist refreshed token files to
+`bot-state`, send Telegram output, then exit.
 
 ## Real flow
 
 There is no server, VM, database, shared runtime, or cron in this repo.
 
-The normal flow is:
+The normal flows are:
 
 ```text
 Telegram /stock_set SKU PIECES
@@ -24,16 +24,31 @@ Telegram /stock_set SKU PIECES
   -> refreshed token files committed to bot-state
 ```
 
-Manual GitHub Actions dispatch is also supported:
+```text
+Telegram /stock_get SKU
+  -> Cloudflare Worker workflow_dispatch
+  -> GitHub Actions .github/workflows/get.yml
+  -> scripts/stock_get.py --sku SKU
+  -> src/main.py
+  -> Shopee API + TikTok Shop API (READ-ONLY)
+  -> Telegram summary to the same chat
+  -> refreshed token files committed to bot-state (token rotation only)
+```
 
+Manual GitHub Actions dispatch is also supported on either workflow.
+
+For `run.yml` (set):
 - Fill both `sku` and `pieces` for single-SKU mode.
 - Leave `sku` and `pieces` empty for Excel mode.
 - Excel mode expects `excel_path` to already exist in the checked-out workspace.
   The dispatch form does not upload files.
 
+For `get.yml` (get):
+- `sku` is required. Only base SKUs are accepted (no `XPCS-` prefix).
+
 `main` is source code only. Runtime token files belong on `bot-state`.
 
-## What it does
+## What stock_set does
 
 You provide **one total physical stock count** for a base SKU.
 
@@ -55,6 +70,29 @@ The bot then:
 5. Sends a Bahasa Indonesia summary to Telegram.
 6. Saves rotated token files immediately during the run and commits them back to
    `bot-state` after a successful non-dry-run workflow step.
+
+## What stock_get does
+
+You provide **one base SKU**. Example:
+
+```text
+/stock_get ITBISA-LED-5MM
+```
+
+The bot then:
+
+1. Walks both Shopee and TikTok Shop catalogs (read-only).
+2. Finds all pack-size variants of the base SKU on each platform.
+3. Sends a Bahasa Indonesia Telegram summary listing every variant with:
+   - Stock units on Shopee
+   - Stock units on TikTok Shop
+   - Weight in grams on each platform
+   - Per-variant cross-platform total (in units and pieces)
+   - Grand totals per platform and combined
+
+Stock-get is read-only — no write APIs are called. The only state-changing
+side effect is access-token rotation, which is committed to `bot-state` like
+the set workflow.
 
 ## Important stock allocation rules
 
@@ -142,7 +180,7 @@ possible through the `100PCS` variant.
 
 ## Run modes
 
-### Single-SKU mode
+### Single-SKU set mode
 
 ```bash
 python scripts/stock_set.py --sku ITBISA-LED-5MM --pieces 4000
@@ -158,7 +196,7 @@ This is the mode expected from the Telegram Worker command:
 Use a **base SKU only**. Do not pass a pack-size variant such as
 `20PCS-ITBISA-LED-5MM`.
 
-### Excel mode
+### Excel set mode
 
 ```bash
 python scripts/stock_set.py stock.xlsx
@@ -176,15 +214,31 @@ Excel mode is for deliberate bulk runs. Variant SKUs like `20PCS-BASESKU` are
 skipped with a warning because the bot automatically fans out from the base SKU
 to all discovered platform variants.
 
-## GitHub Actions
+### Stock-get mode (read-only)
 
-Workflow:
-
-```text
-.github/workflows/run.yml
+```bash
+python scripts/stock_get.py --sku ITBISA-LED-5MM
 ```
 
-Behavior:
+This is the mode expected from the Telegram Worker command:
+
+```text
+/stock_get SKU
+```
+
+Use a **base SKU only**. Pack-size variant SKUs (e.g. `20PCS-ITBISA-LED-5MM`)
+are rejected.
+
+## GitHub Actions
+
+Two workflows:
+
+```text
+.github/workflows/run.yml   # /stock_set (write)
+.github/workflows/get.yml   # /stock_get (read-only)
+```
+
+### `run.yml` behavior
 
 - No cron.
 - Deliberate `workflow_dispatch` only.
@@ -201,6 +255,20 @@ The workflow selects mode like this:
 sku + pieces present -> single-SKU mode
 otherwise            -> Excel mode using excel_path
 ```
+
+### `get.yml` behavior
+
+- No cron.
+- Deliberate `workflow_dispatch` only (also triggered by Telegram Worker).
+- Checkout `main` as source code.
+- Overlay `data/` from `bot-state` when the branch exists.
+- Run `scripts/stock_get.py --sku SKU`.
+- Commit refreshed token files back to `bot-state` (token rotation may
+  have happened during the read run).
+- Concurrency group: `stock-get`. Separate from `stock-set` so a
+  `/stock_get` query never cancels an in-flight `/stock_set` and vice versa.
+- `cancel-in-progress: true`, because the operator only cares about the
+  latest read result.
 
 ## Required secrets
 
@@ -281,3 +349,7 @@ The bot:
   failure does not prevent the other platform attempt for that SKU.
 
 The bot sets absolute stock units per variant, not deltas.
+
+`/stock_get` reports a SKU found on only one platform with `_(tidak ada)_`
+on the missing side rather than aborting — the operator may be deliberately
+listing on a single platform and still wants to see the data.

@@ -1,7 +1,7 @@
 """
 main.py
 -------
-Orchestrator. Two run modes, one set of helpers:
+Orchestrator. Three run modes, one set of helpers:
 
   Mode A — Excel:        run_excel_mode(path, dry_run)
     Reads stock.xlsx, iterates over every SKU, and pushes the split
@@ -12,10 +12,17 @@ Orchestrator. Two run modes, one set of helpers:
     row of Mode A, but Telegram output is more detailed because we
     have the room (one SKU = one message).
 
-Both modes share:
+  Mode C — Stock get:    run_stock_get_mode(base_sku)
+    Triggered by /stock_get from the Telegram bot. READ-ONLY: walks
+    both platform catalogs, then sends a Telegram summary listing every
+    XPCS- variant with stock units, weight, and per-variant totals.
+
+All modes share:
   - Catalog walk on each platform (one HTTP traffic burst at the start)
-  - Per-SKU split/allocate/push pipeline
   - Skip-with-warning behaviour for SKUs missing on one or both platforms
+
+Mode A and Mode B additionally share:
+  - Per-SKU split/allocate/push pipeline
   - Dry-run support that exercises everything except the actual write call
 
 Per-platform allocation rules:
@@ -58,7 +65,7 @@ from src.stock_allocator import (
 
 
 # ============================================================
-# Public entry points (called from scripts/stock_set.py)
+# Public entry points (called from scripts/stock_set.py and stock_get.py)
 # ============================================================
 
 def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
@@ -253,6 +260,69 @@ def run_single_sku_mode(base_sku: str, total_pieces: int, dry_run: bool) -> int:
     # Exit non-zero only if BOTH sides failed; partial success is still ok.
     if "❌" in shopee_status and "❌" in tiktokshop_status:
         return 1
+    return 0
+
+
+def run_stock_get_mode(base_sku: str) -> int:
+    """
+    Read-only stock inspection for one base SKU across both platforms.
+    Triggered by /stock_get SKU from the Telegram Worker.
+
+    Returns process exit code:
+      0 = found on at least one platform, summary sent
+      1 = not found anywhere, or upstream auth failure
+    """
+    print("=" * 70)
+    print("ITBisa Shop Stock Bot — Get mode (read-only)")
+    print("=" * 70)
+    print(f"SKU: {base_sku}")
+    print()
+
+    try:
+        print("[1/2] Walking Shopee catalog...")
+        shopee_catalog = shopee_client.fetch_catalog()
+        print(f"  → {len(shopee_catalog)} base SKU(s) discovered on Shopee")
+
+        print("[2/2] Walking TikTok Shop catalog...")
+        tiktokshop_catalog = tiktokshop_client.fetch_catalog()
+        print(f"  → {len(tiktokshop_catalog)} base SKU(s) discovered on TikTok Shop")
+        print()
+    except shopee_auth.RefreshTokenExpiredError as e:
+        msg = (
+            f"🔐 Otorisasi Shopee kadaluarsa. Mohon otorisasi ulang aplikasi "
+            f"di Shopee Open Platform Console, lalu update file "
+            f"data/shopee_tokens.json di branch bot-state. ({e})"
+        )
+        print(f"✗ {msg}")
+        telegram_sender.send_alert(msg)
+        return 1
+
+    shopee_variants     = shopee_catalog.get(base_sku, [])
+    tiktokshop_variants = tiktokshop_catalog.get(base_sku, [])
+
+    if not shopee_variants and not tiktokshop_variants:
+        msg = (
+            f"SKU `{base_sku}` tidak ditemukan di Shopee maupun TikTok Shop. "
+            f"Periksa SKU dan coba lagi."
+        )
+        print(f"✗ {msg}")
+        telegram_sender.send_alert(msg)
+        return 1
+
+    # Console preview — useful when debugging from the Actions log.
+    for label, variants in (("Shopee", shopee_variants), ("TikTok Shop", tiktokshop_variants)):
+        print(f"  {label}: {len(variants)} varian")
+        for v in variants:
+            print(
+                f"    • {v['raw_sku']} (×{v['multiplier']}): "
+                f"{v['stock_units']} unit, {v['weight_grams']} g"
+            )
+
+    telegram_sender.send_stock_get_summary({
+        "base_sku":            base_sku,
+        "shopee_variants":     shopee_variants,
+        "tiktokshop_variants": tiktokshop_variants,
+    })
     return 0
 
 

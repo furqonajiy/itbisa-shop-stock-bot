@@ -90,8 +90,8 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
         return 1
 
     print("[1/4] Reading Excel...")
-    desired, skipped_in_excel = excel_reader.read_stock(excel_path)
-    print(f"  → {len(desired)} base SKU(s) parsed; {len(skipped_in_excel)} variant rows skipped")
+    desired = excel_reader.read_stock(excel_path)
+    print(f"  → {len(desired)} base SKU(s) parsed")
     print()
 
     if len(desired) > config.MAX_SKUS_PER_RUN:

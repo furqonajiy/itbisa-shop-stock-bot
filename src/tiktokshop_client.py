@@ -198,7 +198,12 @@ def update_stock_batch(
         ],
     }
 
-    response = _call_signed("POST", path, body=body)
+    response = _call_signed(
+        "POST",
+        path,
+        extra_query={"version": _INVENTORY_API_VERSION},
+        body=body,
+    )
     _check_ok(response, context=f"stock update product={product_id}")
 
     data = response.json().get("data") or {}

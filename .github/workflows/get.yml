@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       sku:
-        description: "Base SKU to inspect (required, no XPCS- prefix)."
+        description: "SKU to inspect."
         required: true
         type: string
 
@@ -33,7 +33,7 @@ jobs:
       # 1. Checkout main (source code)
       # ----------------------------------------------------
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: main
           fetch-depth: 0
@@ -56,7 +56,7 @@ jobs:
       # 3. Python env
       # ----------------------------------------------------
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip

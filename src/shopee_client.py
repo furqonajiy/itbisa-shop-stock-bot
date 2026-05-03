@@ -14,11 +14,16 @@ Three public functions, all platform-specific:
           "item_id":      int,    # Shopee item_id (always set)
           "model_id":     int|None,  # set only when has_model=True
           "raw_sku":      str,    # the SKU string as Shopee returned it
+          "stock_units":  int,    # current available stock units (read-only consumers)
+          "weight_grams": int,    # item-level weight in grams (Shopee gives kg)
         }
       The same base_sku may have variants split across MULTIPLE Shopee
       products. Example: ITBISA-IC-NE555P-DIP8 (1pc, item_id=A) and
       25PCS-ITBISA-IC-NE555P-DIP8 (25pc, item_id=B) are two different
       products on Shopee but share base "ITBISA-IC-NE555P-DIP8".
+
+      stock_units and weight_grams are populated for EVERY variant.
+      The /stock_set write path ignores them; /stock_get reads them.
 
   update_stock(item_id, model_id, new_stock) -> None
       Sets absolute stock for one (item_id, model_id) target. Raises
@@ -66,6 +71,10 @@ def fetch_catalog() -> dict[str, list[dict]]:
 
     Variants are sorted ascending by multiplier so the allocator can
     deposit any remainder onto variants[0] (the smallest pack).
+
+    Each variant carries stock_units and weight_grams alongside the
+    structural fields. Both are populated on every variant; consumers
+    that don't care (e.g., /stock_set) simply ignore them.
     """
     print(f"  [shopee] Walking catalog ({describe()})...")
 
@@ -85,6 +94,7 @@ def fetch_catalog() -> dict[str, list[dict]]:
             item_id = item["item_id"]
             has_models = item.get("has_model", False)
             parent_sku = (item.get("item_sku") or "").strip()
+            item_weight_grams = _kg_to_grams(item.get("weight"))
 
             if not has_models:
                 # Whole item is one leaf SKU. Parse for pack-size.
@@ -92,25 +102,31 @@ def fetch_catalog() -> dict[str, list[dict]]:
                     continue
                 base, mult = parse_sku(parent_sku)
                 base_to_variants.setdefault(base, []).append({
-                    "multiplier": mult,
-                    "item_id":    item_id,
-                    "model_id":   None,
-                    "raw_sku":    parent_sku,
+                    "multiplier":   mult,
+                    "item_id":      item_id,
+                    "model_id":     None,
+                    "raw_sku":      parent_sku,
+                    "stock_units":  _extract_stock_units(item.get("stock_info_v2")),
+                    "weight_grams": item_weight_grams,
                 })
             else:
                 # Each model is its own leaf SKU. Parse each for pack-size.
                 # In practice models are usually color/size, so multiplier=1
                 # — but we parse anyway in case the operator publishes a
                 # "25PCS-LED-RED" model under a "25PCS-LED" parent.
-                for model_id, model_sku in _fetch_model_skus(item_id):
-                    if not model_sku:
+                # get_model_list does NOT expose per-model weight, so all
+                # models inherit the item-level weight.
+                for model in _fetch_model_data(item_id):
+                    if not model["model_sku"]:
                         continue
-                    base, mult = parse_sku(model_sku)
+                    base, mult = parse_sku(model["model_sku"])
                     base_to_variants.setdefault(base, []).append({
-                        "multiplier": mult,
-                        "item_id":    item_id,
-                        "model_id":   model_id,
-                        "raw_sku":    model_sku,
+                        "multiplier":   mult,
+                        "item_id":      item_id,
+                        "model_id":     model["model_id"],
+                        "raw_sku":      model["model_sku"],
+                        "stock_units":  model["stock_units"],
+                        "weight_grams": item_weight_grams,
                     })
 
         time.sleep(config.DELAY_BETWEEN_CALLS_SECONDS)
@@ -190,13 +206,64 @@ def _fetch_item_base_info(item_ids: list[int]) -> list[dict]:
     return (data.get("response") or {}).get("item_list", [])
 
 
-def _fetch_model_skus(item_id: int) -> list[tuple[int, str]]:
-    """Returns [(model_id, model_sku), ...] for an item with variants."""
+def _fetch_model_data(item_id: int) -> list[dict]:
+    """Returns model dicts: {model_id, model_sku, stock_units}.
+
+    Shopee's get_model_list does NOT expose a per-model weight field;
+    weight is item-level only. The caller propagates item weight down
+    to every model.
+    """
     path = "/api/v2/product/get_model_list"
     params = {"item_id": item_id}
     data = _signed_get(path, params)
     models = (data.get("response") or {}).get("model", [])
-    return [(m["model_id"], (m.get("model_sku") or "").strip()) for m in models]
+    return [
+        {
+            "model_id":    m["model_id"],
+            "model_sku":   (m.get("model_sku") or "").strip(),
+            "stock_units": _extract_stock_units(m.get("stock_info_v2")),
+        }
+        for m in models
+    ]
+
+
+# ============================================================
+# Stock + weight extraction helpers
+# ============================================================
+
+def _extract_stock_units(stock_info_v2) -> int:
+    """Pulls total available stock from a Shopee stock_info_v2 dict.
+
+    Falls back to summing seller_stock entries if summary_info is absent.
+    Returns 0 on any malformed/missing data — never raises.
+    """
+    if not stock_info_v2:
+        return 0
+    summary = stock_info_v2.get("summary_info") or {}
+    val = summary.get("total_available_stock")
+    if val is not None:
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return 0
+    seller = stock_info_v2.get("seller_stock") or []
+    total = 0
+    for s in seller:
+        try:
+            total += int(s.get("stock") or 0)
+        except (TypeError, ValueError):
+            pass
+    return total
+
+
+def _kg_to_grams(kg_value) -> int:
+    """Shopee returns weight in kg as a float or numeric string. Returns grams."""
+    if kg_value in (None, "", 0):
+        return 0
+    try:
+        return round(float(kg_value) * 1000)
+    except (TypeError, ValueError):
+        return 0
 
 
 # ============================================================

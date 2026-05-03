@@ -14,10 +14,15 @@ Public functions:
           "product_id":   str,    # parent product_id
           "warehouse_id": str,    # target warehouse for stock updates
           "raw_sku":      str,    # the seller_sku TikTok Shop returned
+          "stock_units":  int,    # current stock (sum across warehouses)
+          "weight_grams": int,    # package weight normalised to grams
         }
       All variants of a base SKU live under ONE product on TikTok Shop,
       so the structure is simpler than Shopee's. We sort variants
       ascending by multiplier per base.
+
+      stock_units and weight_grams are populated for EVERY variant.
+      The /stock_set write path ignores them; /stock_get reads them.
 
   update_stock_batch(product_id, sku_updates) -> None
       One stock update call carrying multiple SKU updates that all belong
@@ -109,6 +114,10 @@ def fetch_catalog() -> dict[str, list[dict]]:
 
         for product in products:
             product_id = product["id"]
+            # 202309 schema puts package_weight at product level.
+            # 202502 schema can put it at SKU level. Read both; SKU wins when present.
+            product_weight_grams = _normalize_weight_to_grams(product.get("package_weight"))
+
             for sku in product.get("skus") or []:
                 seller_sku = (sku.get("seller_sku") or "").strip()
                 if not seller_sku:
@@ -125,6 +134,19 @@ def fetch_catalog() -> dict[str, list[dict]]:
                 if not warehouse_id:
                     continue
 
+                # Stock = sum across all warehouses returned for this SKU.
+                stock_units = 0
+                for inv in inventories:
+                    try:
+                        stock_units += int(inv.get("quantity") or 0)
+                    except (TypeError, ValueError):
+                        pass
+
+                # Prefer SKU-level weight (newer 202502 schema); fall back
+                # to product-level (older 202309 schema).
+                sku_weight_grams = _normalize_weight_to_grams(sku.get("package_weight"))
+                weight_grams = sku_weight_grams or product_weight_grams
+
                 base, mult = parse_sku(seller_sku)
                 base_to_variants.setdefault(base, []).append({
                     "multiplier":   mult,
@@ -132,6 +154,8 @@ def fetch_catalog() -> dict[str, list[dict]]:
                     "product_id":   product_id,
                     "warehouse_id": warehouse_id,
                     "raw_sku":      seller_sku,
+                    "stock_units":  stock_units,
+                    "weight_grams": weight_grams,
                 })
 
         page_token = payload.get("next_page_token") or ""
@@ -181,6 +205,33 @@ def update_stock_batch(
     failures = data.get("errors") or data.get("failed_skus") or []
     if failures:
         raise RuntimeError(f"per-sku failures: {failures}")
+
+
+# ============================================================
+# Weight normalisation
+# ============================================================
+
+def _normalize_weight_to_grams(pkg_weight) -> int:
+    """Converts a TikTok Shop package_weight {value, unit} dict to grams.
+
+    TikTok Shop publishes weight as {"value": "0.05", "unit": "KILOGRAM"}.
+    Some sellers configure POUND or GRAM. Returns 0 on missing/invalid data.
+    """
+    if not pkg_weight:
+        return 0
+    try:
+        value = float(pkg_weight.get("value") or 0)
+    except (TypeError, ValueError):
+        return 0
+    unit = (pkg_weight.get("unit") or "").upper()
+    if unit == "KILOGRAM":
+        return round(value * 1000)
+    if unit == "POUND":
+        return round(value * 453.59237)
+    if unit == "GRAM":
+        return round(value)
+    # Unknown/empty unit — assume kg, the API default.
+    return round(value * 1000)
 
 
 # ============================================================

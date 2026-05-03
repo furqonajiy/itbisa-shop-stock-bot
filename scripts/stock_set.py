@@ -45,7 +45,7 @@ def parse_args() -> argparse.Namespace:
         "--sku",
         type=str,
         default=None,
-        help="Base SKU for single-SKU mode (e.g. ITBISA-IC-NE555P-DIP8).",
+        help="SKU for single-SKU mode (e.g. ITBISA-IC-NE555P-DIP8).",
     )
     parser.add_argument(
         "--pieces",

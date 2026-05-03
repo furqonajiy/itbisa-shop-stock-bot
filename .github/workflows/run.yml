@@ -131,16 +131,31 @@ jobs:
             echo "No state changes to commit."
             exit 0
           fi
-
+          
           git config user.name  "itbisa-bot[bot]"
           git config user.email "itbisa-bot@users.noreply.github.com"
-
-          # Move the data/ changes onto bot-state.
-          git stash push -- data/
+          
+          # Snapshot rotated files BEFORE switching branches.
+          # We avoid `git stash` here because the stash records a diff
+          # against main (which gitignores data/*.json), and popping that
+          # diff onto bot-state (which tracks data/*.json) triggers a
+          # 3-way merge conflict on the same paths.
+          TMP=$(mktemp -d)
+          cp -a data/. "$TMP/"
+          
+          # Switch to bot-state (or create if first run).
           git fetch origin bot-state || true
-          git checkout -B bot-state origin/bot-state 2>/dev/null || git checkout --orphan bot-state
-          git stash pop
-
+          if git rev-parse --verify origin/bot-state >/dev/null 2>&1; then
+            git checkout -B bot-state origin/bot-state
+          else
+            git checkout --orphan bot-state
+          fi
+          
+          # Overwrite bot-state's data/ with the freshly rotated files.
+          mkdir -p data
+          cp -a "$TMP/." data/
+          rm -rf "$TMP"
+          
           git add data/
           git commit -m "chore(state): refresh tokens after stock-set run" || echo "Nothing to commit"
           git push --force-with-lease origin bot-state

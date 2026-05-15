@@ -29,8 +29,14 @@ from src import config
 _TELEGRAM_API = "https://api.telegram.org"
 _MAX_MESSAGE_CHARS = 4000  # Telegram caps at 4096; leave headroom
 
+# Platform glyphs used in the multi-SKU balance summary. Swap these for any
+# emoji (including custom Telegram emoji codepoints) that better matches the
+# Shopee / TikTok Shop brand — they are the only two spots that change visually.
+SHOPEE_EMOJI = "🟧S"
+TIKTOKSHOP_EMOJI = "🎵T"
+
 # Used by the multi-summary to strip leading "SKU `XXX` " from a reason
-# string so the SKU isn't repeated twice on a single line.
+# string so the SKU isn't repeated twice in its block.
 _SKU_PREFIX_RE = re.compile(r"^SKU `[^`]+`\s+")
 
 
@@ -295,8 +301,13 @@ def send_stock_balance_multi_summary(report: dict) -> None:
     Multi-SKU rebalance run (from /stock_balance with 2+ SKU, or order-bot
     auto-dispatch after /resi_*).
 
-    ONE compact message at end-of-run, one line per SKU. Replaces the
-    "20 separate detailed messages" spam path for long batches.
+    ONE compact message at end-of-run. Per SKU:
+      <status>  `SKU`
+      <shopee>  before → after
+      <tiktok>  before → after
+
+    Skipped/failed SKUs collapse to status + SKU + short reason (no
+    platform lines, since there's nothing to show).
 
     report = {
       "results": list[dict],   # one per SKU
@@ -337,15 +348,22 @@ def send_stock_balance_multi_summary(report: dict) -> None:
             sh_a = _fmt_int(r["shopee_after_pieces"])
             tt_b = _fmt_int(r["tiktokshop_before_pieces"])
             tt_a = _fmt_int(r["tiktokshop_after_pieces"])
-            lines.append(
-                f"{icon} `{sku}`: SH {sh_b}→{sh_a} | TT {tt_b}→{tt_a}"
-            )
+            lines.append(f"{icon} `{sku}`")
+            lines.append(f"{SHOPEE_EMOJI} {sh_b} → {sh_a}")
+            lines.append(f"{TIKTOKSHOP_EMOJI} {tt_b} → {tt_a}")
         elif status == "skipped":
             short = _strip_sku_prefix(r["reason"])
-            lines.append(f"⏭️ `{sku}`: {_truncate(short, 120)}")
+            lines.append(f"⏭️ `{sku}`")
+            lines.append(f"   {_truncate(short, 200)}")
         else:  # failed
             short = _strip_sku_prefix(r["reason"])
-            lines.append(f"❌ `{sku}`: {_truncate(short, 120)}")
+            lines.append(f"❌ `{sku}`")
+            lines.append(f"   {_truncate(short, 200)}")
+        lines.append("")  # blank line between SKU blocks
+
+    # Drop trailing blank before the Ringkasan footer.
+    if lines and lines[-1] == "":
+        lines.pop()
 
     lines.append("")
     summary_parts: list[str] = []

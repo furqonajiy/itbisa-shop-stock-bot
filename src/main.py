@@ -326,6 +326,136 @@ def run_stock_get_mode(base_sku: str) -> int:
     return 0
 
 
+def run_stock_balance_mode(base_sku: str, dry_run: bool) -> int:
+    """
+    Rebalance one base SKU across Shopee and TikTok Shop.
+
+    Reads current stock from both platforms, sums to a cross-platform
+    total, then writes that same total back using the standard 50:50
+    split. The grand total is preserved; only the per-platform share
+    changes. Triggered by /stock_balance SKU from the Telegram Worker.
+
+    Returns process exit code:
+      0 = success (or dry-run completed)
+      1 = SKU missing on either platform, zero total, or platform
+          write failure
+    """
+    print("=" * 70)
+    print(f"ITBisa Shop Stock Bot — Balance mode {'(DRY RUN)' if dry_run else ''}")
+    print("=" * 70)
+    print(f"SKU: {base_sku}")
+    print()
+
+    try:
+        print("[1/2] Walking Shopee catalog...")
+        shopee_catalog = shopee_client.fetch_catalog()
+        print(f"  → {len(shopee_catalog)} base SKU(s) on Shopee")
+
+        print("[2/2] Walking TikTok Shop catalog...")
+        tiktokshop_catalog = tiktokshop_client.fetch_catalog()
+        print(f"  → {len(tiktokshop_catalog)} base SKU(s) on TikTok Shop")
+        print()
+    except shopee_auth.RefreshTokenExpiredError as e:
+        msg = (
+            f"🔐 Otorisasi Shopee kadaluarsa. Mohon otorisasi ulang aplikasi "
+            f"di Shopee Open Platform Console, lalu update file "
+            f"data/shopee_tokens.json di branch bot-state. ({e})"
+        )
+        print(f"✗ {msg}")
+        telegram_sender.send_alert(msg)
+        return 1
+
+    on_shopee = base_sku in shopee_catalog
+    on_tiktokshop = base_sku in tiktokshop_catalog
+
+    # Balance requires BOTH platforms — nothing to redistribute if only
+    # one side carries the SKU.
+    if not on_shopee and not on_tiktokshop:
+        msg = (
+            f"SKU `{base_sku}` tidak ditemukan di Shopee maupun TikTok Shop. "
+            f"Tidak ada yang bisa di-rebalance."
+        )
+        print(f"✗ {msg}")
+        telegram_sender.send_alert(msg)
+        return 1
+
+    if not on_shopee:
+        msg = (
+            f"SKU `{base_sku}` hanya ada di TikTok Shop (tidak di Shopee). "
+            f"Balance membutuhkan kedua platform — tidak diproses."
+        )
+        print(f"✗ {msg}")
+        telegram_sender.send_alert(msg)
+        return 1
+
+    if not on_tiktokshop:
+        msg = (
+            f"SKU `{base_sku}` hanya ada di Shopee (tidak di TikTok Shop). "
+            f"Balance membutuhkan kedua platform — tidak diproses."
+        )
+        print(f"✗ {msg}")
+        telegram_sender.send_alert(msg)
+        return 1
+
+    shopee_variants = shopee_catalog[base_sku]
+    tiktokshop_variants = tiktokshop_catalog[base_sku]
+
+    # Sum physical pieces per platform: stock_units * pack-size multiplier.
+    shopee_before_pieces = sum(
+        v["stock_units"] * v["multiplier"] for v in shopee_variants
+    )
+    tiktokshop_before_pieces = sum(
+        v["stock_units"] * v["multiplier"] for v in tiktokshop_variants
+    )
+    total_pieces = shopee_before_pieces + tiktokshop_before_pieces
+
+    print(
+        f"Sebelum: Shopee={shopee_before_pieces} + "
+        f"TikTok Shop={tiktokshop_before_pieces} = {total_pieces} pcs"
+    )
+    print()
+
+    if total_pieces == 0:
+        msg = (
+            f"SKU `{base_sku}` total stok = 0 di kedua platform. "
+            f"Tidak ada yang perlu di-rebalance."
+        )
+        print(f"✗ {msg}")
+        telegram_sender.send_alert(msg)
+        return 1
+
+    # Reuse the same split logic /stock_set uses, so behaviour stays
+    # consistent across commands.
+    shopee_after_pieces, tiktokshop_after_pieces = split_across_platforms(total_pieces)
+
+    shopee_lines, shopee_status = _format_and_push_shopee(
+        base_sku, shopee_after_pieces, shopee_variants, dry_run
+    )
+    tiktokshop_lines, tiktokshop_status = _format_and_push_tiktokshop(
+        base_sku, tiktokshop_after_pieces, tiktokshop_variants, dry_run
+    )
+
+    telegram_sender.send_stock_balance_summary({
+        "base_sku": base_sku,
+        "total_pieces": total_pieces,
+        "shopee_before_pieces": shopee_before_pieces,
+        "tiktokshop_before_pieces": tiktokshop_before_pieces,
+        "shopee_after_pieces": shopee_after_pieces,
+        "tiktokshop_after_pieces": tiktokshop_after_pieces,
+        "shopee_lines": shopee_lines,
+        "tiktokshop_lines": tiktokshop_lines,
+        "shopee_status": shopee_status,
+        "tiktokshop_status": tiktokshop_status,
+        "dry_run": dry_run,
+    })
+
+    # Partial success needs manual attention — exit non-zero so the
+    # GitHub Actions run is marked failed.
+    if "❌" in shopee_status or "❌" in tiktokshop_status:
+        return 1
+    return 0
+
+
 # ============================================================
 # Per-platform push helpers (Excel mode)
 # ============================================================

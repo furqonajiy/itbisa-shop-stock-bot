@@ -15,7 +15,6 @@ Behaviour:
   - Negative stock is skipped with a warning.
   - Duplicate SKU rows: last value wins, with a warning printed.
   - SKU values are trusted as operator-provided base SKUs.
-  - Duplicate SKU rows: last value wins, with a warning printed.
 
 Returns:
   desired_stock: dict[base_sku, int]

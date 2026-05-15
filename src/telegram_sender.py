@@ -226,6 +226,71 @@ def send_stock_get_summary(report: dict) -> None:
     _send(_join(lines))
 
 
+def send_stock_balance_summary(report: dict) -> None:
+    """
+    Single-SKU rebalance run (from /stock_balance SKU).
+
+    report = {
+      "base_sku":                  str,
+      "total_pieces":              int,
+      "shopee_before_pieces":      int,
+      "tiktokshop_before_pieces":  int,
+      "shopee_after_pieces":       int,
+      "tiktokshop_after_pieces":   int,
+      "shopee_lines":              list[str],
+      "tiktokshop_lines":          list[str],
+      "shopee_status":             str,
+      "tiktokshop_status":         str,
+      "dry_run":                   bool,
+    }
+
+    Highlights the before/after delta so the operator can immediately
+    see what changed. Per-variant push lines mirror send_single_sku_summary.
+    """
+    header = (
+        "🔄 *Balance Stock* — DRY RUN"
+        if report["dry_run"]
+        else "🔄 *Balance Stock* — Selesai"
+    )
+
+    shopee_delta = report["shopee_after_pieces"] - report["shopee_before_pieces"]
+    tiktokshop_delta = report["tiktokshop_after_pieces"] - report["tiktokshop_before_pieces"]
+
+    def _signed(n: int) -> str:
+        # _fmt_int handles the minus sign natively because Python's f"{n:,}"
+        # formats negative ints as "-1,234" → "-1.234".
+        if n > 0:
+            return f"+{_fmt_int(n)}"
+        if n < 0:
+            return _fmt_int(n)
+        return "±0"
+
+    lines = [
+        header,
+        "",
+        f"SKU: `{report['base_sku']}`",
+        f"Total: {_fmt_int(report['total_pieces'])} pcs (dipertahankan)",
+        "",
+        "*Sebelum → Sesudah:*",
+        f"  • Shopee:      {_fmt_int(report['shopee_before_pieces'])} → "
+        f"{_fmt_int(report['shopee_after_pieces'])} pcs ({_signed(shopee_delta)})",
+        f"  • TikTok Shop: {_fmt_int(report['tiktokshop_before_pieces'])} → "
+        f"{_fmt_int(report['tiktokshop_after_pieces'])} pcs ({_signed(tiktokshop_delta)})",
+        "",
+        f"*Shopee* — {report['shopee_status']}",
+    ]
+    lines.extend(report["shopee_lines"] or ["  _(tidak ada varian)_"])
+    lines.append("")
+    lines.append(f"*TikTok Shop* — {report['tiktokshop_status']}")
+    lines.extend(report["tiktokshop_lines"] or ["  _(tidak ada varian)_"])
+
+    if report["dry_run"]:
+        lines.append("")
+        lines.append("_Dry run — tidak ada write API yang dipanggil._")
+
+    _send(_join(lines))
+
+
 def send_alert(text: str) -> None:
     """One-off error alert, for example refresh token expired or file not found."""
     _send(f"🚨 *Set Stock* — Error\n\n{text}")

@@ -29,11 +29,12 @@ from src import config
 _TELEGRAM_API = "https://api.telegram.org"
 _MAX_MESSAGE_CHARS = 4000  # Telegram caps at 4096; leave headroom
 
-# Platform glyphs used in the multi-SKU balance summary. Swap these for any
-# emoji (including custom Telegram emoji codepoints) that better matches the
-# Shopee / TikTok Shop brand — they are the only two spots that change visually.
-SHOPEE_EMOJI = "🟧S"
-TIKTOKSHOP_EMOJI = "🎵"
+# Platform display labels. Used everywhere a platform name appears in a
+# Telegram message — section headers, list rows, totals, balance summaries.
+# Changing these here updates every command (/stock_set, /stock_get,
+# /stock_balance) consistently.
+SHOPEE_LABEL = "🟧Shopee"
+TIKTOKSHOP_LABEL = "♪TikTok Shop"
 
 # Used by the multi-summary to strip leading "SKU `XXX` " from a reason
 # string so the SKU isn't repeated twice in its block.
@@ -53,9 +54,9 @@ def send_run_summary(report: dict) -> None:
       "excel_path":       str,
       "total_skus":       int,
       "succeeded":        int,
-      "skipped_missing":  list[str],   # SKU not on either platform
-      "skipped_one_side": list[tuple[str, str]],  # (sku, platform_present)
-      "failed":           list[tuple[str, str]],  # (sku, error_msg)
+      "skipped_missing":  list[str],
+      "skipped_one_side": list[tuple[str, str]],
+      "failed":           list[tuple[str, str]],
       "dry_run":          bool,
     }
     """
@@ -74,7 +75,7 @@ def send_run_summary(report: dict) -> None:
 
     if report["skipped_missing"]:
         lines.append("")
-        lines.append("*Tidak ditemukan di Shopee & TikTok Shop:*")
+        lines.append(f"*Tidak ditemukan di {SHOPEE_LABEL} & {TIKTOKSHOP_LABEL}:*")
         for sku in report["skipped_missing"][:20]:
             lines.append(f"• `{sku}`")
         if len(report["skipped_missing"]) > 20:
@@ -84,7 +85,8 @@ def send_run_summary(report: dict) -> None:
         lines.append("")
         lines.append("*Hanya ada di 1 platform (dilewati):*")
         for sku, platform in report["skipped_one_side"][:20]:
-            lines.append(f"• `{sku}` (hanya di {platform})")
+            platform_label = _label_for_platform(platform)
+            lines.append(f"• `{sku}` (hanya di {platform_label})")
         if len(report["skipped_one_side"]) > 20:
             lines.append(f"...dan {len(report['skipped_one_side']) - 20} lainnya")
 
@@ -128,12 +130,12 @@ def send_single_sku_summary(report: dict) -> None:
         f"SKU: `{report['base_sku']}`",
         f"Total: {_fmt_int(report['total_pieces'])} pcs",
         "",
-        f"*Shopee* — {_fmt_int(report['shopee_pieces'])} pcs — {report['shopee_status']}",
+        f"*{SHOPEE_LABEL}* — {_fmt_int(report['shopee_pieces'])} pcs — {report['shopee_status']}",
     ]
     lines.extend(report["shopee_lines"] or ["_(tidak ada varian)_"])
     lines.append("")
     lines.append(
-        f"*TikTok Shop* — {_fmt_int(report['tiktokshop_pieces'])} pcs — "
+        f"*{TIKTOKSHOP_LABEL}* — {_fmt_int(report['tiktokshop_pieces'])} pcs — "
         f"{report['tiktokshop_status']}"
     )
     lines.extend(report["tiktokshop_lines"] or ["_(tidak ada varian)_"])
@@ -151,12 +153,9 @@ def send_stock_get_summary(report: dict) -> None:
 
     report = {
       "base_sku":            str,
-      "shopee_variants":     list[dict],   # variants with stock_units + weight_grams
-      "tiktokshop_variants": list[dict],   # same shape
+      "shopee_variants":     list[dict],
+      "tiktokshop_variants": list[dict],
     }
-
-    Format: per-variant rows showing each platform's units + weight,
-    a per-variant cross-platform total, then the grand totals.
     """
     base_sku = report["base_sku"]
     shopee = report["shopee_variants"]
@@ -188,7 +187,7 @@ def send_stock_get_summary(report: dict) -> None:
         "",
         f"SKU dasar: `{base_sku}`",
         f"Ditemukan: {len(rows)} varian "
-        f"(Shopee {len(shopee)}, TikTok Shop {len(tiktokshop)})",
+        f"({SHOPEE_LABEL} {len(shopee)}, {TIKTOKSHOP_LABEL} {len(tiktokshop)})",
     ]
 
     shopee_total_pcs = 0
@@ -206,36 +205,36 @@ def send_stock_get_summary(report: dict) -> None:
             s_pcs = s["stock_units"] * mult
             shopee_total_pcs += s_pcs
             lines.append(
-                f"• Shopee: {_fmt_int(s['stock_units'])} unit, "
+                f"{SHOPEE_LABEL}: {_fmt_int(s['stock_units'])} unit, "
                 f"berat {_fmt_weight(s['weight_grams'])}"
             )
         else:
-            lines.append("• Shopee: _(tidak ada)_")
+            lines.append(f"{SHOPEE_LABEL}: _(tidak ada)_")
 
         if t is not None:
             t_pcs = t["stock_units"] * mult
             tiktokshop_total_pcs += t_pcs
             lines.append(
-                f"• TikTok Shop: {_fmt_int(t['stock_units'])} unit, "
+                f"{TIKTOKSHOP_LABEL}: {_fmt_int(t['stock_units'])} unit, "
                 f"berat {_fmt_weight(t['weight_grams'])}"
             )
         else:
-            lines.append("• TikTok Shop: _(tidak ada)_")
+            lines.append(f"{TIKTOKSHOP_LABEL}: _(tidak ada)_")
 
         # Per-variant cross-platform total.
         s_units = s["stock_units"] if s else 0
         t_units = t["stock_units"] if t else 0
         total_units = s_units + t_units
         lines.append(
-            f"• Total varian: {_fmt_int(total_units)} unit "
+            f"Total varian: {_fmt_int(total_units)} unit "
             f"(= {_fmt_int(total_units * mult)} pcs)"
         )
 
     lines.append("")
     lines.append("*Ringkasan:*")
-    lines.append(f"• Shopee total: {_fmt_int(shopee_total_pcs)} pcs")
-    lines.append(f"• TikTok Shop total: {_fmt_int(tiktokshop_total_pcs)} pcs")
-    lines.append(f"• Total gabungan: {_fmt_int(shopee_total_pcs + tiktokshop_total_pcs)} pcs")
+    lines.append(f"{SHOPEE_LABEL} total: {_fmt_int(shopee_total_pcs)} pcs")
+    lines.append(f"{TIKTOKSHOP_LABEL} total: {_fmt_int(tiktokshop_total_pcs)} pcs")
+    lines.append(f"Total gabungan: {_fmt_int(shopee_total_pcs + tiktokshop_total_pcs)} pcs")
 
     _send(_join(lines))
 
@@ -257,9 +256,6 @@ def send_stock_balance_summary(report: dict) -> None:
       "tiktokshop_status":         str,
       "dry_run":                   bool,
     }
-
-    Highlights the before/after delta so the operator can immediately
-    see what changed. Per-variant push lines mirror send_single_sku_summary.
     """
     header = (
         "🔄 *Balance Stock* — DRY RUN"
@@ -277,16 +273,16 @@ def send_stock_balance_summary(report: dict) -> None:
         f"Total: {_fmt_int(report['total_pieces'])} pcs (dipertahankan)",
         "",
         "*Sebelum → Sesudah:*",
-        f"• Shopee: {_fmt_int(report['shopee_before_pieces'])} → "
+        f"{SHOPEE_LABEL}: {_fmt_int(report['shopee_before_pieces'])} → "
         f"{_fmt_int(report['shopee_after_pieces'])} pcs ({_signed(shopee_delta)})",
-        f"• TikTok Shop: {_fmt_int(report['tiktokshop_before_pieces'])} → "
+        f"{TIKTOKSHOP_LABEL}: {_fmt_int(report['tiktokshop_before_pieces'])} → "
         f"{_fmt_int(report['tiktokshop_after_pieces'])} pcs ({_signed(tiktokshop_delta)})",
         "",
-        f"*Shopee* — {report['shopee_status']}",
+        f"*{SHOPEE_LABEL}* — {report['shopee_status']}",
     ]
     lines.extend(report["shopee_lines"] or ["_(tidak ada varian)_"])
     lines.append("")
-    lines.append(f"*TikTok Shop* — {report['tiktokshop_status']}")
+    lines.append(f"*{TIKTOKSHOP_LABEL}* — {report['tiktokshop_status']}")
     lines.extend(report["tiktokshop_lines"] or ["_(tidak ada varian)_"])
 
     if report["dry_run"]:
@@ -303,28 +299,15 @@ def send_stock_balance_multi_summary(report: dict) -> None:
 
     ONE compact message at end-of-run. Per SKU:
       <status>  `SKU`
-      <shopee>  before → after
-      <tiktok>  before → after
+      🟧Shopee  before → after
+      ♪TikTok   before → after
 
-    Skipped/failed SKUs collapse to status + SKU + short reason (no
-    platform lines, since there's nothing to show).
+    Skipped/failed SKUs collapse to status + SKU + short reason.
 
     report = {
-      "results": list[dict],   # one per SKU
+      "results": list[dict],
       "dry_run": bool,
     }
-
-    Each result dict:
-      {
-        "base_sku":                  str,
-        "status":                    "ok" | "dry_run" | "skipped" | "failed",
-        "reason":                    str,           # for skipped/failed
-        "shopee_before_pieces":      int,
-        "tiktokshop_before_pieces":  int,
-        "shopee_after_pieces":       int,
-        "tiktokshop_after_pieces":   int,
-        # ...other fields exist but are not used in this compact view
-      }
     """
     results = report["results"]
     dry_run = bool(report.get("dry_run", False))
@@ -349,8 +332,8 @@ def send_stock_balance_multi_summary(report: dict) -> None:
             tt_b = _fmt_int(r["tiktokshop_before_pieces"])
             tt_a = _fmt_int(r["tiktokshop_after_pieces"])
             lines.append(f"{icon} `{sku}`")
-            lines.append(f"{SHOPEE_EMOJI} {sh_b} → {sh_a}")
-            lines.append(f"{TIKTOKSHOP_EMOJI} {tt_b} → {tt_a}")
+            lines.append(f"{SHOPEE_LABEL} {sh_b} → {sh_a}")
+            lines.append(f"{TIKTOKSHOP_LABEL} {tt_b} → {tt_a}")
         elif status == "skipped":
             short = _strip_sku_prefix(r["reason"])
             lines.append(f"⏭️ `{sku}`")
@@ -359,9 +342,8 @@ def send_stock_balance_multi_summary(report: dict) -> None:
             short = _strip_sku_prefix(r["reason"])
             lines.append(f"❌ `{sku}`")
             lines.append(_truncate(short, 200))
-        lines.append("")  # blank line between SKU blocks
+        lines.append("")
 
-    # Drop trailing blank before the Ringkasan footer.
     if lines and lines[-1] == "":
         lines.pop()
 
@@ -383,8 +365,11 @@ def send_stock_balance_multi_summary(report: dict) -> None:
 
 
 def send_alert(text: str) -> None:
-    """One-off error alert, for example refresh token expired or file not found."""
-    _send(f"🚨 *Set Stock* — Error\n\n{text}")
+    """One-off error alert. Replaces 'Shopee'/'TikTok Shop' inside `text`
+    with the labelled versions so error messages from main.py stay
+    consistent with the rest of the Telegram output."""
+    decorated = _decorate_platforms(text)
+    _send(f"🚨 *Set Stock* — Error\n\n{decorated}")
 
 
 # ============================================================
@@ -406,7 +391,6 @@ def _send(text: str) -> None:
         response = requests.post(url, json=body, timeout=15)
         response.raise_for_status()
     except Exception as e:
-        # Telegram failures should never crash the run.
         print(f"  [telegram] Failed to send summary: {e}")
 
 
@@ -440,10 +424,28 @@ def _signed(n: int) -> str:
 
 
 def _strip_sku_prefix(reason: str) -> str:
-    """
-    Strip leading 'SKU `XXX` ' from a reason string when present, so the
-    multi-summary doesn't repeat the SKU on the same line as its label.
-    No-op for reasons that don't start with that pattern (e.g. partial-
-    failure reasons that begin with 'Shopee ❌ gagal: ...').
-    """
+    """Strip leading 'SKU `XXX` ' from a reason string when present."""
     return _SKU_PREFIX_RE.sub("", reason, count=1)
+
+
+def _label_for_platform(platform: str) -> str:
+    """Maps the bare platform string from skipped_one_side tuples to the
+    emoji-prefixed display label."""
+    p = (platform or "").strip()
+    if p == "Shopee":
+        return SHOPEE_LABEL
+    if p == "TikTok Shop":
+        return TIKTOKSHOP_LABEL
+    return p
+
+
+def _decorate_platforms(text: str) -> str:
+    """Apply emoji prefixes to bare 'Shopee' / 'TikTok Shop' tokens in
+    arbitrary message text (used for send_alert). Skips strings that
+    already contain the emoji to avoid double-prefixing. Word-boundary
+    regex so 'Shopee.com' or 'TikTokShopX' aren't touched."""
+    if "♪" not in text:
+        text = re.sub(r"\bTikTok Shop\b", TIKTOKSHOP_LABEL, text)
+    if "🟧" not in text:
+        text = re.sub(r"\bShopee\b", SHOPEE_LABEL, text)
+    return text

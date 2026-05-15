@@ -10,43 +10,37 @@ Public functions:
       returns base_sku -> list of variant dicts. Variant dict shape:
         {
           "multiplier":   int,
-          "sku_id":       str,    # TikTok Shop SKU id within a product
-          "product_id":   str,    # parent product_id
-          "warehouse_id": str,    # target warehouse for stock updates
-          "raw_sku":      str,    # the seller_sku TikTok Shop returned
-          "stock_units":  int,    # current stock (sum across warehouses)
-          "weight_grams": int,    # package weight normalised to grams
+          "sku_id":       str,
+          "product_id":   str,
+          "warehouse_id": str,
+          "raw_sku":      str,
+          "stock_units":  int,
+          "weight_grams": int,    # 0 when search omits package_weight
         }
-      All variants of a base SKU live under ONE product on TikTok Shop,
-      so the structure is simpler than Shopee's. We sort variants
-      ascending by multiplier per base.
+      All variants of a base SKU live under ONE product on TikTok Shop.
+      We sort variants ascending by multiplier per base.
 
       stock_units is populated for every variant. weight_grams comes
       back as 0 from this endpoint because /product/202502/products/search
-      omits package_weight — call fetch_product_detail() to enrich.
+      omits package_weight in practice — call fetch_product_detail() to
+      enrich for /stock_get.
 
   fetch_product_detail(product_id) -> dict[str, int]
       GET /product/202309/products/{product_id}. Returns
       {sku_id: weight_grams} for every SKU under the product, with the
       product-level package_weight used as a fallback when a SKU-level
       value isn't published. Used by /stock_get to display per-SKU
-      "berat" — neither /stock_set nor /stock_balance needs weight, so
-      we don't fold this into fetch_catalog().
+      "berat". Emits verbose diagnostic prints — when weight comes back
+      empty, the Actions log shows the raw response keys so we can
+      see whether seller has weight configured or whether the field
+      lives somewhere unexpected.
 
   update_stock_batch(product_id, sku_updates) -> None
-      One stock update call carrying multiple SKU updates that all belong
-      to the same product. The TikTok Shop API path is named
-      /inventory/update, but this bot treats it as an absolute stock set.
-      sku_updates = list of (sku_id, warehouse_id, qty).
+      Absolute stock set. Path says inventory/update but it's a set, not
+      a delta. All SKUs in one call must belong to product_id.
 
   describe() -> str
       Identifier for log/Telegram headers.
-
-Notes on the SKU structure:
-  TikTok Shop returns one product with many `skus`, each with
-  `seller_sku`, `id`, and `inventory[]`. We parse seller_sku for the
-  "<n>PCS-" prefix. All siblings of one base end up in the same product,
-  so the batch PUT covers the whole rebalance in one call.
 """
 
 from __future__ import annotations
@@ -61,19 +55,12 @@ import requests
 from src import config, tiktokshop_auth
 from src.stock_allocator import parse_sku
 
-# Versions per endpoint. The signed `version` query param must match
-# the path version, so we set it explicitly per call. 202502 is the
-# newer, denser product/search; 202309 covers stock updates and the
-# product-detail endpoint we use for weight enrichment.
 _SEARCH_API_VERSION = "202502"
 _INVENTORY_API_VERSION = "202309"
 _DETAIL_API_VERSION = "202309"
 
-# TikTok Shop docs cap product/search at page_size=100.
 _SEARCH_PAGE_SIZE = 100
 
-# Cached shop_cipher for the duration of one process run. Fetched
-# lazily on first signed call. Same pattern as the order bot.
 _cached_shop_cipher: str | None = None
 
 
@@ -103,8 +90,6 @@ def fetch_catalog() -> dict[str, list[dict]]:
         if page_token:
             extra_query["page_token"] = page_token
 
-        # Body filter: only ACTIVATE products. Catalog walk is intentionally
-        # broad because stock can be set for any active SKU.
         response = _call_signed(
             "POST",
             "/product/202502/products/search",
@@ -123,9 +108,6 @@ def fetch_catalog() -> dict[str, list[dict]]:
 
         for product in products:
             product_id = product["id"]
-            # Best-effort weight read from the search response. 202502 omits
-            # package_weight in practice, so this almost always resolves to 0;
-            # /stock_get patches the real weight in via fetch_product_detail().
             product_weight_grams = _normalize_weight_to_grams(product.get("package_weight"))
 
             for sku in product.get("skus") or []:
@@ -136,15 +118,12 @@ def fetch_catalog() -> dict[str, list[dict]]:
                 sku_id = sku.get("id")
                 inventories = sku.get("inventory") or []
                 if not sku_id or not inventories:
-                    # No existing inventory record means the API does not
-                    # expose which warehouse_id to target for stock updates.
                     continue
 
                 warehouse_id = inventories[0].get("warehouse_id")
                 if not warehouse_id:
                     continue
 
-                # Stock = sum across all warehouses returned for this SKU.
                 stock_units = 0
                 for inv in inventories:
                     try:
@@ -184,9 +163,14 @@ def fetch_product_detail(product_id: str) -> dict[str, int]:
 
     Returns {sku_id: weight_grams} for every SKU under the product. Falls
     back to the product-level package_weight when a SKU-level value isn't
-    published. Used by /stock_get to enrich variant weights — the search
-    endpoint used by fetch_catalog() omits package_weight, so this is the
-    only reliable source of per-SKU "berat".
+    published.
+
+    Verbose logging surfaces the raw response shape so we can diagnose
+    why weights come back empty:
+      - HTTP status + payload code/message
+      - Top-level data keys
+      - product-level package_weight raw value
+      - per-SKU package_weight raw value
     """
     path = f"/product/{_DETAIL_API_VERSION}/products/{product_id}"
     response = _call_signed(
@@ -194,18 +178,53 @@ def fetch_product_detail(product_id: str) -> dict[str, int]:
         path,
         extra_query={"version": _DETAIL_API_VERSION},
     )
-    _check_ok(response, context=f"product detail product={product_id}")
 
-    data = response.json().get("data") or {}
-    product_weight_grams = _normalize_weight_to_grams(data.get("package_weight"))
+    print(f"  [tiktokshop] fetch_product_detail({product_id}): HTTP {response.status_code}")
+    try:
+        payload = response.json()
+    except ValueError as e:
+        print(f"  [tiktokshop] fetch_product_detail({product_id}): not JSON ({e})")
+        print(f"  [tiktokshop] raw body (first 400 chars): {response.text[:400]}")
+        return {}
+
+    code = payload.get("code")
+    message = payload.get("message")
+    print(f"  [tiktokshop] fetch_product_detail({product_id}): code={code} message={message!r}")
+
+    if response.status_code >= 400 or code != 0:
+        print(f"  [tiktokshop] fetch_product_detail({product_id}): error body: {response.text[:400]}")
+        return {}
+
+    data = payload.get("data") or {}
+    print(
+        f"  [tiktokshop] fetch_product_detail({product_id}): "
+        f"top-level data keys = {sorted(data.keys())}"
+    )
+
+    raw_product_weight = data.get("package_weight")
+    print(
+        f"  [tiktokshop] fetch_product_detail({product_id}): "
+        f"product.package_weight = {raw_product_weight!r}"
+    )
+    product_weight_grams = _normalize_weight_to_grams(raw_product_weight)
+
+    skus = data.get("skus") or []
+    print(f"  [tiktokshop] fetch_product_detail({product_id}): {len(skus)} sku(s) under this product")
 
     result: dict[str, int] = {}
-    for sku in data.get("skus") or []:
+    for sku in skus:
         sku_id = sku.get("id")
         if not sku_id:
             continue
-        sku_weight_grams = _normalize_weight_to_grams(sku.get("package_weight"))
-        result[sku_id] = sku_weight_grams or product_weight_grams
+        raw_sku_weight = sku.get("package_weight")
+        sku_weight_grams = _normalize_weight_to_grams(raw_sku_weight)
+        final = sku_weight_grams or product_weight_grams
+        print(
+            f"  [tiktokshop]   sku {sku_id} ({sku.get('seller_sku')!r}): "
+            f"sku.package_weight={raw_sku_weight!r} -> {sku_weight_grams}g, "
+            f"final={final}g"
+        )
+        result[sku_id] = final
 
     return result
 
@@ -216,16 +235,7 @@ def update_stock_batch(
 ) -> None:
     """
     POST /product/202309/products/{product_id}/inventory/update.
-
-    The TikTok Shop API path is named inventory/update, but the operation
-    sets absolute stock for the supplied SKUs.
-
-    Args:
-      product_id:  TikTok Shop product id (string).
-      sku_updates: list of (sku_id, warehouse_id, quantity) tuples — all
-                   SKUs MUST belong to product_id.
-
-    Raises RuntimeError on HTTP or platform-level error.
+    Absolute stock set; sku_updates = list of (sku_id, warehouse_id, qty).
     """
     path = f"/product/{_INVENTORY_API_VERSION}/products/{product_id}/inventory/update"
     body = {
@@ -259,10 +269,13 @@ def update_stock_batch(
 def _normalize_weight_to_grams(pkg_weight) -> int:
     """Converts a TikTok Shop package_weight {value, unit} dict to grams.
 
-    TikTok Shop publishes weight as {"value": "0.05", "unit": "KILOGRAM"}.
-    Some sellers configure POUND or GRAM. Returns 0 on missing/invalid data.
+    Returns 0 on missing/invalid data. Logs unknown unit values so we
+    can spot schema drift.
     """
     if not pkg_weight:
+        return 0
+    if not isinstance(pkg_weight, dict):
+        print(f"  [tiktokshop] _normalize_weight_to_grams: unexpected type {type(pkg_weight).__name__} -> {pkg_weight!r}")
         return 0
     try:
         value = float(pkg_weight.get("value") or 0)
@@ -275,7 +288,10 @@ def _normalize_weight_to_grams(pkg_weight) -> int:
         return round(value * 453.59237)
     if unit == "GRAM":
         return round(value)
-    # Unknown/empty unit — assume kg, the API default.
+    if not unit:
+        # Empty unit — TikTok Shop defaults to KILOGRAM in docs.
+        return round(value * 1000)
+    print(f"  [tiktokshop] _normalize_weight_to_grams: unknown unit {unit!r} on {pkg_weight!r}; assuming kg")
     return round(value * 1000)
 
 
@@ -291,16 +307,6 @@ def _call_signed(
         body: dict | list | None = None,
         include_cipher: bool = True,
 ) -> requests.Response:
-    """
-    Signs and dispatches an Open API call.
-
-    Signing:
-      1. Exclude 'sign' and 'access_token' from query params; drop empty values.
-      2. Sort remaining params by key, concatenate as key+value (no separator).
-      3. canonical = path + sorted_param_string + raw_body_string
-      4. wrapped   = app_secret + canonical + app_secret
-      5. sign      = HMAC-SHA256(app_secret, wrapped).hexdigest()
-    """
     access_token = tiktokshop_auth.get_valid_access_token()
     timestamp = str(int(time.time()))
 
@@ -317,14 +323,13 @@ def _call_signed(
         if cipher:
             query["shop_cipher"] = cipher
 
-    # Body for signing: compact JSON if dict/list, else empty string.
     raw_body = ""
     if body is not None:
         raw_body = _json.dumps(body, separators=(",", ":"), ensure_ascii=False)
 
     sign = _compute_sign(path, query, raw_body)
     query["sign"] = sign
-    query["access_token"] = access_token  # transport-only, not signed
+    query["access_token"] = access_token
 
     url = f"{config.TIKTOKSHOP_OPEN_API_BASE_URL}{path}"
     headers = {
@@ -355,7 +360,6 @@ def _call_signed(
 
 
 def _compute_sign(path: str, query: dict[str, str], raw_body: str) -> str:
-    """See _call_signed docstring for the algorithm."""
     filtered = {
         k: v for k, v in query.items()
         if k not in ("sign", "access_token") and v not in (None, "")
@@ -371,7 +375,6 @@ def _compute_sign(path: str, query: dict[str, str], raw_body: str) -> str:
 
 
 def _check_ok(response: requests.Response, *, context: str) -> None:
-    """Raises RuntimeError if HTTP non-2xx or payload code != 0."""
     if response.status_code >= 400:
         raise RuntimeError(
             f"TikTok Shop HTTP {response.status_code} on {context}: {response.text[:500]}"
@@ -385,9 +388,6 @@ def _check_ok(response: requests.Response, *, context: str) -> None:
 
 
 def _get_shop_cipher(access_token: str) -> str:
-    """Lazy-loaded, cached for the run. The cipher is required on most
-    Open API endpoints; the only exception is /authorization/202309/shops
-    itself, which we call here with include_cipher=False."""
     global _cached_shop_cipher
     if _cached_shop_cipher is not None:
         return _cached_shop_cipher

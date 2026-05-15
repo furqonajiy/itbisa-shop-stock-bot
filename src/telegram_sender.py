@@ -1,15 +1,17 @@
 """
 telegram_sender.py
 ------------------
-Sends a Bahasa Indonesia summary of the stock-set / stock-get run to the
-operator's Telegram chat. Same chat as the order bots, but a different
-message shape — this is a transactional report, not an order label.
+Sends a Bahasa Indonesia summary of the stock-set / stock-get / stock-balance
+run to the operator's Telegram chat. Same chat as the order bots, but a
+different message shape — this is a transactional report, not an order label.
 
 Public functions:
-  send_run_summary(report)          — bulk Excel run
-  send_single_sku_summary(report)   — single-SKU /stock_set run
-  send_stock_get_summary(report)    — single-SKU /stock_get run (read-only)
-  send_alert(text)                  — error path
+  send_run_summary(report)                  — bulk Excel run
+  send_single_sku_summary(report)           — single-SKU /stock_set run
+  send_stock_get_summary(report)            — single-SKU /stock_get run (read-only)
+  send_stock_balance_summary(report)        — single-SKU /stock_balance run
+  send_stock_balance_multi_summary(report)  — multi-SKU /stock_balance run
+  send_alert(text)                          — error path
 
 The `report` dicts are produced by main.py and have a fully-defined
 shape — see the docstrings below. Keep this module dumb (formatting
@@ -18,12 +20,18 @@ only); main.py does the orchestration.
 
 from __future__ import annotations
 
+import re
+
 import requests
 
 from src import config
 
 _TELEGRAM_API = "https://api.telegram.org"
 _MAX_MESSAGE_CHARS = 4000  # Telegram caps at 4096; leave headroom
+
+# Used by the multi-summary to strip leading "SKU `XXX` " from a reason
+# string so the SKU isn't repeated twice on a single line.
+_SKU_PREFIX_RE = re.compile(r"^SKU `[^`]+`\s+")
 
 
 # ============================================================
@@ -256,15 +264,6 @@ def send_stock_balance_summary(report: dict) -> None:
     shopee_delta = report["shopee_after_pieces"] - report["shopee_before_pieces"]
     tiktokshop_delta = report["tiktokshop_after_pieces"] - report["tiktokshop_before_pieces"]
 
-    def _signed(n: int) -> str:
-        # _fmt_int handles the minus sign natively because Python's f"{n:,}"
-        # formats negative ints as "-1,234" → "-1.234".
-        if n > 0:
-            return f"+{_fmt_int(n)}"
-        if n < 0:
-            return _fmt_int(n)
-        return "±0"
-
     lines = [
         header,
         "",
@@ -285,6 +284,80 @@ def send_stock_balance_summary(report: dict) -> None:
     lines.extend(report["tiktokshop_lines"] or ["  _(tidak ada varian)_"])
 
     if report["dry_run"]:
+        lines.append("")
+        lines.append("_Dry run — tidak ada write API yang dipanggil._")
+
+    _send(_join(lines))
+
+
+def send_stock_balance_multi_summary(report: dict) -> None:
+    """
+    Multi-SKU rebalance run (from /stock_balance with 2+ SKU, or order-bot
+    auto-dispatch after /resi_*).
+
+    ONE compact message at end-of-run, one line per SKU. Replaces the
+    "20 separate detailed messages" spam path for long batches.
+
+    report = {
+      "results": list[dict],   # one per SKU
+      "dry_run": bool,
+    }
+
+    Each result dict:
+      {
+        "base_sku":                  str,
+        "status":                    "ok" | "dry_run" | "skipped" | "failed",
+        "reason":                    str,           # for skipped/failed
+        "shopee_before_pieces":      int,
+        "tiktokshop_before_pieces":  int,
+        "shopee_after_pieces":       int,
+        "tiktokshop_after_pieces":   int,
+        # ...other fields exist but are not used in this compact view
+      }
+    """
+    results = report["results"]
+    dry_run = bool(report.get("dry_run", False))
+    total = len(results)
+
+    ok_count = sum(1 for r in results if r["status"] in ("ok", "dry_run"))
+    skip_count = sum(1 for r in results if r["status"] == "skipped")
+    fail_count = sum(1 for r in results if r["status"] == "failed")
+
+    suffix = " — DRY RUN" if dry_run else " — Selesai"
+    header = f"🔄 *Balance Stock*{suffix} ({total} SKU)"
+
+    lines = [header, ""]
+
+    for r in results:
+        sku = r["base_sku"]
+        status = r["status"]
+        if status in ("ok", "dry_run"):
+            icon = "🔍" if status == "dry_run" else "✅"
+            sh_b = _fmt_int(r["shopee_before_pieces"])
+            sh_a = _fmt_int(r["shopee_after_pieces"])
+            tt_b = _fmt_int(r["tiktokshop_before_pieces"])
+            tt_a = _fmt_int(r["tiktokshop_after_pieces"])
+            lines.append(
+                f"{icon} `{sku}`: SH {sh_b}→{sh_a} | TT {tt_b}→{tt_a}"
+            )
+        elif status == "skipped":
+            short = _strip_sku_prefix(r["reason"])
+            lines.append(f"⏭️ `{sku}`: {_truncate(short, 120)}")
+        else:  # failed
+            short = _strip_sku_prefix(r["reason"])
+            lines.append(f"❌ `{sku}`: {_truncate(short, 120)}")
+
+    lines.append("")
+    summary_parts: list[str] = []
+    if ok_count:
+        summary_parts.append(f"{ok_count} ✅")
+    if skip_count:
+        summary_parts.append(f"{skip_count} ⏭️")
+    if fail_count:
+        summary_parts.append(f"{fail_count} ❌")
+    lines.append("*Ringkasan:* " + " | ".join(summary_parts))
+
+    if dry_run:
         lines.append("")
         lines.append("_Dry run — tidak ada write API yang dipanggil._")
 
@@ -337,3 +410,22 @@ def _fmt_weight(grams: int) -> str:
     if not grams:
         return "—"
     return f"{_fmt_int(grams)} g"
+
+
+def _signed(n: int) -> str:
+    """Signed integer with Indonesian thousands separator; '±0' for zero."""
+    if n > 0:
+        return f"+{_fmt_int(n)}"
+    if n < 0:
+        return _fmt_int(n)
+    return "±0"
+
+
+def _strip_sku_prefix(reason: str) -> str:
+    """
+    Strip leading 'SKU `XXX` ' from a reason string when present, so the
+    multi-summary doesn't repeat the SKU on the same line as its label.
+    No-op for reasons that don't start with that pattern (e.g. partial-
+    failure reasons that begin with 'Shopee ❌ gagal: ...').
+    """
+    return _SKU_PREFIX_RE.sub("", reason, count=1)

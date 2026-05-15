@@ -20,10 +20,14 @@ Orchestrator. Four run modes, one set of helpers:
   Mode D — Stock balance: run_stock_balance_mode(base_sku, dry_run)
                            run_stock_balance_multi(base_skus, dry_run)
     Triggered by /stock_balance from the Telegram bot, and by order bots
-    at end-of-run for each shipped base SKU. Reads current cross-platform
-    total, splits 50:50, writes the same total back. Multi-SKU variant
-    walks both catalogs ONCE and loops per SKU, sending one Telegram
-    message per SKU so the operator sees per-SKU pass/fail in real time.
+    at end-of-run for the full list of shipped base SKUs in a single
+    dispatch. Walks both catalogs ONCE, loops per SKU.
+
+    Telegram output strategy:
+      - 1 SKU  -> existing detailed summary (per-variant lines).
+      - 2+ SKU -> ONE compact end-of-run summary listing each SKU with
+                  per-platform before -> after pieces. Keeps long batches
+                  (e.g. 20 SKU) from spamming the operator chat.
 
 All modes share:
   - Catalog walk on each platform (one HTTP traffic burst at the start)
@@ -337,58 +341,43 @@ def run_stock_get_mode(base_sku: str) -> int:
 
 def run_stock_balance_mode(base_sku: str, dry_run: bool) -> int:
     """
-    Rebalance one base SKU across Shopee and TikTok Shop.
-
-    Thin wrapper that walks catalogs once and delegates to the per-SKU
-    helper. Kept so callers passing a single SKU still work.
+    Single-SKU balance entry point. Thin wrapper around
+    run_stock_balance_multi so the detailed-vs-compact summary
+    switch lives in one place.
     """
-    print("=" * 70)
-    print(f"ITBisa Shop Stock Bot — Balance mode {'(DRY RUN)' if dry_run else ''}")
-    print("=" * 70)
-    print(f"SKU: {base_sku}")
-    print()
-
-    try:
-        shopee_catalog, tiktokshop_catalog = _walk_balance_catalogs()
-    except shopee_auth.RefreshTokenExpiredError as e:
-        msg = (
-            f"🔐 Otorisasi Shopee kadaluarsa. Mohon otorisasi ulang aplikasi "
-            f"di Shopee Open Platform Console, lalu update file "
-            f"data/shopee_tokens.json di branch bot-state. ({e})"
-        )
-        print(f"✗ {msg}")
-        telegram_sender.send_alert(msg)
-        return 1
-
-    return _balance_one_sku(base_sku, shopee_catalog, tiktokshop_catalog, dry_run)
+    return run_stock_balance_multi([base_sku], dry_run)
 
 
 def run_stock_balance_multi(base_skus: list[str], dry_run: bool) -> int:
     """
-    Rebalance multiple base SKUs in one workflow run.
+    Rebalance one or more base SKUs across Shopee and TikTok Shop.
 
-    Walks Shopee and TikTok Shop catalogs ONCE (shared across all SKUs)
-    and loops per SKU. Each SKU sends its own Telegram message via
-    telegram_sender so the operator sees per-SKU pass/fail as each
-    SKU finishes.
+    Walks both catalogs ONCE and loops per SKU. The grand total per
+    SKU is preserved; only the per-platform share changes (50:50 split).
 
-    Used by /stock_balance from Telegram and by order bots at end-of-run
-    for the full list of shipped base SKUs in a single dispatch.
+    Telegram output:
+      - 1 SKU  -> detailed summary via send_stock_balance_summary
+                  (operator typed /stock_balance for that one SKU).
+      - 2+ SKU -> ONE compact summary via send_stock_balance_multi_summary
+                  listing each SKU with per-platform before -> after.
 
     Returns process exit code:
-      0 = all SKUs processed successfully (or dry-run completed)
-      1 = at least one SKU was skipped (missing/zero-total) or failed
+      0 = all SKUs ok (or dry-run completed)
+      1 = at least one SKU skipped (missing/zero-total) or failed
     """
     if not base_skus:
-        msg = "Tidak ada SKU yang diberikan ke balance multi mode."
+        msg = "Tidak ada SKU diberikan ke balance mode."
         print(f"✗ {msg}")
         telegram_sender.send_alert(msg)
         return 1
 
     print("=" * 70)
-    print(f"ITBisa Shop Stock Bot — Balance multi mode {'(DRY RUN)' if dry_run else ''}")
+    print(f"ITBisa Shop Stock Bot — Balance mode {'(DRY RUN)' if dry_run else ''}")
     print("=" * 70)
-    print(f"SKUs ({len(base_skus)}): {', '.join(base_skus)}")
+    if len(base_skus) == 1:
+        print(f"SKU: {base_skus[0]}")
+    else:
+        print(f"SKUs ({len(base_skus)}): {', '.join(base_skus)}")
     print()
 
     try:
@@ -403,28 +392,40 @@ def run_stock_balance_multi(base_skus: list[str], dry_run: bool) -> int:
         telegram_sender.send_alert(msg)
         return 1
 
-    any_failure = False
+    results: list[dict] = []
     for base_sku in base_skus:
-        print("-" * 70)
-        print(f"Balancing: {base_sku}")
-        print("-" * 70)
-        rc = _balance_one_sku(base_sku, shopee_catalog, tiktokshop_catalog, dry_run)
-        if rc != 0:
-            any_failure = True
+        if len(base_skus) > 1:
+            print("-" * 70)
+            print(f"Balancing: {base_sku}")
+            print("-" * 70)
+        results.append(
+            _balance_one_sku(base_sku, shopee_catalog, tiktokshop_catalog, dry_run)
+        )
         print()
 
-    return 1 if any_failure else 0
+    # One Telegram message per run, regardless of SKU count. Single-SKU
+    # gets the detailed format; multi-SKU gets the compact format.
+    if len(results) == 1:
+        _send_single_balance_telegram(results[0], dry_run)
+    else:
+        telegram_sender.send_stock_balance_multi_summary({
+            "results": results,
+            "dry_run": dry_run,
+        })
+
+    if any(r["status"] not in ("ok", "dry_run") for r in results):
+        return 1
+    return 0
 
 
 # ============================================================
-# Balance helpers (shared between single and multi modes)
+# Balance helpers
 # ============================================================
 
 def _walk_balance_catalogs() -> tuple[dict, dict]:
     """
-    Walks both platform catalogs once and returns them. Raises
-    shopee_auth.RefreshTokenExpiredError to the caller so single and
-    multi modes can both surface the same manual-intervention alert.
+    Walks both platform catalogs once. Raises
+    shopee_auth.RefreshTokenExpiredError to the caller.
     """
     print("[1/2] Walking Shopee catalog...")
     shopee_catalog = shopee_client.fetch_catalog()
@@ -437,19 +438,49 @@ def _walk_balance_catalogs() -> tuple[dict, dict]:
     return shopee_catalog, tiktokshop_catalog
 
 
+def _make_skip_result(base_sku: str, reason: str) -> dict:
+    """Result shape for a SKU that never got past presence/total checks."""
+    return {
+        "base_sku": base_sku,
+        "status": "skipped",
+        "reason": reason,
+        "total_pieces": 0,
+        "shopee_before_pieces": 0,
+        "tiktokshop_before_pieces": 0,
+        "shopee_after_pieces": 0,
+        "tiktokshop_after_pieces": 0,
+        "shopee_lines": [],
+        "tiktokshop_lines": [],
+        "shopee_status": "",
+        "tiktokshop_status": "",
+    }
+
+
 def _balance_one_sku(
         base_sku: str,
         shopee_catalog: dict,
         tiktokshop_catalog: dict,
         dry_run: bool,
-) -> int:
+) -> dict:
     """
     Rebalance one base SKU against pre-fetched catalogs.
 
-    Sends its own Telegram message (send_alert for skips, or
-    send_stock_balance_summary for runs). Returns 0 on success or
-    dry-run; 1 on skip (missing on a platform, zero total) or
-    platform write failure.
+    Returns a result dict (no Telegram side effect — the caller decides
+    whether to send detailed or compact output):
+      {
+        "base_sku":                  str,
+        "status":                    "ok" | "dry_run" | "skipped" | "failed",
+        "reason":                    str,           # for skipped/failed
+        "total_pieces":              int,
+        "shopee_before_pieces":      int,
+        "tiktokshop_before_pieces":  int,
+        "shopee_after_pieces":       int,
+        "tiktokshop_after_pieces":   int,
+        "shopee_lines":              list[str],
+        "tiktokshop_lines":          list[str],
+        "shopee_status":             str,
+        "tiktokshop_status":         str,
+      }
     """
     on_shopee = base_sku in shopee_catalog
     on_tiktokshop = base_sku in tiktokshop_catalog
@@ -457,31 +488,27 @@ def _balance_one_sku(
     # Balance requires BOTH platforms — nothing to redistribute if only
     # one side carries the SKU.
     if not on_shopee and not on_tiktokshop:
-        msg = (
-            f"SKU `{base_sku}` tidak ditemukan di Shopee maupun TikTok Shop. "
-            f"Tidak ada yang bisa di-rebalance."
+        reason = (
+            f"SKU `{base_sku}` tidak ditemukan di Shopee maupun TikTok Shop."
         )
-        print(f"✗ {msg}")
-        telegram_sender.send_alert(msg)
-        return 1
+        print(f"✗ {reason}")
+        return _make_skip_result(base_sku, reason)
 
     if not on_shopee:
-        msg = (
+        reason = (
             f"SKU `{base_sku}` hanya ada di TikTok Shop (tidak di Shopee). "
-            f"Balance membutuhkan kedua platform — tidak diproses."
+            f"Balance membutuhkan kedua platform."
         )
-        print(f"✗ {msg}")
-        telegram_sender.send_alert(msg)
-        return 1
+        print(f"✗ {reason}")
+        return _make_skip_result(base_sku, reason)
 
     if not on_tiktokshop:
-        msg = (
+        reason = (
             f"SKU `{base_sku}` hanya ada di Shopee (tidak di TikTok Shop). "
-            f"Balance membutuhkan kedua platform — tidak diproses."
+            f"Balance membutuhkan kedua platform."
         )
-        print(f"✗ {msg}")
-        telegram_sender.send_alert(msg)
-        return 1
+        print(f"✗ {reason}")
+        return _make_skip_result(base_sku, reason)
 
     shopee_variants = shopee_catalog[base_sku]
     tiktokshop_variants = tiktokshop_catalog[base_sku]
@@ -499,16 +526,17 @@ def _balance_one_sku(
         f"Sebelum: Shopee={shopee_before_pieces} + "
         f"TikTok Shop={tiktokshop_before_pieces} = {total_pieces} pcs"
     )
-    print()
 
     if total_pieces == 0:
-        msg = (
+        reason = (
             f"SKU `{base_sku}` total stok = 0 di kedua platform. "
             f"Tidak ada yang perlu di-rebalance."
         )
-        print(f"✗ {msg}")
-        telegram_sender.send_alert(msg)
-        return 1
+        print(f"✗ {reason}")
+        result = _make_skip_result(base_sku, reason)
+        result["shopee_before_pieces"] = shopee_before_pieces
+        result["tiktokshop_before_pieces"] = tiktokshop_before_pieces
+        return result
 
     # Reuse the same split logic /stock_set uses, so behaviour stays
     # consistent across commands.
@@ -521,8 +549,23 @@ def _balance_one_sku(
         base_sku, tiktokshop_after_pieces, tiktokshop_variants, dry_run
     )
 
-    telegram_sender.send_stock_balance_summary({
+    failed = "❌" in shopee_status or "❌" in tiktokshop_status
+    if failed:
+        reason_parts = []
+        if "❌" in shopee_status:
+            reason_parts.append(f"Shopee {shopee_status}")
+        if "❌" in tiktokshop_status:
+            reason_parts.append(f"TikTok Shop {tiktokshop_status}")
+        status_label = "failed"
+        reason = " | ".join(reason_parts)
+    else:
+        status_label = "dry_run" if dry_run else "ok"
+        reason = ""
+
+    return {
         "base_sku": base_sku,
+        "status": status_label,
+        "reason": reason,
         "total_pieces": total_pieces,
         "shopee_before_pieces": shopee_before_pieces,
         "tiktokshop_before_pieces": tiktokshop_before_pieces,
@@ -532,14 +575,28 @@ def _balance_one_sku(
         "tiktokshop_lines": tiktokshop_lines,
         "shopee_status": shopee_status,
         "tiktokshop_status": tiktokshop_status,
-        "dry_run": dry_run,
-    })
+    }
 
-    # Partial success needs manual attention — non-zero so multi-mode
-    # exit code surfaces it.
-    if "❌" in shopee_status or "❌" in tiktokshop_status:
-        return 1
-    return 0
+
+def _send_single_balance_telegram(result: dict, dry_run: bool) -> None:
+    """Detailed Telegram for single-SKU balance — preserves the existing
+    per-variant breakdown that operators see when typing /stock_balance SKU."""
+    if result["status"] in ("ok", "dry_run"):
+        telegram_sender.send_stock_balance_summary({
+            "base_sku": result["base_sku"],
+            "total_pieces": result["total_pieces"],
+            "shopee_before_pieces": result["shopee_before_pieces"],
+            "tiktokshop_before_pieces": result["tiktokshop_before_pieces"],
+            "shopee_after_pieces": result["shopee_after_pieces"],
+            "tiktokshop_after_pieces": result["tiktokshop_after_pieces"],
+            "shopee_lines": result["shopee_lines"],
+            "tiktokshop_lines": result["tiktokshop_lines"],
+            "shopee_status": result["shopee_status"],
+            "tiktokshop_status": result["tiktokshop_status"],
+            "dry_run": dry_run,
+        })
+    else:
+        telegram_sender.send_alert(result["reason"])
 
 
 # ============================================================

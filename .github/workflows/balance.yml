@@ -6,6 +6,8 @@ name: Balance Stock
 # Triggered:
 #   • Manually from the Actions tab with a base SKU
 #   • Via workflow_dispatch from the Telegram bot Worker (/stock_balance SKU)
+#   • Via workflow_dispatch from the order bots (Shopee + TikTok Shop) at
+#     the end of every /resi_* run, once per shipped base SKU
 on:
   workflow_dispatch:
     inputs:
@@ -20,12 +22,17 @@ on:
         default: false
 
 # Separate group from stock-set / stock-get so a balance run never
-# cancels an in-flight set/get and vice versa. Newer balance DOES
-# cancel older balance — the operator only cares about the latest
-# rebalance instruction.
+# cancels an in-flight set/get and vice versa.
+#
+# cancel-in-progress is FALSE because /resi_all dispatches Shopee and
+# TikTok Shop order bots in parallel. Both can finish at similar times
+# and both can trigger balance for the same base SKU within seconds.
+# Cancelling mid-write would leave one platform updated and the other
+# not — stock skewed. Queuing is safe here: balance.yml is manual /
+# dispatch only (no cron), so queue depth stays bounded.
 concurrency:
   group: stock-balance
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   balance-stock:

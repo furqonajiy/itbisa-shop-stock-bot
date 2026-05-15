@@ -1,88 +1,57 @@
 name: Balance Stock
 
-# Rebalance one SKU's stock 50:50 across Shopee and TikTok Shop while
-# preserving the cross-platform grand total. Read + write.
-#
-# Triggered:
-#   • Manually from the Actions tab with a base SKU
-#   • Via workflow_dispatch from the Telegram bot Worker (/stock_balance SKU)
-#   • Via workflow_dispatch from the order bots (Shopee + TikTok Shop) at
-#     the end of every /resi_* run, once per shipped base SKU
 on:
   workflow_dispatch:
     inputs:
       sku:
-        description: "Base SKU to rebalance."
+        description: "Base SKU(s), space-separated (e.g. ITBISA-LED-5MM or SKU1 SKU2 SKU3)"
         required: true
         type: string
       dry_run:
-        description: "Dry run — print plan without calling write APIs."
+        description: "Dry run (no API writes)"
         required: false
-        type: boolean
-        default: false
+        default: "false"
+        type: string
 
-# Separate group from stock-set / stock-get so a balance run never
-# cancels an in-flight set/get and vice versa.
-#
-# cancel-in-progress is FALSE because /resi_all dispatches Shopee and
-# TikTok Shop order bots in parallel. Both can finish at similar times
-# and both can trigger balance for the same base SKU within seconds.
-# Cancelling mid-write would leave one platform updated and the other
-# not — stock skewed. Queuing is safe here: balance.yml is manual /
-# dispatch only (no cron), so queue depth stays bounded.
 concurrency:
   group: stock-balance
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
-  balance-stock:
+  balance:
     runs-on: ubuntu-latest
-
-    # The bot reads + writes data/ on the bot-state branch.
-    permissions:
-      contents: write
-
     steps:
-      # ----------------------------------------------------
-      # 1. Checkout main (source code)
-      # ----------------------------------------------------
       - name: Checkout main
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
 
-      # ----------------------------------------------------
-      # 2. Overlay state from bot-state if it exists
-      # ----------------------------------------------------
-      - name: Sync data/ from bot-state
+      - name: Overlay data/ from bot-state
         run: |
-          if git ls-remote --exit-code --heads origin bot-state >/dev/null 2>&1; then
-            echo "bot-state branch exists — overlaying data/"
-            git fetch origin bot-state
-            git checkout origin/bot-state -- data/ || echo "no data/ on bot-state yet"
-          else
-            echo "bot-state branch not found — using data/ from main"
+          git fetch origin bot-state || true
+          if git show-ref --verify --quiet refs/remotes/origin/bot-state; then
+            mkdir -p data
+            git --work-tree=. checkout origin/bot-state -- data/ 2>/dev/null || true
           fi
-          ls -la data/ || true
 
-      # ----------------------------------------------------
-      # 3. Python env
-      # ----------------------------------------------------
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      # ----------------------------------------------------
-      # 4. Run the script
-      # ----------------------------------------------------
       - name: Run stock balance
         env:
+          SKU_ARG: ${{ inputs.sku }}
+          DRY_RUN: ${{ inputs.dry_run }}
           SHOPEE_PARTNER_ID: ${{ secrets.SHOPEE_PARTNER_ID }}
           SHOPEE_PARTNER_KEY: ${{ secrets.SHOPEE_PARTNER_KEY }}
           SHOPEE_SHOP_ID: ${{ secrets.SHOPEE_SHOP_ID }}
@@ -91,52 +60,34 @@ jobs:
           TIKTOKSHOP_SHOP_ID: ${{ secrets.TIKTOKSHOP_SHOP_ID }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          INPUT_SKU: ${{ inputs.sku }}
-          INPUT_DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          set -e
-          DRY_FLAG=""
-          if [ "$INPUT_DRY_RUN" = "true" ]; then
-            DRY_FLAG="--dry-run"
+          if [ "$DRY_RUN" = "true" ]; then
+            python scripts/stock_balance.py --dry-run --sku $SKU_ARG
+          else
+            python scripts/stock_balance.py --sku $SKU_ARG
           fi
-          python scripts/stock_balance.py --sku "$INPUT_SKU" $DRY_FLAG
 
-      # ----------------------------------------------------
-      # 5. Persist refreshed tokens back to bot-state
-      # ----------------------------------------------------
-      # Read + write run. Token refresh may have rotated access_token
-      # and/or refresh_token. Persist any data/ changes back to bot-state.
-      - name: Commit token rotation to bot-state
+      - name: Commit token state to bot-state
         if: always()
         run: |
-          git config user.name  "itbisa-bot[bot]"
-          git config user.email "itbisa-bot@users.noreply.github.com"
-
-          TMP=$(mktemp -d)
-          cp data/shopee_tokens.json "$TMP/" 2>/dev/null || true
-          cp data/tiktokshop_tokens.json "$TMP/" 2>/dev/null || true
-
-          if [ ! -f "$TMP/shopee_tokens.json" ] && [ ! -f "$TMP/tiktokshop_tokens.json" ]; then
-            echo "No token files to commit."
-            rm -rf "$TMP"
+          if [ ! -d data ]; then
+            echo "No data/ directory to commit"
             exit 0
           fi
-
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin bot-state || true
-          if git rev-parse --verify origin/bot-state >/dev/null 2>&1; then
+          if git show-ref --verify --quiet refs/remotes/origin/bot-state; then
             git checkout -B bot-state origin/bot-state
           else
             git checkout --orphan bot-state
-            git rm -rf . >/dev/null 2>&1 || true
+            git rm -rf . 2>/dev/null || true
           fi
-
           mkdir -p data
-          cp "$TMP/shopee_tokens.json" data/ 2>/dev/null || true
-          cp "$TMP/tiktokshop_tokens.json" data/ 2>/dev/null || true
-          rm -rf "$TMP"
-
-          [ -f data/shopee_tokens.json ] && git add data/shopee_tokens.json
-          [ -f data/tiktokshop_tokens.json ] && git add data/tiktokshop_tokens.json
-
-          git diff --staged --quiet || git commit -m "chore(state): refresh tokens after stock-balance run"
-          git push --force-with-lease origin bot-state
+          git add -f data/*.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No token/state changes to commit"
+          else
+            git commit -m "stock-balance: update tokens"
+            git push origin bot-state
+          fi

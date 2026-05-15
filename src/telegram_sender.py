@@ -33,7 +33,7 @@ _MAX_MESSAGE_CHARS = 4000  # Telegram caps at 4096; leave headroom
 # emoji (including custom Telegram emoji codepoints) that better matches the
 # Shopee / TikTok Shop brand — they are the only two spots that change visually.
 SHOPEE_EMOJI = "🟧S"
-TIKTOKSHOP_EMOJI = "🎵T"
+TIKTOKSHOP_EMOJI = "🎵"
 
 # Used by the multi-summary to strip leading "SKU `XXX` " from a reason
 # string so the SKU isn't repeated twice in its block.
@@ -76,25 +76,25 @@ def send_run_summary(report: dict) -> None:
         lines.append("")
         lines.append("*Tidak ditemukan di Shopee & TikTok Shop:*")
         for sku in report["skipped_missing"][:20]:
-            lines.append(f"  • `{sku}`")
+            lines.append(f"• `{sku}`")
         if len(report["skipped_missing"]) > 20:
-            lines.append(f"  ...dan {len(report['skipped_missing']) - 20} lainnya")
+            lines.append(f"...dan {len(report['skipped_missing']) - 20} lainnya")
 
     if report["skipped_one_side"]:
         lines.append("")
         lines.append("*Hanya ada di 1 platform (dilewati):*")
         for sku, platform in report["skipped_one_side"][:20]:
-            lines.append(f"  • `{sku}` (hanya di {platform})")
+            lines.append(f"• `{sku}` (hanya di {platform})")
         if len(report["skipped_one_side"]) > 20:
-            lines.append(f"  ...dan {len(report['skipped_one_side']) - 20} lainnya")
+            lines.append(f"...dan {len(report['skipped_one_side']) - 20} lainnya")
 
     if report["failed"]:
         lines.append("")
         lines.append("*Gagal (cek manual):*")
         for sku, err in report["failed"][:10]:
-            lines.append(f"  • `{sku}`: {_truncate(err, 120)}")
+            lines.append(f"• `{sku}`: {_truncate(err, 120)}")
         if len(report["failed"]) > 10:
-            lines.append(f"  ...dan {len(report['failed']) - 10} lainnya")
+            lines.append(f"...dan {len(report['failed']) - 10} lainnya")
 
     if report["dry_run"]:
         lines.append("")
@@ -130,13 +130,13 @@ def send_single_sku_summary(report: dict) -> None:
         "",
         f"*Shopee* — {_fmt_int(report['shopee_pieces'])} pcs — {report['shopee_status']}",
     ]
-    lines.extend(report["shopee_lines"] or ["  _(tidak ada varian)_"])
+    lines.extend(report["shopee_lines"] or ["_(tidak ada varian)_"])
     lines.append("")
     lines.append(
         f"*TikTok Shop* — {_fmt_int(report['tiktokshop_pieces'])} pcs — "
         f"{report['tiktokshop_status']}"
     )
-    lines.extend(report["tiktokshop_lines"] or ["  _(tidak ada varian)_"])
+    lines.extend(report["tiktokshop_lines"] or ["_(tidak ada varian)_"])
 
     if report["dry_run"]:
         lines.append("")
@@ -206,36 +206,36 @@ def send_stock_get_summary(report: dict) -> None:
             s_pcs = s["stock_units"] * mult
             shopee_total_pcs += s_pcs
             lines.append(
-                f"  • Shopee:      {_fmt_int(s['stock_units'])} unit, "
+                f"• Shopee: {_fmt_int(s['stock_units'])} unit, "
                 f"berat {_fmt_weight(s['weight_grams'])}"
             )
         else:
-            lines.append("  • Shopee:      _(tidak ada)_")
+            lines.append("• Shopee: _(tidak ada)_")
 
         if t is not None:
             t_pcs = t["stock_units"] * mult
             tiktokshop_total_pcs += t_pcs
             lines.append(
-                f"  • TikTok Shop: {_fmt_int(t['stock_units'])} unit, "
+                f"• TikTok Shop: {_fmt_int(t['stock_units'])} unit, "
                 f"berat {_fmt_weight(t['weight_grams'])}"
             )
         else:
-            lines.append("  • TikTok Shop: _(tidak ada)_")
+            lines.append("• TikTok Shop: _(tidak ada)_")
 
         # Per-variant cross-platform total.
         s_units = s["stock_units"] if s else 0
         t_units = t["stock_units"] if t else 0
         total_units = s_units + t_units
         lines.append(
-            f"  • Total varian: {_fmt_int(total_units)} unit "
+            f"• Total varian: {_fmt_int(total_units)} unit "
             f"(= {_fmt_int(total_units * mult)} pcs)"
         )
 
     lines.append("")
     lines.append("*Ringkasan:*")
-    lines.append(f"  • Shopee total:      {_fmt_int(shopee_total_pcs)} pcs")
-    lines.append(f"  • TikTok Shop total: {_fmt_int(tiktokshop_total_pcs)} pcs")
-    lines.append(f"  • Total gabungan:    {_fmt_int(shopee_total_pcs + tiktokshop_total_pcs)} pcs")
+    lines.append(f"• Shopee total: {_fmt_int(shopee_total_pcs)} pcs")
+    lines.append(f"• TikTok Shop total: {_fmt_int(tiktokshop_total_pcs)} pcs")
+    lines.append(f"• Total gabungan: {_fmt_int(shopee_total_pcs + tiktokshop_total_pcs)} pcs")
 
     _send(_join(lines))
 
@@ -277,17 +277,17 @@ def send_stock_balance_summary(report: dict) -> None:
         f"Total: {_fmt_int(report['total_pieces'])} pcs (dipertahankan)",
         "",
         "*Sebelum → Sesudah:*",
-        f"  • Shopee:      {_fmt_int(report['shopee_before_pieces'])} → "
+        f"• Shopee: {_fmt_int(report['shopee_before_pieces'])} → "
         f"{_fmt_int(report['shopee_after_pieces'])} pcs ({_signed(shopee_delta)})",
-        f"  • TikTok Shop: {_fmt_int(report['tiktokshop_before_pieces'])} → "
+        f"• TikTok Shop: {_fmt_int(report['tiktokshop_before_pieces'])} → "
         f"{_fmt_int(report['tiktokshop_after_pieces'])} pcs ({_signed(tiktokshop_delta)})",
         "",
         f"*Shopee* — {report['shopee_status']}",
     ]
-    lines.extend(report["shopee_lines"] or ["  _(tidak ada varian)_"])
+    lines.extend(report["shopee_lines"] or ["_(tidak ada varian)_"])
     lines.append("")
     lines.append(f"*TikTok Shop* — {report['tiktokshop_status']}")
-    lines.extend(report["tiktokshop_lines"] or ["  _(tidak ada varian)_"])
+    lines.extend(report["tiktokshop_lines"] or ["_(tidak ada varian)_"])
 
     if report["dry_run"]:
         lines.append("")
@@ -354,11 +354,11 @@ def send_stock_balance_multi_summary(report: dict) -> None:
         elif status == "skipped":
             short = _strip_sku_prefix(r["reason"])
             lines.append(f"⏭️ `{sku}`")
-            lines.append(f"   {_truncate(short, 200)}")
+            lines.append(_truncate(short, 200))
         else:  # failed
             short = _strip_sku_prefix(r["reason"])
             lines.append(f"❌ `{sku}`")
-            lines.append(f"   {_truncate(short, 200)}")
+            lines.append(_truncate(short, 200))
         lines.append("")  # blank line between SKU blocks
 
     # Drop trailing blank before the Ringkasan footer.

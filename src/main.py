@@ -713,7 +713,7 @@ def _format_and_push_shopee(
     for variant, units in allocations:
         raw = variant["raw_sku"]
         mult = variant["multiplier"]
-        lines.append(f"  • `{raw}`: {units} unit (= {units * mult} pcs)")
+        lines.append(f"• `{raw}`: {units} unit (= {units * mult} pcs)")
         if dry_run or push_err is not None:
             continue
         try:
@@ -759,7 +759,7 @@ def _format_and_push_tiktokshop(
     for variant, units in allocations:
         raw = variant["raw_sku"]
         mult = variant["multiplier"]
-        lines.append(f"  • `{raw}`: {units} unit (= {units * mult} pcs)")
+        lines.append(f"• `{raw}`: {units} unit (= {units * mult} pcs)")
         by_product.setdefault(variant["product_id"], []).append(
             (variant["sku_id"], variant["warehouse_id"], units)
         )

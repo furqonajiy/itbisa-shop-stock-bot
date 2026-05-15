@@ -21,8 +21,17 @@ Public functions:
       so the structure is simpler than Shopee's. We sort variants
       ascending by multiplier per base.
 
-      stock_units and weight_grams are populated for EVERY variant.
-      The /stock_set write path ignores them; /stock_get reads them.
+      stock_units is populated for every variant. weight_grams comes
+      back as 0 from this endpoint because /product/202502/products/search
+      omits package_weight — call fetch_product_detail() to enrich.
+
+  fetch_product_detail(product_id) -> dict[str, int]
+      GET /product/202309/products/{product_id}. Returns
+      {sku_id: weight_grams} for every SKU under the product, with the
+      product-level package_weight used as a fallback when a SKU-level
+      value isn't published. Used by /stock_get to display per-SKU
+      "berat" — neither /stock_set nor /stock_balance needs weight, so
+      we don't fold this into fetch_catalog().
 
   update_stock_batch(product_id, sku_updates) -> None
       One stock update call carrying multiple SKU updates that all belong
@@ -54,9 +63,11 @@ from src.stock_allocator import parse_sku
 
 # Versions per endpoint. The signed `version` query param must match
 # the path version, so we set it explicitly per call. 202502 is the
-# newer, denser product/search; 202309 is current for stock updates.
+# newer, denser product/search; 202309 covers stock updates and the
+# product-detail endpoint we use for weight enrichment.
 _SEARCH_API_VERSION = "202502"
 _INVENTORY_API_VERSION = "202309"
+_DETAIL_API_VERSION = "202309"
 
 # TikTok Shop docs cap product/search at page_size=100.
 _SEARCH_PAGE_SIZE = 100
@@ -112,8 +123,9 @@ def fetch_catalog() -> dict[str, list[dict]]:
 
         for product in products:
             product_id = product["id"]
-            # 202309 schema puts package_weight at product level.
-            # 202502 schema can put it at SKU level. Read both; SKU wins when present.
+            # Best-effort weight read from the search response. 202502 omits
+            # package_weight in practice, so this almost always resolves to 0;
+            # /stock_get patches the real weight in via fetch_product_detail().
             product_weight_grams = _normalize_weight_to_grams(product.get("package_weight"))
 
             for sku in product.get("skus") or []:
@@ -140,8 +152,6 @@ def fetch_catalog() -> dict[str, list[dict]]:
                     except (TypeError, ValueError):
                         pass
 
-                # Prefer SKU-level weight (newer 202502 schema); fall back
-                # to product-level (older 202309 schema).
                 sku_weight_grams = _normalize_weight_to_grams(sku.get("package_weight"))
                 weight_grams = sku_weight_grams or product_weight_grams
 
@@ -166,6 +176,38 @@ def fetch_catalog() -> dict[str, list[dict]]:
         variants.sort(key=lambda v: v["multiplier"])
 
     return base_to_variants
+
+
+def fetch_product_detail(product_id: str) -> dict[str, int]:
+    """
+    GET /product/202309/products/{product_id}.
+
+    Returns {sku_id: weight_grams} for every SKU under the product. Falls
+    back to the product-level package_weight when a SKU-level value isn't
+    published. Used by /stock_get to enrich variant weights — the search
+    endpoint used by fetch_catalog() omits package_weight, so this is the
+    only reliable source of per-SKU "berat".
+    """
+    path = f"/product/{_DETAIL_API_VERSION}/products/{product_id}"
+    response = _call_signed(
+        "GET",
+        path,
+        extra_query={"version": _DETAIL_API_VERSION},
+    )
+    _check_ok(response, context=f"product detail product={product_id}")
+
+    data = response.json().get("data") or {}
+    product_weight_grams = _normalize_weight_to_grams(data.get("package_weight"))
+
+    result: dict[str, int] = {}
+    for sku in data.get("skus") or []:
+        sku_id = sku.get("id")
+        if not sku_id:
+            continue
+        sku_weight_grams = _normalize_weight_to_grams(sku.get("package_weight"))
+        result[sku_id] = sku_weight_grams or product_weight_grams
+
+    return result
 
 
 def update_stock_batch(
@@ -353,6 +395,7 @@ def _get_shop_cipher(access_token: str) -> str:
     response = _call_signed(
         "GET",
         "/authorization/202309/shops",
+        extra_query={"version": "202309"},
         include_cipher=False,
     )
     _check_ok(response, context="get shop_cipher")

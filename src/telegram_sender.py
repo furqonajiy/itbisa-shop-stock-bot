@@ -12,7 +12,7 @@ Public functions:
   send_stock_get_summary(report)            — single-SKU /stock_get run (read-only)
   send_stock_balance_summary(report)        — single-SKU /stock_balance run
   send_stock_balance_multi_summary(report)  — multi-SKU /stock_balance run
-  send_alert(text)                          — error path
+  send_alert(text, mode)                    — error path
 
 The `report` dicts are produced by main.py and have a fully-defined
 shape — see the docstrings below. Keep this module dumb (formatting
@@ -432,12 +432,16 @@ def send_stock_balance_multi_summary(report: dict) -> None:
     _send(_join(lines))
 
 
-def send_alert(text: str) -> None:
-    """One-off error alert. Replaces 'Shopee'/'TikTok Shop' inside `text`
-    with the labelled versions so error messages from main.py stay
-    consistent with the rest of the Telegram output."""
+def send_alert(text: str, mode: str = "Set Stock") -> None:
+    """One-off error alert. Header reflects the calling mode
+    ("Set Stock" / "Get Stock" / "Balance Stock"); defaults to "Set Stock"
+    so Excel-mode and Set-mode callers stay unchanged.
+
+    Replaces 'Shopee'/'TikTok Shop' inside `text` with the labelled
+    versions so error messages from main.py stay consistent with the rest
+    of the Telegram output."""
     decorated = _decorate_platforms(text)
-    _send(f"🚨 *Set Stock* — Error\n\n{decorated}")
+    _send(f"🚨 *{mode}* — Error\n\n{decorated}")
 
 
 # ============================================================

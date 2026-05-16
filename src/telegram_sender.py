@@ -8,6 +8,7 @@ different message shape — this is a transactional report, not an order label.
 Public functions:
   send_run_summary(report)                  — bulk Excel run
   send_single_sku_summary(report)           — single-SKU /stock_set run
+  send_stock_set_multi_summary(report)      — multi-SKU /stock_set run
   send_stock_get_summary(report)            — single-SKU /stock_get run (read-only)
   send_stock_balance_summary(report)        — single-SKU /stock_balance run
   send_stock_balance_multi_summary(report)  — multi-SKU /stock_balance run
@@ -141,6 +142,73 @@ def send_single_sku_summary(report: dict) -> None:
     lines.extend(report["tiktokshop_lines"] or ["_(tidak ada varian)_"])
 
     if report["dry_run"]:
+        lines.append("")
+        lines.append("_Dry run — tidak ada write API yang dipanggil._")
+
+    _send(_join(lines))
+
+
+def send_stock_set_multi_summary(report: dict) -> None:
+    """
+    Multi-SKU set run (from /stock_set SKU1 N1 SKU2 N2 ... with 2+ SKU).
+
+    ONE compact message at end-of-run. Per SKU:
+      <status>  `SKU` <total> pcs
+      🟧Shopee  <shopee_pieces> pcs
+      ♪TikTok Shop  <tiktokshop_pieces> pcs
+
+    Skipped/failed SKUs collapse to status + SKU + short reason.
+
+    report = {
+      "results": list[dict],   # see _set_one_sku result shape in src/main.py
+      "dry_run": bool,
+    }
+    """
+    results = report["results"]
+    dry_run = bool(report.get("dry_run", False))
+    total = len(results)
+
+    ok_count = sum(1 for r in results if r["status"] in ("ok", "dry_run"))
+    skip_count = sum(1 for r in results if r["status"] == "skipped")
+    fail_count = sum(1 for r in results if r["status"] == "failed")
+
+    suffix = " — DRY RUN" if dry_run else " — Selesai"
+    header = f"📦 *Set Stock*{suffix} ({total} SKU)"
+
+    lines = [header, ""]
+
+    for r in results:
+        sku = r["base_sku"]
+        status = r["status"]
+        if status in ("ok", "dry_run"):
+            icon = "🔍" if status == "dry_run" else "✅"
+            lines.append(f"{icon} `{sku}` {_fmt_int(r['total_pieces'])} pcs")
+            lines.append(f"{SHOPEE_LABEL} {_fmt_int(r['shopee_pieces'])} pcs")
+            lines.append(f"{TIKTOKSHOP_LABEL} {_fmt_int(r['tiktokshop_pieces'])} pcs")
+        elif status == "skipped":
+            short = _strip_sku_prefix(r["reason"])
+            lines.append(f"⏭️ `{sku}`")
+            lines.append(_truncate(short, 200))
+        else:  # failed
+            short = _strip_sku_prefix(r["reason"])
+            lines.append(f"❌ `{sku}`")
+            lines.append(_truncate(short, 200))
+        lines.append("")
+
+    if lines and lines[-1] == "":
+        lines.pop()
+
+    lines.append("")
+    summary_parts: list[str] = []
+    if ok_count:
+        summary_parts.append(f"{ok_count} ✅")
+    if skip_count:
+        summary_parts.append(f"{skip_count} ⏭️")
+    if fail_count:
+        summary_parts.append(f"{fail_count} ❌")
+    lines.append("*Ringkasan:* " + " | ".join(summary_parts))
+
+    if dry_run:
         lines.append("")
         lines.append("_Dry run — tidak ada write API yang dipanggil._")
 

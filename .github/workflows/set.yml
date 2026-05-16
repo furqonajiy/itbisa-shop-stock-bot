@@ -4,17 +4,20 @@ name: Set Stock
 # Triggered either:
 #   • Manually from the Actions tab (with optional inputs)
 #   • Via workflow_dispatch from the Telegram bot Worker
-#     (/stock_set SKU PIECES)
+#     (/stock_set SKU JUMLAH [SKU JUMLAH ...] [dry])
+#
+# In multi-SKU mode, `sku` and `pieces` are space-separated parallel
+# lists paired positionally (e.g. sku="A B C", pieces="100 200 300").
 on:
   workflow_dispatch:
     inputs:
       sku:
-        description: "Base SKU (single-SKU mode). Leave empty for Excel mode."
+        description: "Base SKU(s), space-separated (single-SKU mode). Leave empty for Excel mode."
         required: false
         type: string
         default: ""
       pieces:
-        description: "Total pieces (single-SKU mode). Leave empty for Excel mode."
+        description: "Piece count(s), space-separated, same order as sku. Leave empty for Excel mode."
         required: false
         type: string
         default: ""
@@ -29,11 +32,12 @@ on:
         type: boolean
         default: false
 
-# Cancel in-flight runs of this workflow if a new dispatch arrives.
-# Stock is not order-sensitive, so newer always wins.
+# Multi-SKU runs walk both catalogs and write per SKU. Cancelling mid-write
+# would leave part of a batch applied. Queue instead of replacing, matching
+# stock-balance.
 concurrency:
   group: stock-set
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   set-stock:
@@ -86,6 +90,10 @@ jobs:
       # ----------------------------------------------------
       # API base URLs, allocation reserves, and run safety limits live in
       # src/config.py. Secrets below are credentials only.
+      #
+      # $INPUT_SKU and $INPUT_PIECES are deliberately UNQUOTED so the shell
+      # word-splits each space-separated list into multiple argv tokens,
+      # feeding argparse's nargs='+' parsing in scripts/stock_set.py.
       - name: Run stock set
         env:
           SHOPEE_PARTNER_ID: ${{ secrets.SHOPEE_PARTNER_ID }}
@@ -109,15 +117,14 @@ jobs:
 
           if [ -n "$INPUT_SKU" ] || [ -n "$INPUT_PIECES" ]; then
             if [ -z "$INPUT_SKU" ] || [ -z "$INPUT_PIECES" ]; then
-              echo "Provide both sku and pieces for single-SKU mode, or leave both empty for Excel mode." >&2
+              echo "Provide both sku and pieces (space-separated parallel lists for multi-SKU)." >&2
               exit 2
             fi
 
-            echo "Single-SKU mode: $INPUT_SKU = $INPUT_PIECES pcs"
-            python scripts/stock_set.py \
-              --sku "$INPUT_SKU" \
-              --pieces "$INPUT_PIECES" \
-              $DRY_FLAG
+            echo "SKU mode:"
+            echo "  sku    = $INPUT_SKU"
+            echo "  pieces = $INPUT_PIECES"
+            python scripts/stock_set.py --sku $INPUT_SKU --pieces $INPUT_PIECES $DRY_FLAG
           else
             echo "Excel mode: $INPUT_EXCEL_PATH"
             python scripts/stock_set.py "$INPUT_EXCEL_PATH" $DRY_FLAG

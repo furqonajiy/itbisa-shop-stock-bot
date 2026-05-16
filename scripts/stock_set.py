@@ -1,15 +1,22 @@
 """
 stock_set.py
 ------------
-CLI entry point for itbisa-shop-stock-bot. Two usages:
+CLI entry point for itbisa-shop-stock-bot. Three usages:
 
   Excel mode (manual bulk operator workflow):
     python scripts/stock_set.py stock.xlsx
     python scripts/stock_set.py stock.xlsx --dry-run
 
-  Single-SKU mode (used by /stock_set in the Telegram bot Worker):
+  Single-SKU mode (used by /stock_set SKU JUMLAH in the Telegram Worker):
     python scripts/stock_set.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000
     python scripts/stock_set.py --sku ITBISA-IC-NE555P-DIP8 --pieces 10000 --dry-run
+
+  Multi-SKU mode (used by /stock_set SKU1 N1 SKU2 N2 ... from the Worker):
+    python scripts/stock_set.py --sku SKU1 SKU2 SKU3 --pieces 100 200 300
+    python scripts/stock_set.py --sku SKU1 SKU2 --pieces 100 200 --dry-run
+
+In single- and multi-SKU modes, --sku and --pieces are parallel lists
+paired positionally. The lists must have the same length.
 
 The CLI is deliberately argparse-based (not just sys.argv positional)
 because the GitHub Actions workflow_dispatch dispatches with named
@@ -18,6 +25,7 @@ workflow YAML readable.
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -29,30 +37,33 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # import time. We defer that import until AFTER argparse has run, so
 # `--help` works without the env being fully configured.
 
+_PCS_PREFIX = re.compile(r"^\d+PCS-", re.IGNORECASE)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="ITBisa shop stock setter (Shopee + TikTok Shop)",
     )
 
-    # Mutually exclusive: either an Excel path OR a single-SKU pair.
     parser.add_argument(
         "excel_path",
         nargs="?",
         type=Path,
-        help="Path to stock.xlsx (Excel mode). Omit when using --sku.",
+        help="Path to stock.xlsx (Excel mode). Omit when using --sku/--pieces.",
     )
     parser.add_argument(
         "--sku",
+        nargs="+",
         type=str,
         default=None,
-        help="SKU for single-SKU mode (e.g. ITBISA-IC-NE555P-DIP8).",
+        help="One or more base SKUs (space-separated). Paired positionally with --pieces.",
     )
     parser.add_argument(
         "--pieces",
+        nargs="+",
         type=int,
         default=None,
-        help="Total physical pieces for single-SKU mode (e.g. 10000).",
+        help="One or more piece counts (space-separated). Paired positionally with --sku.",
     )
     parser.add_argument(
         "--dry-run",
@@ -63,18 +74,42 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
 
     excel_given = args.excel_path is not None
-    single_given = args.sku is not None or args.pieces is not None
+    sku_given = args.sku is not None
+    pieces_given = args.pieces is not None
 
-    if excel_given and single_given:
+    if excel_given and (sku_given or pieces_given):
         parser.error("Use either an Excel path OR --sku/--pieces, not both.")
-    if not excel_given and not single_given:
+    if not excel_given and not (sku_given and pieces_given):
         parser.error("Provide either an Excel path or both --sku and --pieces.")
-    if single_given and (args.sku is None or args.pieces is None):
-        parser.error("Single-SKU mode requires BOTH --sku and --pieces.")
-    if args.pieces is not None and args.pieces < 0:
-        parser.error("--pieces must be non-negative.")
+    if sku_given and pieces_given and len(args.sku) != len(args.pieces):
+        parser.error(
+            f"--sku and --pieces must have the same count "
+            f"(got {len(args.sku)} SKU(s) and {len(args.pieces)} piece value(s))."
+        )
+    if args.pieces is not None and any(p < 0 for p in args.pieces):
+        parser.error("All --pieces values must be non-negative.")
 
     return args
+
+
+def _normalize_pairs(raw_skus: list[str], raw_pieces: list[int]) -> dict[str, int]:
+    """Uppercase, strip, dedupe (last value wins, matches Excel reader),
+    reject XPCS- variants. Prints stderr-style warnings for skips."""
+    desired: dict[str, int] = {}
+    for raw_sku, pcs in zip(raw_skus, raw_pieces):
+        sku = (raw_sku or "").strip().upper()
+        if not sku:
+            continue
+        if _PCS_PREFIX.match(sku):
+            print(f"  Skipping variant SKU {sku}; pass base SKU only")
+            continue
+        if sku in desired and desired[sku] != pcs:
+            print(
+                f"  SKU {sku} duplicate — overwriting earlier value "
+                f"{desired[sku]} with {pcs}"
+            )
+        desired[sku] = pcs
+    return desired
 
 
 def main() -> int:
@@ -87,11 +122,12 @@ def main() -> int:
     if args.excel_path is not None:
         return stock_main.run_excel_mode(args.excel_path, args.dry_run)
 
-    return stock_main.run_single_sku_mode(
-        base_sku=args.sku.strip(),
-        total_pieces=args.pieces,
-        dry_run=args.dry_run,
-    )
+    desired = _normalize_pairs(args.sku, args.pieces)
+    if not desired:
+        print("✗ No valid SKUs after normalization.", file=sys.stderr)
+        return 2
+
+    return stock_main.run_stock_set_multi(desired, args.dry_run)
 
 
 if __name__ == "__main__":

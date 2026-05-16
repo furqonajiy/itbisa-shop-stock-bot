@@ -7,10 +7,18 @@ Orchestrator. Four run modes, one set of helpers:
     Reads stock.xlsx, iterates over every SKU, and pushes the split
     to both platforms. One Telegram summary at the end.
 
-  Mode B — Single SKU:   run_single_sku_mode(base_sku, total_pieces, dry_run)
-    Triggered by /stock_set from the Telegram bot. Same logic as one
-    row of Mode A, but Telegram output is more detailed because we
-    have the room (one SKU = one message).
+  Mode B — Set (single or multi SKU):
+                         run_single_sku_mode(base_sku, total_pieces, dry_run)
+                         run_stock_set_multi(desired, dry_run)
+    Triggered by /stock_set from the Telegram bot. Single-SKU is a thin
+    wrapper around run_stock_set_multi. Walks both catalogs ONCE, loops
+    per SKU.
+
+    Telegram output strategy:
+      - 1 SKU  -> detailed summary (per-variant lines).
+      - 2+ SKU -> ONE compact end-of-run summary listing each SKU with
+                  per-platform pieces and status. Keeps long batches
+                  (e.g. 20 SKU) from spamming the operator chat.
 
   Mode C — Stock get:    run_stock_get_mode(base_sku)
     Triggered by /stock_get from the Telegram bot. READ-ONLY: walks
@@ -210,68 +218,99 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
 
 def run_single_sku_mode(base_sku: str, total_pieces: int, dry_run: bool) -> int:
     """
-    Single-SKU push, used by /stock_set from Telegram.
-    Returns process exit code.
+    Single-SKU set entry point. Thin wrapper around run_stock_set_multi
+    so the detailed-vs-compact summary switch lives in one place.
     """
+    return run_stock_set_multi({base_sku: total_pieces}, dry_run)
+
+
+def run_stock_set_multi(desired: dict[str, int], dry_run: bool) -> int:
+    """
+    Set absolute stock for one or more base SKUs via 50:50 split.
+
+    Triggered by /stock_set from the Telegram Worker (single or multi-SKU)
+    and by manual workflow_dispatch with parallel --sku/--pieces lists.
+
+    Walks both catalogs ONCE and loops per SKU.
+
+    Telegram output:
+      - 1 SKU  -> detailed summary via send_single_sku_summary
+                  (preserves the per-variant breakdown).
+      - 2+ SKU -> ONE compact summary via send_stock_set_multi_summary
+                  listing each SKU with per-platform pieces and status.
+
+    Returns process exit code:
+      0 = all SKUs ok (or dry-run completed)
+      1 = at least one SKU skipped or failed (or upstream auth failure)
+      2 = hit MAX_SKUS_PER_RUN ceiling
+    """
+    if not desired:
+        msg = "Tidak ada SKU diberikan ke set mode."
+        print(f"✗ {msg}")
+        telegram_sender.send_alert(msg)
+        return 1
+
     print("=" * 70)
-    print(f"ITBisa Shop Stock Bot — Single SKU mode {'(DRY RUN)' if dry_run else ''}")
+    print(f"ITBisa Shop Stock Bot — Set mode {'(DRY RUN)' if dry_run else ''}")
     print("=" * 70)
-    print(f"SKU:    {base_sku}")
-    print(f"Total:  {total_pieces} pcs")
     print(f"TikTok Shop small-pack reserve: {config.TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES} pcs")
+    if len(desired) == 1:
+        only_sku, only_total = next(iter(desired.items()))
+        print(f"SKU:   {only_sku}")
+        print(f"Total: {only_total} pcs")
+    else:
+        print(f"SKUs ({len(desired)}):")
+        for sku, total in desired.items():
+            print(f"  • {sku} = {total} pcs")
     print()
+
+    if len(desired) > config.MAX_SKUS_PER_RUN:
+        msg = (
+            f"Set mode menerima {len(desired)} SKU, melebihi MAX_SKUS_PER_RUN="
+            f"{config.MAX_SKUS_PER_RUN}. Run dibatalkan untuk keamanan."
+        )
+        print(f"✗ {msg}")
+        telegram_sender.send_alert(msg)
+        return 2
 
     try:
         print("Walking catalogs...")
         shopee_catalog = shopee_client.fetch_catalog()
         tiktokshop_catalog = tiktokshop_client.fetch_catalog()
+        print()
     except shopee_auth.RefreshTokenExpiredError as e:
-        msg = f"🔐 Otorisasi Shopee kadaluarsa. ({e})"
+        msg = (
+            f"🔐 Otorisasi Shopee kadaluarsa. Mohon otorisasi ulang aplikasi "
+            f"di Shopee Open Platform Console, lalu update file "
+            f"data/shopee_tokens.json di branch bot-state. ({e})"
+        )
+        print(f"✗ {msg}")
         telegram_sender.send_alert(msg)
         return 1
 
-    on_shopee = base_sku in shopee_catalog
-    on_tiktokshop = base_sku in tiktokshop_catalog
+    results: list[dict] = []
+    for base_sku, total_pieces in desired.items():
+        if len(desired) > 1:
+            print("-" * 70)
+            print(f"Setting: {base_sku} = {total_pieces} pcs")
+            print("-" * 70)
+        results.append(
+            _set_one_sku(
+                base_sku, total_pieces, shopee_catalog, tiktokshop_catalog, dry_run
+            )
+        )
+        print()
 
-    if not on_shopee and not on_tiktokshop:
-        msg = f"SKU `{base_sku}` tidak ditemukan di Shopee maupun TikTok Shop. Periksa SKU dan coba lagi."
-        telegram_sender.send_alert(msg)
-        return 1
+    # One Telegram message per run, regardless of SKU count.
+    if len(results) == 1:
+        _send_single_set_telegram(results[0], dry_run)
+    else:
+        telegram_sender.send_stock_set_multi_summary({
+            "results": results,
+            "dry_run": dry_run,
+        })
 
-    if not on_shopee:
-        msg = f"SKU `{base_sku}` hanya ada di TikTok Shop (tidak di Shopee). Tidak diproses (sesuai aturan)."
-        telegram_sender.send_alert(msg)
-        return 1
-
-    if not on_tiktokshop:
-        msg = f"SKU `{base_sku}` hanya ada di Shopee (tidak di TikTok Shop). Tidak diproses (sesuai aturan)."
-        telegram_sender.send_alert(msg)
-        return 1
-
-    shopee_pieces, tiktokshop_pieces = split_across_platforms(total_pieces)
-
-    shopee_lines, shopee_status = _format_and_push_shopee(
-        base_sku, shopee_pieces, shopee_catalog[base_sku], dry_run
-    )
-    tiktokshop_lines, tiktokshop_status = _format_and_push_tiktokshop(
-        base_sku, tiktokshop_pieces, tiktokshop_catalog[base_sku], dry_run
-    )
-
-    telegram_sender.send_single_sku_summary({
-        "mode": "single",
-        "base_sku": base_sku,
-        "total_pieces": total_pieces,
-        "shopee_pieces": shopee_pieces,
-        "tiktokshop_pieces": tiktokshop_pieces,
-        "shopee_lines": shopee_lines,
-        "tiktokshop_lines": tiktokshop_lines,
-        "shopee_status": shopee_status,
-        "tiktokshop_status": tiktokshop_status,
-        "dry_run": dry_run,
-    })
-
-    # Exit non-zero if either platform failed. Partial success needs manual attention.
-    if "❌" in shopee_status or "❌" in tiktokshop_status:
+    if any(r["status"] not in ("ok", "dry_run") for r in results):
         return 1
     return 0
 
@@ -416,6 +455,138 @@ def run_stock_balance_multi(base_skus: list[str], dry_run: bool) -> int:
     if any(r["status"] not in ("ok", "dry_run") for r in results):
         return 1
     return 0
+
+
+# ============================================================
+# Set helpers
+# ============================================================
+
+def _set_one_sku(
+        base_sku: str,
+        total_pieces: int,
+        shopee_catalog: dict,
+        tiktokshop_catalog: dict,
+        dry_run: bool,
+) -> dict:
+    """
+    Push absolute stock for one base SKU against pre-fetched catalogs.
+
+    No Telegram side effects — the caller decides between detailed (1 SKU)
+    and compact (2+ SKU) summaries.
+
+    Returns:
+      {
+        "base_sku":          str,
+        "status":            "ok" | "dry_run" | "skipped" | "failed",
+        "reason":            str,       # populated for skipped / failed
+        "total_pieces":      int,
+        "shopee_pieces":     int,
+        "tiktokshop_pieces": int,
+        "shopee_lines":      list[str],
+        "tiktokshop_lines":  list[str],
+        "shopee_status":     str,
+        "tiktokshop_status": str,
+      }
+    """
+    on_shopee = base_sku in shopee_catalog
+    on_tiktokshop = base_sku in tiktokshop_catalog
+
+    if not on_shopee and not on_tiktokshop:
+        reason = f"SKU `{base_sku}` tidak ditemukan di Shopee maupun TikTok Shop."
+        print(f"✗ {reason}")
+        return _make_set_skip_result(base_sku, total_pieces, reason)
+
+    if not on_shopee:
+        reason = (
+            f"SKU `{base_sku}` hanya ada di TikTok Shop (tidak di Shopee). "
+            f"Tidak diproses (sesuai aturan)."
+        )
+        print(f"✗ {reason}")
+        return _make_set_skip_result(base_sku, total_pieces, reason)
+
+    if not on_tiktokshop:
+        reason = (
+            f"SKU `{base_sku}` hanya ada di Shopee (tidak di TikTok Shop). "
+            f"Tidak diproses (sesuai aturan)."
+        )
+        print(f"✗ {reason}")
+        return _make_set_skip_result(base_sku, total_pieces, reason)
+
+    shopee_pieces, tiktokshop_pieces = split_across_platforms(total_pieces)
+
+    shopee_lines, shopee_status = _format_and_push_shopee(
+        base_sku, shopee_pieces, shopee_catalog[base_sku], dry_run
+    )
+    tiktokshop_lines, tiktokshop_status = _format_and_push_tiktokshop(
+        base_sku, tiktokshop_pieces, tiktokshop_catalog[base_sku], dry_run
+    )
+
+    failed = "❌" in shopee_status or "❌" in tiktokshop_status
+    if failed:
+        reason_parts = []
+        if "❌" in shopee_status:
+            reason_parts.append(f"Shopee {shopee_status}")
+        if "❌" in tiktokshop_status:
+            reason_parts.append(f"TikTok Shop {tiktokshop_status}")
+        status_label = "failed"
+        reason = " | ".join(reason_parts)
+    else:
+        status_label = "dry_run" if dry_run else "ok"
+        reason = ""
+
+    return {
+        "base_sku": base_sku,
+        "status": status_label,
+        "reason": reason,
+        "total_pieces": total_pieces,
+        "shopee_pieces": shopee_pieces,
+        "tiktokshop_pieces": tiktokshop_pieces,
+        "shopee_lines": shopee_lines,
+        "tiktokshop_lines": tiktokshop_lines,
+        "shopee_status": shopee_status,
+        "tiktokshop_status": tiktokshop_status,
+    }
+
+
+def _make_set_skip_result(base_sku: str, total_pieces: int, reason: str) -> dict:
+    """Result shape for a SKU that never got past presence checks."""
+    return {
+        "base_sku": base_sku,
+        "status": "skipped",
+        "reason": reason,
+        "total_pieces": total_pieces,
+        "shopee_pieces": 0,
+        "tiktokshop_pieces": 0,
+        "shopee_lines": [],
+        "tiktokshop_lines": [],
+        "shopee_status": "",
+        "tiktokshop_status": "",
+    }
+
+
+def _send_single_set_telegram(result: dict, dry_run: bool) -> None:
+    """Detailed Telegram for single-SKU set — preserves the per-variant
+    breakdown that operators see when typing /stock_set SKU JUMLAH.
+
+    Skipped means presence check failed (no lines worth showing) → alert.
+    Everything else (ok, dry_run, failed) has lines worth showing → summary.
+    """
+    if result["status"] == "skipped":
+        telegram_sender.send_alert(result["reason"])
+        return
+
+    telegram_sender.send_single_sku_summary({
+        "mode": "single",
+        "base_sku": result["base_sku"],
+        "total_pieces": result["total_pieces"],
+        "shopee_pieces": result["shopee_pieces"],
+        "tiktokshop_pieces": result["tiktokshop_pieces"],
+        "shopee_lines": result["shopee_lines"],
+        "tiktokshop_lines": result["tiktokshop_lines"],
+        "shopee_status": result["shopee_status"],
+        "tiktokshop_status": result["tiktokshop_status"],
+        "dry_run": dry_run,
+    })
 
 
 # ============================================================

@@ -79,6 +79,16 @@ def parse_sku(seller_sku: str) -> tuple[str, int]:
     """
     Returns (base_sku, multiplier) for a seller SKU string.
 
+    The returned base_sku is uppercased so it matches the operator's
+    uppercased input regardless of how the platform happened to store
+    case. Sellers occasionally publish the same SKU with different case
+    on Shopee vs TikTok Shop (e.g. "ITBISA-PCB-5X7" on Shopee but
+    "ITBISA-PCB-5x7" on TikTok Shop); without this normalization the
+    cross-platform catalog lookup misses the SKU on one side. Each
+    variant's original raw_sku is preserved separately on the variant
+    dict so per-variant Telegram lines still show the platform's stored
+    case.
+
     A SKU matching "<digits>PCS-<base>" is recognised as a pack-size
     variant. Anything else (including malformed inputs and multiplier 0)
     is treated as a non-variant with multiplier 1 — the degenerate case
@@ -87,14 +97,15 @@ def parse_sku(seller_sku: str) -> tuple[str, int]:
     Examples:
       parse_sku("ITBISA-IC-NE555P-DIP8")        -> ("ITBISA-IC-NE555P-DIP8", 1)
       parse_sku("25PCS-ITBISA-IC-NE555P-DIP8")  -> ("ITBISA-IC-NE555P-DIP8", 25)
+      parse_sku("25PCS-ITBISA-PCB-5x7")         -> ("ITBISA-PCB-5X7", 25)
       parse_sku("0PCS-ITBISA-FOO")              -> ("0PCS-ITBISA-FOO", 1)  # safe fallback
     """
     match = PACK_SIZE_PATTERN.match(seller_sku)
     if match:
         multiplier = int(match.group(1))
         if multiplier > 0:
-            return match.group(2), multiplier
-    return seller_sku, 1
+            return match.group(2).upper(), multiplier
+    return seller_sku.upper(), 1
 
 
 def split_across_platforms(total_pieces: int) -> tuple[int, int]:

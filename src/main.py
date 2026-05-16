@@ -195,7 +195,8 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
     print()
     print("=" * 70)
     print(
-        f"Done. {len(succeeded)} ok, "
+        f"Done. "
+        f"{len(succeeded)} ok, "
         f"{len(failed)} failed, "
         f"{len(skipped_missing)} missing, "
         f"{len(skipped_one_side)} one-side-only."
@@ -346,7 +347,7 @@ def run_stock_get_mode(base_sku: str) -> int:
             f"data/shopee_tokens.json di branch bot-state. ({e})"
         )
         print(f"✗ {msg}")
-        telegram_sender.send_alert(msg)
+        telegram_sender.send_alert(msg, mode="Get Stock")
         return 1
 
     shopee_variants = shopee_catalog.get(base_sku, [])
@@ -358,7 +359,7 @@ def run_stock_get_mode(base_sku: str) -> int:
             f"Periksa SKU dan coba lagi."
         )
         print(f"✗ {msg}")
-        telegram_sender.send_alert(msg)
+        telegram_sender.send_alert(msg, mode="Get Stock")
         return 1
 
     # Console preview — useful when debugging from the Actions log.
@@ -407,7 +408,7 @@ def run_stock_balance_multi(base_skus: list[str], dry_run: bool) -> int:
     if not base_skus:
         msg = "Tidak ada SKU diberikan ke balance mode."
         print(f"✗ {msg}")
-        telegram_sender.send_alert(msg)
+        telegram_sender.send_alert(msg, mode="Balance Stock")
         return 1
 
     print("=" * 70)
@@ -428,7 +429,7 @@ def run_stock_balance_multi(base_skus: list[str], dry_run: bool) -> int:
             f"data/shopee_tokens.json di branch bot-state. ({e})"
         )
         print(f"✗ {msg}")
-        telegram_sender.send_alert(msg)
+        telegram_sender.send_alert(msg, mode="Balance Stock")
         return 1
 
     results: list[dict] = []
@@ -767,7 +768,7 @@ def _send_single_balance_telegram(result: dict, dry_run: bool) -> None:
             "dry_run": dry_run,
         })
     else:
-        telegram_sender.send_alert(result["reason"])
+        telegram_sender.send_alert(result["reason"], mode="Balance Stock")
 
 
 # ============================================================

@@ -46,13 +46,13 @@ Mode A and Mode B additionally share:
   - Dry-run support that exercises everything except the actual write call
 
 Per-platform allocation rules:
-  - Shopee:      equal-share allocation with no TikTok Shop small-pack
-                 reserve. Shopee variants can be separate products, so
-                 the stock is spread across discovered pack-size variants.
-  - TikTok Shop: order-aware. Keep a small physical stock reserve on the
-                 smallest pack-size variant, then put the remaining stock
-                 on the largest pack-size variant to avoid blocking large
-                 one-order purchases.
+  - Shopee:      equal-share allocation with no per-variant cap. Shopee
+                 variants can be separate products, so the stock is spread
+                 across discovered pack-size variants.
+  - TikTok Shop: smallest-first fill with a per-variant unit cap
+                 (TIKTOKSHOP_MAX_UNITS_PER_VARIANT). Each variant receives
+                 up to the cap; leftover beyond Σ(cap × multiplier) stacks
+                 onto the largest variant (over the cap, no pieces lost).
 
 Failure model:
   - One SKU's failure does NOT abort the run. We accumulate failures
@@ -100,7 +100,7 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
     print("=" * 70)
     print(f"Shopee:        {shopee_client.describe()}")
     print(f"TikTok Shop:   {tiktokshop_client.describe()} "
-          f"(reserve {config.TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES} pcs paket kecil)")
+          f"(cap {config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT} unit/varian)")
     print(f"Excel file:    {excel_path}")
     print()
 
@@ -174,7 +174,6 @@ def run_excel_mode(excel_path: Path, dry_run: bool) -> int:
 
         shopee_pieces, tiktokshop_pieces = split_across_platforms(total)
 
-        # Try Shopee first, then TikTok Shop. Each platform result is reported.
         shopee_err = _push_shopee(
             base_sku, shopee_pieces, shopee_catalog[base_sku], dry_run
         )
@@ -254,7 +253,7 @@ def run_stock_set_multi(desired: dict[str, int], dry_run: bool) -> int:
     print("=" * 70)
     print(f"ITBisa Shop Stock Bot — Set mode {'(DRY RUN)' if dry_run else ''}")
     print("=" * 70)
-    print(f"TikTok Shop small-pack reserve: {config.TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES} pcs")
+    print(f"TikTok Shop unit cap per variant: {config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT}")
     if len(desired) == 1:
         only_sku, only_total = next(iter(desired.items()))
         print(f"SKU:   {only_sku}")
@@ -302,7 +301,6 @@ def run_stock_set_multi(desired: dict[str, int], dry_run: bool) -> int:
         )
         print()
 
-    # One Telegram message per run, regardless of SKU count.
     if len(results) == 1:
         _send_single_set_telegram(results[0], dry_run)
     else:
@@ -362,6 +360,13 @@ def run_stock_get_mode(base_sku: str) -> int:
         telegram_sender.send_alert(msg, mode="Get Stock")
         return 1
 
+    # TikTok Shop weight enrichment. The 202502 search endpoint omits
+    # package_weight in practice, so every TikTok Shop variant comes back
+    # with weight_grams=0. Hit the 202309 product detail endpoint for each
+    # unique product_id under this base SKU (typically 1 call) to fill in
+    # weights. Best-effort: failures stay 0 and render as "—".
+    _enrich_tiktokshop_weights(tiktokshop_variants)
+
     # Console preview — useful when debugging from the Actions log.
     for label, variants in (("Shopee", shopee_variants), ("TikTok Shop", tiktokshop_variants)):
         print(f"  {label}: {len(variants)} varian")
@@ -396,8 +401,7 @@ def run_stock_balance_multi(base_skus: list[str], dry_run: bool) -> int:
     SKU is preserved; only the per-platform share changes (50:50 split).
 
     Telegram output:
-      - 1 SKU  -> detailed summary via send_stock_balance_summary
-                  (operator typed /stock_balance for that one SKU).
+      - 1 SKU  -> detailed summary via send_stock_balance_summary.
       - 2+ SKU -> ONE compact summary via send_stock_balance_multi_summary
                   listing each SKU with per-platform before -> after.
 
@@ -443,8 +447,6 @@ def run_stock_balance_multi(base_skus: list[str], dry_run: bool) -> int:
         )
         print()
 
-    # One Telegram message per run, regardless of SKU count. Single-SKU
-    # gets the detailed format; multi-SKU gets the compact format.
     if len(results) == 1:
         _send_single_balance_telegram(results[0], dry_run)
     else:
@@ -772,6 +774,35 @@ def _send_single_balance_telegram(result: dict, dry_run: bool) -> None:
 
 
 # ============================================================
+# Get helpers
+# ============================================================
+
+def _enrich_tiktokshop_weights(variants: list[dict]) -> None:
+    """Fill weight_grams==0 entries by calling fetch_product_detail per
+    unique product_id. Best-effort: detail-call failures leave the
+    variant at 0 (renders as "—" in the Telegram summary). Never raises.
+    """
+    if not variants:
+        return
+
+    product_ids = {v["product_id"] for v in variants if v.get("product_id")}
+    for product_id in product_ids:
+        try:
+            weight_map = tiktokshop_client.fetch_product_detail(product_id)
+        except Exception as e:
+            print(f"  [tiktokshop] fetch_product_detail({product_id}) failed: {e}")
+            continue
+        for v in variants:
+            if v.get("product_id") != product_id:
+                continue
+            if v.get("weight_grams"):
+                continue
+            new_weight = weight_map.get(v.get("sku_id"), 0)
+            if new_weight:
+                v["weight_grams"] = new_weight
+
+
+# ============================================================
 # Per-platform push helpers (Excel mode)
 # ============================================================
 
@@ -783,7 +814,6 @@ def _push_shopee(
 ) -> str | None:
     """Pushes pieces to Shopee. Returns error message string or None on success."""
     try:
-        # Shopee: equal-share allocation with no TikTok Shop reserve.
         allocations = allocate_pack_sizes(pieces, variants)
     except ValueError as e:
         return f"allocate failed: {e}"
@@ -821,14 +851,14 @@ def _push_tiktokshop(
 ) -> str | None:
     """Pushes pieces to TikTok Shop. Returns error message string or None.
 
-    TikTok Shop-only: reserve small-pack stock, then push bulk stock to
-    the largest pack-size variant to support large one-order purchases.
+    TikTok Shop-only: smallest-first fill with a per-variant unit cap;
+    leftover beyond Σ(cap × multiplier) stacks onto the largest variant.
     """
     try:
         allocations = allocate_pack_sizes(
             pieces,
             variants,
-            small_pack_reserve_pieces=config.TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES,
+            tiktokshop_unit_cap=config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT,
         )
     except ValueError as e:
         return f"allocate failed: {e}"
@@ -836,7 +866,7 @@ def _push_tiktokshop(
     lost = verify_allocation(pieces, allocations)
     print(
         f"  → TikTok Shop {base_sku}: {pieces} pcs across {len(variants)} variant(s) "
-        f"(small-pack reserve {config.TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES} pcs)"
+        f"(cap {config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT} unit/varian)"
         + (f", {lost} pcs unrepresentable" if lost else "")
     )
 
@@ -913,14 +943,14 @@ def _format_and_push_tiktokshop(
 ) -> tuple[list[str], str]:
     """Returns (formatted_lines, status_string).
 
-    TikTok Shop-only: reserve small-pack stock, then push bulk stock to
-    the largest pack-size variant.
+    TikTok Shop-only: smallest-first fill with a per-variant unit cap;
+    leftover beyond Σ(cap × multiplier) stacks onto the largest variant.
     """
     try:
         allocations = allocate_pack_sizes(
             pieces,
             variants,
-            small_pack_reserve_pieces=config.TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES,
+            tiktokshop_unit_cap=config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT,
         )
     except ValueError as e:
         return [], f"❌ gagal: {e}"

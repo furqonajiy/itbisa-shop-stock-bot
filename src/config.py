@@ -8,7 +8,7 @@ This file is loaded once at import time. Required variables are read
 directly from the environment, matching the order-bot repos.
 
 Convention: secrets read from env, fixed API hosts and bot behaviour
-limits/reserves as module constants. Mirrors the layout of config.py in
+limits/caps as module constants. Mirrors the layout of config.py in
 the order-bot repos so a developer who knows one knows this.
 """
 
@@ -58,27 +58,27 @@ TIKTOKSHOP_TOKEN_FILE = PROJECT_ROOT / "data" / "tiktokshop_tokens.json"
 
 TIKTOKSHOP_TOKEN_REFRESH_BUFFER_MINUTES = 10
 
-# TikTok Shop order-aware allocation reserve.
+# TikTok Shop per-variant unit cap.
 #
 # Fixed code constant, not an env var / GitHub Secret. Change this in code
 # only when you intentionally want to change stock-allocation behaviour.
 #
-# This is a PHYSICAL PIECE reserve for the smallest pack-size variant,
-# not a per-variant unit cap.
+# The TikTok Shop allocator fills variants smallest-first, capping each
+# variant at this many units. Once every variant hits the cap, leftover
+# stock stacks onto the largest variant (intentionally over the cap so
+# no pieces are dropped).
 #
-# Example: platform share = 2000 pcs, variants = [1PCS, 100PCS], reserve=200:
-#   1PCS:   200 units (= 200 pcs)
-#   100PCS: 18 units  (= 1800 pcs)
+# Example: platform share = 3500 pcs, variants = [1PCS, 10PCS, 50PCS, 200PCS]:
+#   1PCS:   400 units (= 400 pcs)    ← cap
+#   10PCS:  310 units (= 3100 pcs)   ← remainder fits below cap
+#   50PCS:  0 units
+#   200PCS: 0 units
 #
-# Why: stock above the practical one-order qty limit on 1PCS does not
-# help large buyers. Bulk stock should be represented by the largest
-# pack-size variant, while the smallest pack stays available for small buyers.
-TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES = 200
-
-# Legacy compatibility constant only. Do not configure this via env and do
-# not use it for new allocation logic; TikTok Shop allocation should use
-# TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES instead.
-TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 200
+# Why: TikTok Shop limits buyers to ~20 units per SKU per order. Spreading
+# stock across pack sizes widens the range of single-order quantities a
+# buyer can place. The cap stops any one variant from hoarding stock so
+# every pack size carries something whenever total stock allows.
+TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 400
 
 # ============================================================
 # Telegram

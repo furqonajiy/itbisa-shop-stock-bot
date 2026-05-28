@@ -87,6 +87,19 @@ from typing import Iterable
 # because both shops publish the prefix in uppercase by convention.
 PACK_SIZE_PATTERN = re.compile(r"^(\d+)PCS-(.+)$")
 
+# TikTok Shop-only product exceptions: keep 1 unit on the 1PCS variant,
+# then allocate the remaining physical pieces to the other pack sizes.
+TIKTOKSHOP_1PCS_RESERVE_BASE_SKUS = {
+    "ITBISA-IC-CD4094BM-SMD-SOP16",
+    "ITBISA-IC-ULN2003AN-DIP16",
+    "ITBISA-7SEGMENT-CATHODE-RED-0.56-1BIT",
+    "ITBISA-KAPASITOR-ELCO-2200UF-25V",
+    "ITBISA-IDC-2X5-AMPHENOL-FEMALE",
+    "ITBISA-IC-74HC595N-DIP16",
+    "ITBISA-IC-L7812CV-TO220",
+    "ITBISA-IC-CD4017BE-DIP16",
+}
+
 
 def parse_sku(seller_sku: str) -> tuple[str, int]:
     """
@@ -208,6 +221,12 @@ def allocate_pack_sizes(
 
     if tiktokshop_unit_cap is None:
         return _allocate_unconstrained(pieces, variants)
+    if _should_reserve_tiktokshop_1pcs(variants):
+        return _allocate_tiktokshop_with_1pcs_reserve(
+            pieces,
+            variants,
+            tiktokshop_unit_cap,
+        )
     return _allocate_tiktokshop_capped(pieces, variants, tiktokshop_unit_cap)
 
 
@@ -253,6 +272,47 @@ def _allocate_unconstrained(
         smallest = allocations[0][0]
         extra_units = remainder // smallest["multiplier"]
         allocations[0][1] += extra_units
+
+    return [(v, u) for v, u in allocations]
+
+
+def _should_reserve_tiktokshop_1pcs(variants: list[dict]) -> bool:
+    """True only for selected base SKUs that have a separate 1PCS variant."""
+    if not any(v["multiplier"] == 1 for v in variants):
+        return False
+
+    base_skus = {
+        parse_sku(v.get("raw_sku", ""))[0]
+        for v in variants
+    }
+    return bool(base_skus & TIKTOKSHOP_1PCS_RESERVE_BASE_SKUS)
+
+
+def _allocate_tiktokshop_with_1pcs_reserve(
+        pieces: int,
+        variants: list[dict],
+        unit_cap: int,
+) -> list[tuple[dict, int]]:
+    """TikTok Shop exception: set 1PCS to 1 unit, balance the rest."""
+    allocations: list[list] = [[v, 0] for v in variants]
+    if pieces == 0:
+        return [(v, u) for v, u in allocations]
+
+    one_pcs_alloc = next(a for a in allocations if a[0]["multiplier"] == 1)
+    one_pcs_alloc[1] = 1
+    remaining = pieces - 1
+
+    other_variants = [a[0] for a in allocations if a is not one_pcs_alloc]
+    if remaining <= 0 or not other_variants:
+        return [(v, u) for v, u in allocations]
+
+    other_allocations = _allocate_tiktokshop_capped(remaining, other_variants, unit_cap)
+    other_units_by_id = {id(v): u for v, u in other_allocations}
+    for allocation in allocations:
+        variant = allocation[0]
+        if variant is one_pcs_alloc[0]:
+            continue
+        allocation[1] = other_units_by_id[id(variant)]
 
     return [(v, u) for v, u in allocations]
 

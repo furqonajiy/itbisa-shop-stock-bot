@@ -10,7 +10,7 @@ unrepresentable TikTok Shop leftover is assigned to Shopee before pushing.
 
 from __future__ import annotations
 
-from src import shopee_auth, telegram_sender
+from src import config, shopee_auth, telegram_sender
 from src.main import (
     _format_and_push_shopee,
     _format_and_push_tiktokshop,
@@ -203,8 +203,7 @@ def _representable_tiktokshop_pieces(
     allocations = allocate_pack_sizes(
         target_pieces,
         variants,
-        tiktokshop_unit_cap=__import__("src.config", fromlist=["TIKTOKSHOP_MAX_UNITS_PER_VARIANT"])
-        .TIKTOKSHOP_MAX_UNITS_PER_VARIANT,
+        tiktokshop_unit_cap=config.TIKTOKSHOP_MAX_UNITS_PER_VARIANT,
     )
     leftover = verify_allocation(target_pieces, allocations)
     return target_pieces - leftover, leftover

@@ -2,8 +2,8 @@
 """CLI for /stock_balance.
 
 Accepts one or more base SKUs (space-separated). Catalogs on both
-platforms are walked ONCE inside src.main.run_stock_balance_multi, then
-the per-SKU balance flow loops against the cached catalogs. Each SKU
+platforms are walked ONCE inside src.stock_balance_preserve.run_stock_balance_multi_preserve_total,
+then the per-SKU balance flow loops against the cached catalogs. Each SKU
 sends its own Telegram message as soon as it finishes, so the operator
 sees per-SKU pass/fail in real time.
 
@@ -21,7 +21,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.main import run_stock_balance_multi
+from src.stock_balance_preserve import run_stock_balance_multi_preserve_total
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ def main() -> int:
         logger.error("No valid base SKUs provided")
         return 2
 
-    return run_stock_balance_multi(skus, dry_run=args.dry_run)
+    return run_stock_balance_multi_preserve_total(skus, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

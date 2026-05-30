@@ -19,7 +19,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.stock_balance_price_rule import run_stock_balance_multi
+from src.stock_balance_delta_summary import run_stock_balance_multi
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def normalize_skus(raw_tokens: list[str]) -> tuple[list[str], list[str]]:
-    """Uppercase, strip, dedupe (preserve order), reject XPCS- variants."""
     seen: set[str] = set()
     ordered: list[str] = []
     rejected_variants: list[str] = []
@@ -67,12 +66,8 @@ def normalize_skus(raw_tokens: list[str]) -> tuple[list[str], list[str]]:
 
 
 def main() -> int:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s",
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     args = parse_args()
-
     skus, rejected = normalize_skus(args.sku)
 
     for v in rejected:

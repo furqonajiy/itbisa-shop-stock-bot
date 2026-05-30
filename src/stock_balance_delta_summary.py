@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import re
 
+from src import stock_balance_price_rule as _stock_balance_price_rule
 from src import telegram_sender
-from src.stock_balance_price_rule import run_stock_balance_multi as _run_stock_balance_multi
+
+_run_stock_balance_multi = _stock_balance_price_rule.run_stock_balance_multi
 
 _RAW_LINE_RE = re.compile(
     r"^• `(?P<raw>[^`]+)`: (?P<units>[\d.]+) unit \(= (?P<pcs>[\d.]+) pcs\)(?P<price>.*)$"
@@ -16,13 +18,27 @@ def run_stock_balance_multi(base_skus: list[str], dry_run: bool) -> int:
     """Run stock balance while formatting Telegram balance summaries compactly."""
     original_single_sender = telegram_sender.send_stock_balance_summary
     original_multi_sender = telegram_sender.send_stock_balance_multi_summary
+    original_balance_single_sender = _stock_balance_price_rule._send_single_balance_telegram
     telegram_sender.send_stock_balance_summary = _send_stock_balance_summary_compact
     telegram_sender.send_stock_balance_multi_summary = _send_stock_balance_multi_summary_with_delta
+    _stock_balance_price_rule._send_single_balance_telegram = _send_stock_balance_result_compact
     try:
         return _run_stock_balance_multi(base_skus, dry_run=dry_run)
     finally:
         telegram_sender.send_stock_balance_summary = original_single_sender
         telegram_sender.send_stock_balance_multi_summary = original_multi_sender
+        _stock_balance_price_rule._send_single_balance_telegram = original_balance_single_sender
+
+
+def _send_stock_balance_result_compact(result: dict, dry_run: bool) -> None:
+    """Single-SKU /stock_balance sender that preserves detail variant metadata."""
+    if result["status"] == "skipped":
+        telegram_sender.send_alert(result["reason"], mode="Balance Stock")
+        return
+
+    report = dict(result)
+    report["dry_run"] = dry_run
+    _send_stock_balance_summary_compact(report)
 
 
 def _send_stock_balance_summary_compact(report: dict) -> None:

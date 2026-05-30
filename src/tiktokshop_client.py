@@ -15,23 +15,23 @@ Public functions:
           "warehouse_id": str,
           "raw_sku":      str,
           "stock_units":  int,
-          "weight_grams": int,    # 0 when search omits package_weight
+          "weight_grams": int,    # 0 when search omits SKU/product weight
         }
       All variants of a base SKU live under ONE product on TikTok Shop.
       We sort variants ascending by multiplier per base.
 
-      stock_units is populated for every variant. weight_grams comes
+      stock_units is populated for every variant. weight_grams may come
       back as 0 from this endpoint because /product/202502/products/search
-      omits package_weight in practice — call fetch_product_detail() to
+      omits weight fields in practice — call fetch_product_detail() to
       enrich for /stock_get.
 
   fetch_product_detail(product_id) -> dict[str, int]
       GET /product/202309/products/{product_id}. Returns
       {sku_id: weight_grams} for every SKU under the product, with the
       product-level package_weight used as a fallback when a SKU-level
-      value isn't published. Used by /stock_get to display per-SKU
-      "berat". Emits verbose diagnostic prints — when weight comes back
-      empty, the Actions log shows the raw response keys so we can
+      sku_weight value isn't published. Used by /stock_get to display
+      per-SKU "berat". Emits verbose diagnostic prints — when weight comes
+      back empty, the Actions log shows the raw response keys so we can
       see whether seller has weight configured or whether the field
       lives somewhere unexpected.
 
@@ -67,7 +67,6 @@ _cached_shop_cipher: str | None = None
 # ============================================================
 # Public surface
 # ============================================================
-
 def describe() -> str:
     return "TikTok Shop"
 
@@ -131,7 +130,9 @@ def fetch_catalog() -> dict[str, list[dict]]:
                     except (TypeError, ValueError):
                         pass
 
-                sku_weight_grams = _normalize_weight_to_grams(sku.get("package_weight"))
+                sku_weight_grams = _normalize_weight_to_grams(
+                    sku.get("sku_weight") or sku.get("package_weight")
+                )
                 weight_grams = sku_weight_grams or product_weight_grams
 
                 base, mult = parse_sku(seller_sku)
@@ -170,7 +171,7 @@ def fetch_product_detail(product_id: str) -> dict[str, int]:
       - HTTP status + payload code/message
       - Top-level data keys
       - product-level package_weight raw value
-      - per-SKU package_weight raw value
+      - per-SKU sku_weight/package_weight raw value
     """
     path = f"/product/{_DETAIL_API_VERSION}/products/{product_id}"
     response = _call_signed(
@@ -216,12 +217,13 @@ def fetch_product_detail(product_id: str) -> dict[str, int]:
         sku_id = sku.get("id")
         if not sku_id:
             continue
-        raw_sku_weight = sku.get("package_weight")
+        raw_sku_weight = sku.get("sku_weight") or sku.get("package_weight")
         sku_weight_grams = _normalize_weight_to_grams(raw_sku_weight)
         final = sku_weight_grams or product_weight_grams
         print(
             f"  [tiktokshop]   sku {sku_id} ({sku.get('seller_sku')!r}): "
-            f"sku.package_weight={raw_sku_weight!r} -> {sku_weight_grams}g, "
+            f"sku_weight={sku.get('sku_weight')!r}, "
+            f"package_weight={sku.get('package_weight')!r} -> {sku_weight_grams}g, "
             f"final={final}g"
         )
         result[sku_id] = final
@@ -265,9 +267,8 @@ def update_stock_batch(
 # ============================================================
 # Weight normalisation
 # ============================================================
-
 def _normalize_weight_to_grams(pkg_weight) -> int:
-    """Converts a TikTok Shop package_weight {value, unit} dict to grams.
+    """Converts a TikTok Shop {value, unit} weight dict to grams.
 
     Returns 0 on missing/invalid data. Logs unknown unit values so we
     can spot schema drift.
@@ -298,7 +299,6 @@ def _normalize_weight_to_grams(pkg_weight) -> int:
 # ============================================================
 # Signed call helpers
 # ============================================================
-
 def _call_signed(
         method: str,
         path: str,

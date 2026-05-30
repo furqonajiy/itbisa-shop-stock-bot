@@ -51,10 +51,18 @@ def _send_stock_balance_summary_compact(report: dict) -> None:
         "📦 *Detail*",
         telegram_sender.SHOPEE_LABEL,
     ]
-    lines.extend(_compact_variant_lines(report["shopee_lines"], sku))
+    lines.extend(_compact_variant_lines(
+        report.get("shopee_detail_variants"),
+        report["shopee_lines"],
+        sku,
+    ))
     lines.append("")
     lines.append(telegram_sender.TIKTOKSHOP_LABEL)
-    lines.extend(_compact_variant_lines(report["tiktokshop_lines"], sku))
+    lines.extend(_compact_variant_lines(
+        report.get("tiktokshop_detail_variants"),
+        report["tiktokshop_lines"],
+        sku,
+    ))
 
     if report["dry_run"]:
         lines.append("")
@@ -126,10 +134,26 @@ def _send_stock_balance_multi_summary_with_delta(report: dict) -> None:
     telegram_sender._send(telegram_sender._join(lines))  # noqa: SLF001 - Telegram formatting reuse
 
 
-def _compact_variant_lines(lines: list[str], base_sku: str) -> list[str]:
-    if not lines:
+def _compact_variant_lines(
+        detail_variants: list[dict] | None,
+        fallback_lines: list[str],
+        base_sku: str,
+) -> list[str]:
+    if detail_variants:
+        return [_compact_detail_variant_line(variant, base_sku) for variant in detail_variants]
+    if not fallback_lines:
         return ["_(tidak ada varian)_"]
-    return [_compact_variant_line(line, base_sku) for line in lines]
+    return [_compact_variant_line(line, base_sku) for line in fallback_lines]
+
+
+def _compact_detail_variant_line(variant: dict, base_sku: str) -> str:
+    pack_label = _pack_label(variant["raw_sku"], base_sku)
+    units = _fmt_int(variant["units"])
+    pieces = _fmt_int(variant["pieces"])
+    weight = _fmt_weight(variant.get("weight_grams"))
+    price = _fmt_price(variant.get("price_idr"))
+    price_suffix = f" — {price}" if price else ""
+    return f"• {pack_label}: {units} unit = {pieces} pcs — {weight}{price_suffix}"
 
 
 def _compact_variant_line(line: str, base_sku: str) -> str:
@@ -142,10 +166,8 @@ def _compact_variant_line(line: str, base_sku: str) -> str:
     pcs = match.group("pcs")
     price = match.group("price").strip()
     pack_label = _pack_label(raw_sku, base_sku)
-    multiplier = _pack_multiplier(pack_label)
-    weight = f"{_fmt_int(multiplier)} g"
     price_suffix = f" {price}" if price else ""
-    return f"• {pack_label}: {units} unit = {pcs} pcs — {weight}{price_suffix}"
+    return f"• {pack_label}: {units} unit = {pcs} pcs — —{price_suffix}"
 
 
 def _pack_label(raw_sku: str, base_sku: str) -> str:
@@ -155,13 +177,6 @@ def _pack_label(raw_sku: str, base_sku: str) -> str:
     if raw_sku.endswith(suffix):
         return raw_sku[:-len(suffix)]
     return raw_sku
-
-
-def _pack_multiplier(pack_label: str) -> int:
-    match = re.match(r"^(\d+)PCS$", pack_label, flags=re.IGNORECASE)
-    if match:
-        return int(match.group(1))
-    return 1
 
 
 def _platform_change_line(label: str, before: int, after: int) -> str:
@@ -179,3 +194,15 @@ def _delta_suffix(delta: int) -> str:
 
 def _fmt_int(value: int | str) -> str:
     return telegram_sender._fmt_int(int(str(value).replace(".", "")))  # noqa: SLF001
+
+
+def _fmt_weight(value: int | None) -> str:
+    if not value:
+        return "—"
+    return f"{_fmt_int(value)} g"
+
+
+def _fmt_price(value: int | None) -> str:
+    if value is None:
+        return ""
+    return f"Rp{_fmt_int(value)}"

@@ -4,19 +4,6 @@ telegram_sender.py
 Sends a Bahasa Indonesia summary of the stock-set / stock-get / stock-balance
 run to the operator's Telegram chat. Same chat as the order bots, but a
 different message shape — this is a transactional report, not an order label.
-
-Public functions:
-  send_run_summary(report)                  — bulk Excel run
-  send_single_sku_summary(report)           — single-SKU /stock_set run
-  send_stock_set_multi_summary(report)      — multi-SKU /stock_set run
-  send_stock_get_summary(report)            — single-SKU /stock_get run (read-only)
-  send_stock_balance_summary(report)        — single-SKU /stock_balance run
-  send_stock_balance_multi_summary(report)  — multi-SKU /stock_balance run
-  send_alert(text, mode)                    — error path
-
-The `report` dicts are produced by main.py and have a fully-defined
-shape — see the docstrings below. Keep this module dumb (formatting
-only); main.py does the orchestration.
 """
 
 from __future__ import annotations
@@ -30,15 +17,9 @@ from src import config
 _TELEGRAM_API = "https://api.telegram.org"
 _MAX_MESSAGE_CHARS = 4000  # Telegram caps at 4096; leave headroom
 
-# Platform display labels. Used everywhere a platform name appears in a
-# Telegram message — section headers, list rows, totals, balance summaries.
-# Changing these here updates every command (/stock_set, /stock_get,
-# /stock_balance) consistently.
 SHOPEE_LABEL = "🟧Shopee"
 TIKTOKSHOP_LABEL = "♪TikTok Shop"
 
-# Used by the multi-summary to strip leading "SKU `XXX` " from a reason
-# string so the SKU isn't repeated twice in its block.
 _SKU_PREFIX_RE = re.compile(r"^SKU `[^`]+`\s+")
 _RAW_VARIANT_LINE_RE = re.compile(
     r"^• `(?P<raw>[^`]+)`: (?P<units>[\d.]+) unit \(= (?P<pcs>[\d.]+) pcs\)(?P<suffix>.*)$"
@@ -50,20 +31,7 @@ _RAW_VARIANT_LINE_RE = re.compile(
 # ============================================================
 
 def send_run_summary(report: dict) -> None:
-    """
-    Bulk Excel run.
-
-    report = {
-      "mode":             "excel",
-      "excel_path":       str,
-      "total_skus":       int,
-      "succeeded":        int,
-      "skipped_missing":  list[str],
-      "skipped_one_side": list[tuple[str, str]],
-      "failed":           list[tuple[str, str]],
-      "dry_run":          bool,
-    }
-    """
+    """Bulk Excel run."""
     header = "📦 *Set Stock* — DRY RUN" if report["dry_run"] else "📦 *Set Stock* — Selesai"
 
     lines = [
@@ -110,22 +78,7 @@ def send_run_summary(report: dict) -> None:
 
 
 def send_single_sku_summary(report: dict) -> None:
-    """
-    Single-SKU run (from /stock_set SKU AMOUNT).
-
-    report = {
-      "mode":              "single",
-      "base_sku":          str,
-      "total_pieces":      int,
-      "shopee_pieces":     int,
-      "tiktokshop_pieces": int,
-      "shopee_lines":      list[str],
-      "tiktokshop_lines":  list[str],
-      "shopee_status":     str,
-      "tiktokshop_status": str,
-      "dry_run":           bool,
-    }
-    """
+    """Single-SKU run (from /stock_set SKU AMOUNT)."""
     header = "📦 *Set Stock* — DRY RUN" if report["dry_run"] else "📦 *Set Stock* — Selesai"
     sku = report["base_sku"]
 
@@ -142,10 +95,18 @@ def send_single_sku_summary(report: dict) -> None:
         "📦 *Detail*",
         SHOPEE_LABEL,
     ]
-    lines.extend(_compact_set_variant_lines(report["shopee_lines"], sku))
+    lines.extend(_variant_detail_lines(
+        report.get("shopee_detail_variants"),
+        report.get("shopee_lines") or [],
+        sku,
+    ))
     lines.append("")
     lines.append(TIKTOKSHOP_LABEL)
-    lines.extend(_compact_set_variant_lines(report["tiktokshop_lines"], sku))
+    lines.extend(_variant_detail_lines(
+        report.get("tiktokshop_detail_variants"),
+        report.get("tiktokshop_lines") or [],
+        sku,
+    ))
 
     if report["dry_run"]:
         lines.append("")
@@ -155,21 +116,7 @@ def send_single_sku_summary(report: dict) -> None:
 
 
 def send_stock_set_multi_summary(report: dict) -> None:
-    """
-    Multi-SKU set run (from /stock_set SKU1 N1 SKU2 N2 ... with 2+ SKU).
-
-    ONE compact message at end-of-run. Per SKU:
-      <status>  `SKU` <total> pcs
-      🟧Shopee  <shopee_pieces> pcs
-      ♪TikTok Shop  <tiktokshop_pieces> pcs
-
-    Skipped/failed SKUs collapse to status + SKU + short reason.
-
-    report = {
-      "results": list[dict],   # see _set_one_sku result shape in src/main.py
-      "dry_run": bool,
-    }
-    """
+    """Multi-SKU set run (from /stock_set SKU1 N1 SKU2 N2 ... with 2+ SKU)."""
     results = report["results"]
     dry_run = bool(report.get("dry_run", False))
     total = len(results)
@@ -195,7 +142,7 @@ def send_stock_set_multi_summary(report: dict) -> None:
             short = _strip_sku_prefix(r["reason"])
             lines.append(f"⏭️ `{sku}`")
             lines.append(_truncate(short, 200))
-        else:  # failed
+        else:
             short = _strip_sku_prefix(r["reason"])
             lines.append(f"❌ `{sku}`")
             lines.append(_truncate(short, 200))
@@ -222,15 +169,7 @@ def send_stock_set_multi_summary(report: dict) -> None:
 
 
 def send_stock_get_summary(report: dict) -> None:
-    """
-    Single-SKU read-only run (from /stock_get SKU).
-
-    report = {
-      "base_sku":            str,
-      "shopee_variants":     list[dict],
-      "tiktokshop_variants": list[dict],
-    }
-    """
+    """Single-SKU read-only run (from /stock_get SKU)."""
     base_sku = report["base_sku"]
     shopee = sorted(report["shopee_variants"], key=lambda v: v["multiplier"])
     tiktokshop = sorted(report["tiktokshop_variants"], key=lambda v: v["multiplier"])
@@ -253,32 +192,16 @@ def send_stock_get_summary(report: dict) -> None:
         "📦 *Detail*",
         SHOPEE_LABEL,
     ]
-    lines.extend(_stock_get_variant_lines(shopee, base_sku, include_price=False))
+    lines.extend(_stock_get_variant_lines(shopee, base_sku))
     lines.append("")
     lines.append(TIKTOKSHOP_LABEL)
-    lines.extend(_stock_get_variant_lines(tiktokshop, base_sku, include_price=True))
+    lines.extend(_stock_get_variant_lines(tiktokshop, base_sku))
 
     _send(_join(lines))
 
 
 def send_stock_balance_summary(report: dict) -> None:
-    """
-    Single-SKU rebalance run (from /stock_balance SKU).
-
-    report = {
-      "base_sku":                  str,
-      "total_pieces":              int,
-      "shopee_before_pieces":      int,
-      "tiktokshop_before_pieces":  int,
-      "shopee_after_pieces":       int,
-      "tiktokshop_after_pieces":   int,
-      "shopee_lines":              list[str],
-      "tiktokshop_lines":          list[str],
-      "shopee_status":             str,
-      "tiktokshop_status":         str,
-      "dry_run":                   bool,
-    }
-    """
+    """Fallback single-SKU rebalance run formatter."""
     header = (
         "🔄 *Balance Stock* — DRY RUN"
         if report["dry_run"]
@@ -315,22 +238,7 @@ def send_stock_balance_summary(report: dict) -> None:
 
 
 def send_stock_balance_multi_summary(report: dict) -> None:
-    """
-    Multi-SKU rebalance run (from /stock_balance with 2+ SKU, or order-bot
-    auto-dispatch after /resi_*).
-
-    ONE compact message at end-of-run. Per SKU:
-      <status>  `SKU`
-      🟧Shopee  before → after
-      ♪TikTok   before → after
-
-    Skipped/failed SKUs collapse to status + SKU + short reason.
-
-    report = {
-      "results": list[dict],
-      "dry_run": bool,
-    }
-    """
+    """Multi-SKU rebalance run formatter."""
     results = report["results"]
     dry_run = bool(report.get("dry_run", False))
     total = len(results)
@@ -360,7 +268,7 @@ def send_stock_balance_multi_summary(report: dict) -> None:
             short = _strip_sku_prefix(r["reason"])
             lines.append(f"⏭️ `{sku}`")
             lines.append(_truncate(short, 200))
-        else:  # failed
+        else:
             short = _strip_sku_prefix(r["reason"])
             lines.append(f"❌ `{sku}`")
             lines.append(_truncate(short, 200))
@@ -387,13 +295,6 @@ def send_stock_balance_multi_summary(report: dict) -> None:
 
 
 def send_alert(text: str, mode: str = "Set Stock") -> None:
-    """One-off error alert. Header reflects the calling mode
-    ("Set Stock" / "Get Stock" / "Balance Stock"); defaults to "Set Stock"
-    so Excel-mode and Set-mode callers stay unchanged.
-
-    Replaces 'Shopee'/'TikTok Shop' inside `text` with the labelled
-    versions so error messages from main.py stay consistent with the rest
-    of the Telegram output."""
     decorated = _decorate_platforms(text)
     _send(f"🚨 *{mode}* — Error\n\n{decorated}")
 
@@ -428,10 +329,29 @@ def _truncate(s: str, n: int) -> str:
     return s if len(s) <= n else s[:n - 1] + "…"
 
 
-def _compact_set_variant_lines(lines: list[str], base_sku: str) -> list[str]:
-    if not lines:
+def _variant_detail_lines(
+        detail_variants: list[dict] | None,
+        fallback_lines: list[str],
+        base_sku: str,
+) -> list[str]:
+    if detail_variants:
+        return [_detail_variant_line(variant, base_sku) for variant in detail_variants]
+    if not fallback_lines:
         return ["_(tidak ada varian)_"]
-    return [_compact_set_variant_line(line, base_sku) for line in lines]
+    return [_compact_set_variant_line(line, base_sku) for line in fallback_lines]
+
+
+def _detail_variant_line(variant: dict, base_sku: str) -> str:
+    units = int(variant["units"])
+    pieces = int(variant["pieces"])
+    return _summary_variant_line(
+        raw_sku=variant["raw_sku"],
+        base_sku=base_sku,
+        units=units,
+        pieces=pieces,
+        weight_grams=variant.get("weight_grams"),
+        price_idr=variant.get("price_idr"),
+    )
 
 
 def _compact_set_variant_line(line: str, base_sku: str) -> str:
@@ -440,38 +360,56 @@ def _compact_set_variant_line(line: str, base_sku: str) -> str:
         return line
 
     raw_sku = match.group("raw")
-    units = match.group("units")
-    pcs = match.group("pcs")
+    units = int(str(match.group("units")).replace(".", ""))
+    pcs = int(str(match.group("pcs")).replace(".", ""))
     suffix = match.group("suffix").strip()
-    suffix = f" {suffix}" if suffix else ""
-    return f"• {_pack_label(raw_sku, base_sku)}: {_fmt_units(units)} unit = {_fmt_units(pcs)} pcs{suffix}"
+    return _summary_variant_line(
+        raw_sku=raw_sku,
+        base_sku=base_sku,
+        units=units,
+        pieces=pcs,
+        weight_grams=None,
+        raw_suffix=suffix,
+    )
 
 
-def _stock_get_variant_lines(
-        variants: list[dict],
-        base_sku: str,
-        *,
-        include_price: bool,
-) -> list[str]:
+def _stock_get_variant_lines(variants: list[dict], base_sku: str) -> list[str]:
     if not variants:
         return ["_(tidak ada varian)_"]
-    return [
-        _stock_get_variant_line(variant, base_sku, include_price=include_price)
-        for variant in variants
-    ]
+    return [_stock_get_variant_line(variant, base_sku) for variant in variants]
 
 
-def _stock_get_variant_line(variant: dict, base_sku: str, *, include_price: bool) -> str:
+def _stock_get_variant_line(variant: dict, base_sku: str) -> str:
     units = int(variant["stock_units"])
     pieces = units * int(variant["multiplier"])
-    price_suffix = ""
-    if include_price:
-        price = _fmt_price(variant.get("price_idr"))
-        price_suffix = f" — {price}" if price else ""
+    return _summary_variant_line(
+        raw_sku=variant["raw_sku"],
+        base_sku=base_sku,
+        units=units,
+        pieces=pieces,
+        weight_grams=variant.get("weight_grams"),
+        price_idr=variant.get("price_idr"),
+    )
+
+
+def _summary_variant_line(
+        *,
+        raw_sku: str,
+        base_sku: str,
+        units: int,
+        pieces: int,
+        weight_grams: int | None,
+        price_idr: int | None = None,
+        raw_suffix: str = "",
+) -> str:
+    weight = _fmt_weight(weight_grams)
+    price = _fmt_price(price_idr)
+    price_suffix = f" — {price}" if price else ""
+    if raw_suffix and not price_suffix:
+        price_suffix = f" {raw_suffix}"
     return (
-        f"• {_pack_label(variant['raw_sku'], base_sku)}: "
-        f"{_fmt_int(units)} unit = {_fmt_int(pieces)} pcs — "
-        f"{_fmt_weight(variant.get('weight_grams'))}{price_suffix}"
+        f"• {_pack_label(raw_sku, base_sku)}: "
+        f"{_fmt_int(units)} unit = {_fmt_int(pieces)} pcs — {weight}{price_suffix}"
     )
 
 
@@ -484,17 +422,11 @@ def _pack_label(raw_sku: str, base_sku: str) -> str:
     return raw_sku
 
 
-def _fmt_units(value: str) -> str:
-    return _fmt_int(int(str(value).replace(".", "")))
-
-
 def _fmt_int(n: int) -> str:
-    """1234567 -> '1.234.567' (Indonesian thousands separator)."""
     return f"{n:,}".replace(",", ".")
 
 
 def _fmt_weight(grams: int | None) -> str:
-    """0/None → '—' (data tidak tersedia), else 'NNN g' with thousands separator."""
     if not grams:
         return "—"
     return f"{_fmt_int(int(grams))} g"
@@ -507,7 +439,6 @@ def _fmt_price(value: int | None) -> str:
 
 
 def _signed(n: int) -> str:
-    """Signed integer with Indonesian thousands separator; '±0' for zero."""
     if n > 0:
         return f"+{_fmt_int(n)}"
     if n < 0:
@@ -516,13 +447,10 @@ def _signed(n: int) -> str:
 
 
 def _strip_sku_prefix(reason: str) -> str:
-    """Strip leading 'SKU `XXX` ' from a reason string when present."""
     return _SKU_PREFIX_RE.sub("", reason, count=1)
 
 
 def _label_for_platform(platform: str) -> str:
-    """Maps the bare platform string from skipped_one_side tuples to the
-    emoji-prefixed display label."""
     p = (platform or "").strip()
     if p == "Shopee":
         return SHOPEE_LABEL
@@ -532,10 +460,6 @@ def _label_for_platform(platform: str) -> str:
 
 
 def _decorate_platforms(text: str) -> str:
-    """Apply emoji prefixes to bare 'Shopee' / 'TikTok Shop' tokens in
-    arbitrary message text (used for send_alert). Skips strings that
-    already contain the emoji to avoid double-prefixing. Word-boundary
-    regex so 'Shopee.com' or 'TikTokShopX' aren't touched."""
     if "♪" not in text:
         text = re.sub(r"\bTikTok Shop\b", TIKTOKSHOP_LABEL, text)
     if "🟧" not in text:

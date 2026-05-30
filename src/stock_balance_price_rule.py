@@ -32,6 +32,7 @@ from src.stock_allocator import (
 
 LOW_PRICE_1PCS_THRESHOLD_IDR = 5000
 LOW_PRICE_1PCS_MAX_UNITS = 1
+TIKTOKSHOP_DETAIL_API_VERSIONS = ("202502", "202309")
 
 
 def run_stock_balance_multi(base_skus: list[str], dry_run: bool) -> int:
@@ -126,7 +127,7 @@ def _balance_one_sku(
     shopee_variants = shopee_catalog[base_sku]
     tiktokshop_variants = tiktokshop_catalog[base_sku]
 
-    _enrich_tiktokshop_prices(tiktokshop_variants)
+    _enrich_tiktokshop_details(tiktokshop_variants)
 
     shopee_before_pieces = sum(
         v["stock_units"] * v["multiplier"] for v in shopee_variants
@@ -323,35 +324,70 @@ def _detail_variant(variant: dict, units: int) -> dict:
     }
 
 
-def _enrich_tiktokshop_prices(variants: list[dict]) -> None:
-    """Best-effort: attach price_idr to variants from product detail responses."""
+def _enrich_tiktokshop_details(variants: list[dict]) -> None:
+    """Best-effort: attach price_idr and detail weight from TikTok product detail."""
     product_ids = {v["product_id"] for v in variants if v.get("product_id")}
-    price_by_sku_id: dict[str, int | None] = {}
+    detail_by_sku_id: dict[str, dict[str, int | None]] = {}
     for product_id in product_ids:
-        price_by_sku_id.update(_fetch_tiktokshop_prices(product_id))
+        detail_by_sku_id.update(_fetch_tiktokshop_sku_details(product_id))
 
     for variant in variants:
-        variant["price_idr"] = price_by_sku_id.get(variant.get("sku_id"))
+        detail = detail_by_sku_id.get(variant.get("sku_id")) or {}
+        if detail.get("price_idr") is not None:
+            variant["price_idr"] = detail["price_idr"]
+        if detail.get("weight_grams"):
+            variant["weight_grams"] = detail["weight_grams"]
 
 
-def _fetch_tiktokshop_prices(product_id: str) -> dict[str, int | None]:
-    path = f"/product/202309/products/{product_id}"
+def _fetch_tiktokshop_sku_details(product_id: str) -> dict[str, dict[str, int | None]]:
+    last_error: Exception | None = None
+    for version in TIKTOKSHOP_DETAIL_API_VERSIONS:
+        try:
+            details = _fetch_tiktokshop_sku_details_for_version(product_id, version)
+        except Exception as exc:  # best-effort detail enrichment; do not fail balance
+            last_error = exc
+            print(
+                f"  [tiktokshop] product detail {version} failed for {product_id}: {exc}"
+            )
+            continue
+        if details:
+            print(
+                f"  [tiktokshop] product detail {version} enriched {len(details)} sku(s) "
+                f"for {product_id}"
+            )
+            return details
+    if last_error:
+        print(f"  [tiktokshop] product detail failed for {product_id}: {last_error}")
+    return {}
+
+
+def _fetch_tiktokshop_sku_details_for_version(
+        product_id: str,
+        version: str,
+) -> dict[str, dict[str, int | None]]:
+    path = f"/product/{version}/products/{product_id}"
     response = tiktokshop_client._call_signed(  # noqa: SLF001 - stock bot internal API client reuse
         "GET",
         path,
-        extra_query={"version": "202309"},
+        extra_query={"version": version},
     )
     tiktokshop_client._check_ok(  # noqa: SLF001 - stock bot internal API client reuse
         response,
-        context=f"product detail price product={product_id}",
+        context=f"product detail {version} product={product_id}",
     )
 
     data = response.json().get("data") or {}
-    result: dict[str, int | None] = {}
+    product_weight_grams = _extract_weight_grams(data.get("package_weight"))
+    result: dict[str, dict[str, int | None]] = {}
     for sku in data.get("skus") or []:
         sku_id = sku.get("id")
-        if sku_id:
-            result[sku_id] = _extract_price_idr(sku)
+        if not sku_id:
+            continue
+        result[sku_id] = {
+            "price_idr": _extract_price_idr(sku),
+            "weight_grams": _extract_weight_grams(sku.get("package_weight"))
+            or product_weight_grams,
+        }
     return result
 
 
@@ -401,6 +437,26 @@ def _extract_price_idr(value: Any) -> int | None:
         return None
 
     return None
+
+
+def _extract_weight_grams(value: Any) -> int | None:
+    if not value:
+        return None
+    if isinstance(value, dict):
+        try:
+            raw_value = float(value.get("value") or 0)
+        except (TypeError, ValueError):
+            return None
+        unit = (value.get("unit") or "").upper()
+        if unit == "GRAM":
+            return round(raw_value)
+        if unit == "POUND":
+            return round(raw_value * 453.59237)
+        return round(raw_value * 1000)
+    try:
+        return round(float(value) * 1000)
+    except (TypeError, ValueError):
+        return None
 
 
 def _parse_price_string(value: str) -> int | None:

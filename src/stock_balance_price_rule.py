@@ -33,6 +33,7 @@ from src.stock_allocator import (
 LOW_PRICE_1PCS_THRESHOLD_IDR = 5000
 LOW_PRICE_1PCS_MAX_UNITS = 1
 TIKTOKSHOP_DETAIL_API_VERSIONS = ("202309",)
+_WEIGHT_CANDIDATE_KEYS = ("sku_weight", "package_weight", "weight", "item_weight")
 
 
 def run_stock_balance_multi(base_skus: list[str], dry_run: bool) -> int:
@@ -377,14 +378,38 @@ def _fetch_tiktokshop_sku_details_for_version(
     )
 
     data = response.json().get("data") or {}
+    print(
+        f"  [tiktokshop] product detail {version} product={product_id}: "
+        f"data_keys={sorted(data.keys())}"
+    )
     product_weight_grams = _extract_weight_grams(data.get("package_weight"))
+    print(
+        f"  [tiktokshop] product detail {version} product={product_id}: "
+        f"product.package_weight={_short_repr(data.get('package_weight'))} "
+        f"-> product_weight_grams={product_weight_grams}"
+    )
+
     result: dict[str, dict[str, int | None]] = {}
     for sku in data.get("skus") or []:
         sku_id = sku.get("id")
         if not sku_id:
             continue
         price_idr = _extract_price_idr(sku.get("price"))
-        weight_grams = _extract_sku_detail_weight_grams(sku) or product_weight_grams
+        sku_weight_grams = _extract_sku_detail_weight_grams(sku)
+        weight_grams = sku_weight_grams or product_weight_grams
+        seller_sku = sku.get("seller_sku")
+        print(
+            f"  [tiktokshop]   sku {sku_id} ({seller_sku!r}): "
+            f"keys={sorted(sku.keys())}"
+        )
+        print(
+            f"  [tiktokshop]   sku {sku_id} ({seller_sku!r}): "
+            f"weight_candidates={_format_weight_candidates(sku)}; "
+            f"nested_weight_paths={_format_nested_weight_paths(sku)}; "
+            f"sku_weight_grams={sku_weight_grams}; "
+            f"product_fallback_grams={product_weight_grams}; "
+            f"final_weight_grams={weight_grams}; price_idr={price_idr}"
+        )
         result[sku_id] = {
             "price_idr": price_idr,
             "weight_grams": weight_grams,
@@ -441,7 +466,7 @@ def _extract_price_idr(value: Any) -> int | None:
 
 
 def _extract_sku_detail_weight_grams(sku: dict) -> int | None:
-    for key in ("sku_weight", "package_weight", "weight", "item_weight"):
+    for key in _WEIGHT_CANDIDATE_KEYS:
         parsed = _extract_weight_grams(sku.get(key))
         if parsed:
             return parsed
@@ -472,6 +497,54 @@ def _find_nested_weight_grams(value: Any) -> int | None:
                 return parsed
 
     return None
+
+
+def _format_weight_candidates(sku: dict) -> str:
+    parts = [
+        f"{key}={_short_repr(sku.get(key))}"
+        for key in _WEIGHT_CANDIDATE_KEYS
+        if key in sku
+    ]
+    return ", ".join(parts) if parts else "none"
+
+
+def _format_nested_weight_paths(value: Any) -> str:
+    paths = _find_nested_weight_paths(value)
+    return ", ".join(paths) if paths else "none"
+
+
+def _find_nested_weight_paths(
+        value: Any,
+        prefix: str = "sku",
+        limit: int = 20,
+) -> list[str]:
+    if limit <= 0:
+        return []
+    found: list[str] = []
+    if isinstance(value, list):
+        for idx, item in enumerate(value):
+            if len(found) >= limit:
+                break
+            found.extend(_find_nested_weight_paths(item, f"{prefix}[{idx}]", limit - len(found)))
+        return found[:limit]
+    if not isinstance(value, dict):
+        return found
+    for key, nested in value.items():
+        if len(found) >= limit:
+            break
+        path = f"{prefix}.{key}"
+        if "weight" in str(key).lower():
+            found.append(f"{path}={_short_repr(nested)}")
+        if isinstance(nested, (dict, list)):
+            found.extend(_find_nested_weight_paths(nested, path, limit - len(found)))
+    return found[:limit]
+
+
+def _short_repr(value: Any, limit: int = 180) -> str:
+    text = repr(value)
+    if len(text) <= limit:
+        return text
+    return text[:limit - 3] + "..."
 
 
 def _extract_weight_grams(value: Any) -> int | None:

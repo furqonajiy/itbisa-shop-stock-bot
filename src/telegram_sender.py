@@ -40,6 +40,9 @@ TIKTOKSHOP_LABEL = "♪TikTok Shop"
 # Used by the multi-summary to strip leading "SKU `XXX` " from a reason
 # string so the SKU isn't repeated twice in its block.
 _SKU_PREFIX_RE = re.compile(r"^SKU `[^`]+`\s+")
+_RAW_VARIANT_LINE_RE = re.compile(
+    r"^• `(?P<raw>[^`]+)`: (?P<units>[\d.]+) unit \(= (?P<pcs>[\d.]+) pcs\)(?P<suffix>.*)$"
+)
 
 
 # ============================================================
@@ -124,22 +127,25 @@ def send_single_sku_summary(report: dict) -> None:
     }
     """
     header = "📦 *Set Stock* — DRY RUN" if report["dry_run"] else "📦 *Set Stock* — Selesai"
+    sku = report["base_sku"]
 
     lines = [
         header,
         "",
-        f"SKU: `{report['base_sku']}`",
+        f"✅ `{sku}`",
         f"Total: {_fmt_int(report['total_pieces'])} pcs",
         "",
-        f"*{SHOPEE_LABEL}* — {_fmt_int(report['shopee_pieces'])} pcs — {report['shopee_status']}",
+        "📊 *Ringkas*",
+        f"{SHOPEE_LABEL} {_fmt_int(report['shopee_pieces'])} pcs — {report['shopee_status']}",
+        f"{TIKTOKSHOP_LABEL} {_fmt_int(report['tiktokshop_pieces'])} pcs — {report['tiktokshop_status']}",
+        "",
+        "📦 *Detail*",
+        SHOPEE_LABEL,
     ]
-    lines.extend(report["shopee_lines"] or ["_(tidak ada varian)_"])
+    lines.extend(_compact_set_variant_lines(report["shopee_lines"], sku))
     lines.append("")
-    lines.append(
-        f"*{TIKTOKSHOP_LABEL}* — {_fmt_int(report['tiktokshop_pieces'])} pcs — "
-        f"{report['tiktokshop_status']}"
-    )
-    lines.extend(report["tiktokshop_lines"] or ["_(tidak ada varian)_"])
+    lines.append(TIKTOKSHOP_LABEL)
+    lines.extend(_compact_set_variant_lines(report["tiktokshop_lines"], sku))
 
     if report["dry_run"]:
         lines.append("")
@@ -250,59 +256,39 @@ def send_stock_get_summary(report: dict) -> None:
 
     rows = sorted(unified.values(), key=lambda r: r["multiplier"])
 
+    shopee_total_pcs = sum(v["stock_units"] * v["multiplier"] for v in shopee)
+    tiktokshop_total_pcs = sum(v["stock_units"] * v["multiplier"] for v in tiktokshop)
+
     lines = [
         "📊 *Stock Get* — Selesai",
         "",
-        f"SKU dasar: `{base_sku}`",
-        f"Ditemukan: {len(rows)} varian "
-        f"({SHOPEE_LABEL} {len(shopee)}, {TIKTOKSHOP_LABEL} {len(tiktokshop)})",
+        f"✅ `{base_sku}`",
+        f"Ditemukan: {len(rows)} varian ({SHOPEE_LABEL} {len(shopee)}, {TIKTOKSHOP_LABEL} {len(tiktokshop)})",
+        "",
+        "📊 *Ringkas*",
+        f"{SHOPEE_LABEL} total: {_fmt_int(shopee_total_pcs)} pcs",
+        f"{TIKTOKSHOP_LABEL} total: {_fmt_int(tiktokshop_total_pcs)} pcs",
+        f"Total gabungan: {_fmt_int(shopee_total_pcs + tiktokshop_total_pcs)} pcs",
+        "",
+        "📦 *Detail*",
     ]
-
-    shopee_total_pcs = 0
-    tiktokshop_total_pcs = 0
 
     for row in rows:
         s = row["shopee"]
         t = row["tiktokshop"]
         mult = row["multiplier"]
+        pack_label = _pack_label(row["raw_sku"], base_sku)
 
-        lines.append("")
-        lines.append(f"`{row['raw_sku']}` (×{mult})")
-
+        lines.append(f"• {pack_label} (×{_fmt_int(mult)})")
         if s is not None:
-            s_pcs = s["stock_units"] * mult
-            shopee_total_pcs += s_pcs
-            lines.append(
-                f"{SHOPEE_LABEL}: {_fmt_int(s['stock_units'])} unit, "
-                f"berat {_fmt_weight(s['weight_grams'])}"
-            )
+            lines.append(f"  {SHOPEE_LABEL}: {_stock_get_variant_line(s, mult)}")
         else:
-            lines.append(f"{SHOPEE_LABEL}: _(tidak ada)_")
+            lines.append(f"  {SHOPEE_LABEL}: (tidak ada)")
 
         if t is not None:
-            t_pcs = t["stock_units"] * mult
-            tiktokshop_total_pcs += t_pcs
-            lines.append(
-                f"{TIKTOKSHOP_LABEL}: {_fmt_int(t['stock_units'])} unit, "
-                f"berat {_fmt_weight(t['weight_grams'])}"
-            )
+            lines.append(f"  {TIKTOKSHOP_LABEL}: {_stock_get_variant_line(t, mult)}")
         else:
-            lines.append(f"{TIKTOKSHOP_LABEL}: _(tidak ada)_")
-
-        # Per-variant cross-platform total.
-        s_units = s["stock_units"] if s else 0
-        t_units = t["stock_units"] if t else 0
-        total_units = s_units + t_units
-        lines.append(
-            f"Total varian: {_fmt_int(total_units)} unit "
-            f"(= {_fmt_int(total_units * mult)} pcs)"
-        )
-
-    lines.append("")
-    lines.append("*Ringkasan:*")
-    lines.append(f"{SHOPEE_LABEL} total: {_fmt_int(shopee_total_pcs)} pcs")
-    lines.append(f"{TIKTOKSHOP_LABEL} total: {_fmt_int(tiktokshop_total_pcs)} pcs")
-    lines.append(f"Total gabungan: {_fmt_int(shopee_total_pcs + tiktokshop_total_pcs)} pcs")
+            lines.append(f"  {TIKTOKSHOP_LABEL}: (tidak ada)")
 
     _send(_join(lines))
 
@@ -474,16 +460,54 @@ def _truncate(s: str, n: int) -> str:
     return s if len(s) <= n else s[:n - 1] + "…"
 
 
+def _compact_set_variant_lines(lines: list[str], base_sku: str) -> list[str]:
+    if not lines:
+        return ["_(tidak ada varian)_"]
+    return [_compact_set_variant_line(line, base_sku) for line in lines]
+
+
+def _compact_set_variant_line(line: str, base_sku: str) -> str:
+    match = _RAW_VARIANT_LINE_RE.match(line)
+    if not match:
+        return line
+
+    raw_sku = match.group("raw")
+    units = match.group("units")
+    pcs = match.group("pcs")
+    suffix = match.group("suffix").strip()
+    suffix = f" {suffix}" if suffix else ""
+    return f"• {_pack_label(raw_sku, base_sku)}: {_fmt_units(units)} unit = {_fmt_units(pcs)} pcs{suffix}"
+
+
+def _stock_get_variant_line(variant: dict, multiplier: int) -> str:
+    units = int(variant["stock_units"])
+    pieces = units * multiplier
+    return f"{_fmt_int(units)} unit = {_fmt_int(pieces)} pcs — {_fmt_weight(variant.get('weight_grams'))}"
+
+
+def _pack_label(raw_sku: str, base_sku: str) -> str:
+    if raw_sku == base_sku:
+        return "1PCS"
+    suffix = f"-{base_sku}"
+    if raw_sku.endswith(suffix):
+        return raw_sku[:-len(suffix)]
+    return raw_sku
+
+
+def _fmt_units(value: str) -> str:
+    return _fmt_int(int(str(value).replace(".", "")))
+
+
 def _fmt_int(n: int) -> str:
     """1234567 -> '1.234.567' (Indonesian thousands separator)."""
     return f"{n:,}".replace(",", ".")
 
 
-def _fmt_weight(grams: int) -> str:
-    """0 → '—' (data tidak tersedia), else 'NNN g' with thousands separator."""
+def _fmt_weight(grams: int | None) -> str:
+    """0/None → '—' (data tidak tersedia), else 'NNN g' with thousands separator."""
     if not grams:
         return "—"
-    return f"{_fmt_int(grams)} g"
+    return f"{_fmt_int(int(grams))} g"
 
 
 def _signed(n: int) -> str:

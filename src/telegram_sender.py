@@ -200,6 +200,44 @@ def send_stock_get_summary(report: dict) -> None:
     _send(_join(lines))
 
 
+def send_stock_get_multi_summary(report: dict) -> None:
+    """Multi-SKU read-only run formatter."""
+    results = report["results"]
+    total = len(results)
+
+    ok_count = sum(1 for r in results if r["status"] == "ok")
+    fail_count = sum(1 for r in results if r["status"] == "failed")
+
+    lines = [f"📊 *Stock Get* — Selesai ({total} SKU)", ""]
+
+    for r in results:
+        sku = r["base_sku"]
+        status = r["status"]
+        if status == "ok":
+            lines.append(f"✅ `{sku}`")
+            lines.append(f"{SHOPEE_LABEL}: {_fmt_int(r['shopee_pieces'])} pcs")
+            lines.append(f"{TIKTOKSHOP_LABEL}: {_fmt_int(r['tiktokshop_pieces'])} pcs")
+            lines.append(f"Total: {_fmt_int(r['total_pieces'])} pcs")
+        else:
+            short = _strip_sku_prefix(r["reason"])
+            lines.append(f"❌ `{sku}`")
+            lines.append(_truncate(short, 200))
+        lines.append("")
+
+    if lines and lines[-1] == "":
+        lines.pop()
+
+    lines.append("")
+    summary_parts: list[str] = []
+    if ok_count:
+        summary_parts.append(f"{ok_count} ✅")
+    if fail_count:
+        summary_parts.append(f"{fail_count} ❌")
+    lines.append("*Ringkasan:* " + " | ".join(summary_parts))
+
+    _send(_join(lines))
+
+
 def send_stock_balance_summary(report: dict) -> None:
     """Fallback single-SKU rebalance run formatter."""
     header = (

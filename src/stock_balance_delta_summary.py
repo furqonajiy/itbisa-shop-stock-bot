@@ -6,6 +6,7 @@ import re
 
 from src import stock_balance_price_rule as _stock_balance_price_rule
 from src import telegram_sender
+from src.shopee_detail_enrichment import enrich_shopee_prices
 
 _run_stock_balance_multi = _stock_balance_price_rule.run_stock_balance_multi
 
@@ -19,15 +20,24 @@ def run_stock_balance_multi(base_skus: list[str], dry_run: bool) -> int:
     original_single_sender = telegram_sender.send_stock_balance_summary
     original_multi_sender = telegram_sender.send_stock_balance_multi_summary
     original_balance_single_sender = _stock_balance_price_rule._send_single_balance_telegram
+    original_shopee_detail_builder = _stock_balance_price_rule._build_shopee_detail_variants
+
+    def _build_shopee_detail_variants_with_price(target_pieces: int, variants: list[dict]) -> list[dict]:
+        enrich_shopee_prices(variants)
+        return original_shopee_detail_builder(target_pieces, variants)
+
     telegram_sender.send_stock_balance_summary = _send_stock_balance_summary_compact
     telegram_sender.send_stock_balance_multi_summary = _send_stock_balance_multi_summary_with_delta
     _stock_balance_price_rule._send_single_balance_telegram = _send_stock_balance_result_compact
+    if len(base_skus) == 1:
+        _stock_balance_price_rule._build_shopee_detail_variants = _build_shopee_detail_variants_with_price
     try:
         return _run_stock_balance_multi(base_skus, dry_run=dry_run)
     finally:
         telegram_sender.send_stock_balance_summary = original_single_sender
         telegram_sender.send_stock_balance_multi_summary = original_multi_sender
         _stock_balance_price_rule._send_single_balance_telegram = original_balance_single_sender
+        _stock_balance_price_rule._build_shopee_detail_variants = original_shopee_detail_builder
 
 
 def _send_stock_balance_result_compact(result: dict, dry_run: bool) -> None:

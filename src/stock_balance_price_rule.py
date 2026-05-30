@@ -32,7 +32,7 @@ from src.stock_allocator import (
 
 LOW_PRICE_1PCS_THRESHOLD_IDR = 5000
 LOW_PRICE_1PCS_MAX_UNITS = 1
-TIKTOKSHOP_DETAIL_API_VERSIONS = ("202502", "202309")
+TIKTOKSHOP_DETAIL_API_VERSIONS = ("202309",)
 
 
 def run_stock_balance_multi(base_skus: list[str], dry_run: bool) -> int:
@@ -384,9 +384,7 @@ def _fetch_tiktokshop_sku_details_for_version(
         if not sku_id:
             continue
         price_idr = _extract_price_idr(sku.get("price"))
-        weight_grams = _extract_weight_grams(
-            sku.get("sku_weight") or sku.get("package_weight")
-        ) or product_weight_grams
+        weight_grams = _extract_sku_detail_weight_grams(sku) or product_weight_grams
         result[sku_id] = {
             "price_idr": price_idr,
             "weight_grams": weight_grams,
@@ -442,24 +440,73 @@ def _extract_price_idr(value: Any) -> int | None:
     return None
 
 
+def _extract_sku_detail_weight_grams(sku: dict) -> int | None:
+    for key in ("sku_weight", "package_weight", "weight", "item_weight"):
+        parsed = _extract_weight_grams(sku.get(key))
+        if parsed:
+            return parsed
+    return _find_nested_weight_grams(sku)
+
+
+def _find_nested_weight_grams(value: Any) -> int | None:
+    if isinstance(value, list):
+        for item in value:
+            parsed = _find_nested_weight_grams(item)
+            if parsed:
+                return parsed
+        return None
+
+    if not isinstance(value, dict):
+        return None
+
+    for key, nested in value.items():
+        if "weight" in str(key).lower():
+            parsed = _extract_weight_grams(nested)
+            if parsed:
+                return parsed
+
+    for nested in value.values():
+        if isinstance(nested, (dict, list)):
+            parsed = _find_nested_weight_grams(nested)
+            if parsed:
+                return parsed
+
+    return None
+
+
 def _extract_weight_grams(value: Any) -> int | None:
     if not value:
         return None
     if isinstance(value, dict):
         try:
-            raw_value = float(value.get("value") or 0)
+            raw_value = float(
+                value.get("value")
+                or value.get("weight")
+                or value.get("amount")
+                or 0
+            )
         except (TypeError, ValueError):
             return None
-        unit = (value.get("unit") or "").upper()
-        if unit == "GRAM":
+        if raw_value <= 0:
+            return None
+        unit = (
+            value.get("unit")
+            or value.get("weight_unit")
+            or value.get("weightUnit")
+            or ""
+        ).upper()
+        if unit in ("GRAM", "GRAMS", "G"):
             return round(raw_value)
-        if unit == "POUND":
+        if unit in ("POUND", "POUNDS", "LB", "LBS"):
             return round(raw_value * 453.59237)
         return round(raw_value * 1000)
     try:
-        return round(float(value) * 1000)
+        raw_value = float(value)
     except (TypeError, ValueError):
         return None
+    if raw_value <= 0:
+        return None
+    return round(raw_value * 1000)
 
 
 def _parse_price_string(value: str) -> int | None:

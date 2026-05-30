@@ -6,11 +6,13 @@ from src import config, shopee_auth, shopee_client, telegram_sender, tiktokshop_
 from src.main import (
     _format_and_push_shopee,
     _make_set_skip_result,
-    _send_single_set_telegram,
 )
+from src.shopee_detail_enrichment import enrich_shopee_prices
 from src.stock_allocator import split_across_platforms
 from src.stock_balance_price_rule import (
     _allocate_tiktokshop_balance,
+    _build_shopee_detail_variants,
+    _build_tiktokshop_detail_variants,
     _enrich_tiktokshop_details,
     _format_and_push_tiktokshop_allocations,
     _represented_pieces,
@@ -114,7 +116,9 @@ def _set_one_sku(
         return _make_set_skip_result(base_sku, total_pieces, reason)
 
     shopee_target_pieces, tiktokshop_target_pieces = split_across_platforms(total_pieces)
+    shopee_variants = shopee_catalog[base_sku]
     tiktokshop_variants = tiktokshop_catalog[base_sku]
+    enrich_shopee_prices(shopee_variants)
     _enrich_tiktokshop_details(tiktokshop_variants)
     tiktokshop_allocations = _allocate_tiktokshop_balance(
         tiktokshop_target_pieces,
@@ -134,7 +138,7 @@ def _set_one_sku(
     shopee_lines, shopee_status = _format_and_push_shopee(
         base_sku,
         shopee_pieces,
-        shopee_catalog[base_sku],
+        shopee_variants,
         dry_run,
     )
     tiktokshop_lines, tiktokshop_status = _format_and_push_tiktokshop_allocations(
@@ -164,6 +168,34 @@ def _set_one_sku(
         "tiktokshop_pieces": tiktokshop_pieces,
         "shopee_lines": shopee_lines,
         "tiktokshop_lines": tiktokshop_lines,
+        "shopee_detail_variants": _build_shopee_detail_variants(
+            shopee_pieces,
+            shopee_variants,
+        ),
+        "tiktokshop_detail_variants": _build_tiktokshop_detail_variants(
+            tiktokshop_allocations,
+        ),
         "shopee_status": shopee_status,
         "tiktokshop_status": tiktokshop_status,
     }
+
+
+def _send_single_set_telegram(result: dict, dry_run: bool) -> None:
+    if result["status"] == "skipped":
+        telegram_sender.send_alert(result["reason"])
+        return
+
+    telegram_sender.send_single_sku_summary({
+        "mode": "single",
+        "base_sku": result["base_sku"],
+        "total_pieces": result["total_pieces"],
+        "shopee_pieces": result["shopee_pieces"],
+        "tiktokshop_pieces": result["tiktokshop_pieces"],
+        "shopee_lines": result["shopee_lines"],
+        "tiktokshop_lines": result["tiktokshop_lines"],
+        "shopee_detail_variants": result.get("shopee_detail_variants"),
+        "tiktokshop_detail_variants": result.get("tiktokshop_detail_variants"),
+        "shopee_status": result["shopee_status"],
+        "tiktokshop_status": result["tiktokshop_status"],
+        "dry_run": dry_run,
+    })

@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-import re
-
 from src import shopee_auth, shopee_client, telegram_sender, tiktokshop_client
 from src.shopee_detail_enrichment import enrich_shopee_prices
 from src.stock_balance_price_rule import _fetch_tiktokshop_sku_details
 
-_SKU_SPLIT_RE = re.compile(r"[\s,]+")
-
 
 def parse_stock_get_skus(raw_sku: str) -> list[str]:
-    """Parse one or more base SKUs from comma/newline/space separated input."""
-    return [sku.strip().upper() for sku in _SKU_SPLIT_RE.split(raw_sku or "") if sku.strip()]
+    """Parse one or more base SKUs from newline-separated input."""
+    return [sku.strip().upper() for sku in (raw_sku or "").splitlines() if sku.strip()]
 
 
 def run_stock_get_mode(base_sku: str) -> int:

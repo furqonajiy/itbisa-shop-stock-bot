@@ -232,30 +232,10 @@ def send_stock_get_summary(report: dict) -> None:
     }
     """
     base_sku = report["base_sku"]
-    shopee = report["shopee_variants"]
-    tiktokshop = report["tiktokshop_variants"]
+    shopee = sorted(report["shopee_variants"], key=lambda v: v["multiplier"])
+    tiktokshop = sorted(report["tiktokshop_variants"], key=lambda v: v["multiplier"])
 
-    # Merge variants from both platforms keyed by raw_sku. A variant may
-    # exist on only one side — we still show it so the operator notices
-    # the catalog mismatch.
-    unified: dict[str, dict] = {}
-    for v in shopee:
-        unified.setdefault(v["raw_sku"], {
-            "raw_sku": v["raw_sku"],
-            "multiplier": v["multiplier"],
-            "shopee": None,
-            "tiktokshop": None,
-        })["shopee"] = v
-    for v in tiktokshop:
-        unified.setdefault(v["raw_sku"], {
-            "raw_sku": v["raw_sku"],
-            "multiplier": v["multiplier"],
-            "shopee": None,
-            "tiktokshop": None,
-        })["tiktokshop"] = v
-
-    rows = sorted(unified.values(), key=lambda r: r["multiplier"])
-
+    raw_skus = {v["raw_sku"] for v in shopee + tiktokshop}
     shopee_total_pcs = sum(v["stock_units"] * v["multiplier"] for v in shopee)
     tiktokshop_total_pcs = sum(v["stock_units"] * v["multiplier"] for v in tiktokshop)
 
@@ -263,7 +243,7 @@ def send_stock_get_summary(report: dict) -> None:
         "📊 *Stock Get* — Selesai",
         "",
         f"✅ `{base_sku}`",
-        f"Ditemukan: {len(rows)} varian ({SHOPEE_LABEL} {len(shopee)}, {TIKTOKSHOP_LABEL} {len(tiktokshop)})",
+        f"Ditemukan: {len(raw_skus)} varian ({SHOPEE_LABEL} {len(shopee)}, {TIKTOKSHOP_LABEL} {len(tiktokshop)})",
         "",
         "📊 *Ringkas*",
         f"{SHOPEE_LABEL} total: {_fmt_int(shopee_total_pcs)} pcs",
@@ -271,24 +251,12 @@ def send_stock_get_summary(report: dict) -> None:
         f"Total gabungan: {_fmt_int(shopee_total_pcs + tiktokshop_total_pcs)} pcs",
         "",
         "📦 *Detail*",
+        SHOPEE_LABEL,
     ]
-
-    for row in rows:
-        s = row["shopee"]
-        t = row["tiktokshop"]
-        mult = row["multiplier"]
-        pack_label = _pack_label(row["raw_sku"], base_sku)
-
-        lines.append(f"• {pack_label} (×{_fmt_int(mult)})")
-        if s is not None:
-            lines.append(f"  {SHOPEE_LABEL}: {_stock_get_variant_line(s, mult)}")
-        else:
-            lines.append(f"  {SHOPEE_LABEL}: (tidak ada)")
-
-        if t is not None:
-            lines.append(f"  {TIKTOKSHOP_LABEL}: {_stock_get_variant_line(t, mult)}")
-        else:
-            lines.append(f"  {TIKTOKSHOP_LABEL}: (tidak ada)")
+    lines.extend(_stock_get_variant_lines(shopee, base_sku, include_price=False))
+    lines.append("")
+    lines.append(TIKTOKSHOP_LABEL)
+    lines.extend(_stock_get_variant_lines(tiktokshop, base_sku, include_price=True))
 
     _send(_join(lines))
 
@@ -479,10 +447,32 @@ def _compact_set_variant_line(line: str, base_sku: str) -> str:
     return f"• {_pack_label(raw_sku, base_sku)}: {_fmt_units(units)} unit = {_fmt_units(pcs)} pcs{suffix}"
 
 
-def _stock_get_variant_line(variant: dict, multiplier: int) -> str:
+def _stock_get_variant_lines(
+        variants: list[dict],
+        base_sku: str,
+        *,
+        include_price: bool,
+) -> list[str]:
+    if not variants:
+        return ["_(tidak ada varian)_"]
+    return [
+        _stock_get_variant_line(variant, base_sku, include_price=include_price)
+        for variant in variants
+    ]
+
+
+def _stock_get_variant_line(variant: dict, base_sku: str, *, include_price: bool) -> str:
     units = int(variant["stock_units"])
-    pieces = units * multiplier
-    return f"{_fmt_int(units)} unit = {_fmt_int(pieces)} pcs — {_fmt_weight(variant.get('weight_grams'))}"
+    pieces = units * int(variant["multiplier"])
+    price_suffix = ""
+    if include_price:
+        price = _fmt_price(variant.get("price_idr"))
+        price_suffix = f" — {price}" if price else ""
+    return (
+        f"• {_pack_label(variant['raw_sku'], base_sku)}: "
+        f"{_fmt_int(units)} unit = {_fmt_int(pieces)} pcs — "
+        f"{_fmt_weight(variant.get('weight_grams'))}{price_suffix}"
+    )
 
 
 def _pack_label(raw_sku: str, base_sku: str) -> str:
@@ -508,6 +498,12 @@ def _fmt_weight(grams: int | None) -> str:
     if not grams:
         return "—"
     return f"{_fmt_int(int(grams))} g"
+
+
+def _fmt_price(value: int | None) -> str:
+    if value is None:
+        return ""
+    return f"Rp{_fmt_int(int(value))}"
 
 
 def _signed(n: int) -> str:

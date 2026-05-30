@@ -2,10 +2,8 @@
 """CLI for /stock_balance.
 
 Accepts one or more base SKUs (space-separated). Catalogs on both
-platforms are walked ONCE inside src.stock_balance_preserve.run_stock_balance_multi_preserve_total,
-then the per-SKU balance flow loops against the cached catalogs. Each SKU
-sends its own Telegram message as soon as it finishes, so the operator
-sees per-SKU pass/fail in real time.
+platforms are walked once inside the balance runner, then the per-SKU
+balance flow loops against the cached catalogs.
 
 Usage:
     python scripts/stock_balance.py --sku BASE_SKU
@@ -21,7 +19,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.stock_balance_preserve import run_stock_balance_multi_preserve_total
+from src.stock_balance_price_rule import run_stock_balance_multi
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +52,6 @@ def normalize_skus(raw_tokens: list[str]) -> tuple[list[str], list[str]]:
     for raw in raw_tokens:
         if raw is None:
             continue
-        # Each token may itself contain spaces (e.g. when shell-passed as
-        # one quoted argument). Split defensively.
         for token in str(raw).split():
             base = token.strip().upper()
             if not base:
@@ -86,7 +82,7 @@ def main() -> int:
         logger.error("No valid base SKUs provided")
         return 2
 
-    return run_stock_balance_multi_preserve_total(skus, dry_run=args.dry_run)
+    return run_stock_balance_multi(skus, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

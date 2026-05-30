@@ -24,9 +24,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 
-# NOTE: src.main imports config.py which validates required env vars at
-# import time. We defer that import until AFTER argparse has run, so
-# `--help` works without the env being fully configured.
+# NOTE: src.stock_get_compact imports config.py which validates required
+# env vars at import time. We defer that import until AFTER argparse has
+# run, so `--help` works without the env being fully configured.
 
 
 def parse_args() -> argparse.Namespace:
@@ -52,9 +52,9 @@ def main() -> int:
 
     # Deferred import: config.py validates env vars at import time, and
     # we want `--help` and basic input validation to work without that.
-    from src import main as stock_main
+    from src.stock_get_compact import run_stock_get_mode
 
-    return stock_main.run_stock_get_mode(base_sku=base_sku)
+    return run_stock_get_mode(base_sku=base_sku)
 
 
 if __name__ == "__main__":

@@ -93,7 +93,7 @@ jobs:
       #
       # $INPUT_SKU and $INPUT_PIECES are deliberately UNQUOTED so the shell
       # word-splits each space-separated list into multiple argv tokens,
-      # feeding argparse's nargs='+' parsing in scripts/stock_set.py.
+      # feeding argparse's nargs='+' parsing in scripts/stock_set_price.py.
       - name: Run stock set
         env:
           SHOPEE_PARTNER_ID: ${{ secrets.SHOPEE_PARTNER_ID }}
@@ -124,7 +124,7 @@ jobs:
             echo "SKU mode:"
             echo "  sku    = $INPUT_SKU"
             echo "  pieces = $INPUT_PIECES"
-            python scripts/stock_set.py --sku $INPUT_SKU --pieces $INPUT_PIECES $DRY_FLAG
+            python scripts/stock_set_price.py --sku $INPUT_SKU --pieces $INPUT_PIECES $DRY_FLAG
           else
             echo "Excel mode: $INPUT_EXCEL_PATH"
             python scripts/stock_set.py "$INPUT_EXCEL_PATH" $DRY_FLAG

@@ -383,10 +383,13 @@ def _fetch_tiktokshop_sku_details_for_version(
         sku_id = sku.get("id")
         if not sku_id:
             continue
+        price_idr = _extract_price_idr(sku.get("price"))
+        weight_grams = _extract_weight_grams(
+            sku.get("sku_weight") or sku.get("package_weight")
+        ) or product_weight_grams
         result[sku_id] = {
-            "price_idr": _extract_price_idr(sku),
-            "weight_grams": _extract_weight_grams(sku.get("package_weight"))
-            or product_weight_grams,
+            "price_idr": price_idr,
+            "weight_grams": weight_grams,
         }
     return result
 

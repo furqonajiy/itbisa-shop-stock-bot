@@ -1,8 +1,9 @@
-"""Compact /stock_get runner with TikTok Shop detail price and weight enrichment."""
+"""Compact /stock_get runner with marketplace detail price and weight enrichment."""
 
 from __future__ import annotations
 
 from src import shopee_auth, shopee_client, telegram_sender, tiktokshop_client
+from src.shopee_detail_enrichment import enrich_shopee_prices
 from src.stock_balance_price_rule import _fetch_tiktokshop_sku_details
 
 
@@ -45,6 +46,7 @@ def run_stock_get_mode(base_sku: str) -> int:
         telegram_sender.send_alert(msg, mode="Get Stock")
         return 1
 
+    enrich_shopee_prices(shopee_variants)
     _enrich_tiktokshop_detail(tiktokshop_variants)
 
     for label, variants in (("Shopee", shopee_variants), ("TikTok Shop", tiktokshop_variants)):

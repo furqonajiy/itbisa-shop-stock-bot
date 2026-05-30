@@ -17,8 +17,8 @@ from src import config
 _TELEGRAM_API = "https://api.telegram.org"
 _MAX_MESSAGE_CHARS = 4000  # Telegram caps at 4096; leave headroom
 
-SHOPEE_LABEL = "🟧Shopee"
-TIKTOKSHOP_LABEL = "♪TikTok Shop"
+SHOPEE_LABEL = "🟧 Shopee"
+TIKTOKSHOP_LABEL = "🟦 TikTok Shop"
 
 _SKU_PREFIX_RE = re.compile(r"^SKU `[^`]+`\s+")
 _RAW_VARIANT_LINE_RE = re.compile(
@@ -460,7 +460,7 @@ def _label_for_platform(platform: str) -> str:
 
 
 def _decorate_platforms(text: str) -> str:
-    if "♪" not in text:
+    if "🟦" not in text:
         text = re.sub(r"\bTikTok Shop\b", TIKTOKSHOP_LABEL, text)
     if "🟧" not in text:
         text = re.sub(r"\bShopee\b", SHOPEE_LABEL, text)

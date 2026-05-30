@@ -200,6 +200,13 @@ def _balance_one_sku(
         "tiktokshop_after_pieces": tiktokshop_after_pieces,
         "shopee_lines": shopee_lines,
         "tiktokshop_lines": tiktokshop_lines,
+        "shopee_detail_variants": _build_shopee_detail_variants(
+            shopee_after_pieces,
+            shopee_variants,
+        ),
+        "tiktokshop_detail_variants": _build_tiktokshop_detail_variants(
+            tiktokshop_allocations,
+        ),
         "shopee_status": shopee_status,
         "tiktokshop_status": tiktokshop_status,
     }
@@ -295,6 +302,27 @@ def _format_and_push_tiktokshop_allocations(
     return lines, "✅ berhasil"
 
 
+def _build_shopee_detail_variants(target_pieces: int, variants: list[dict]) -> list[dict]:
+    allocations = allocate_pack_sizes(target_pieces, variants)
+    return [_detail_variant(variant, units) for variant, units in allocations]
+
+
+def _build_tiktokshop_detail_variants(allocations: list[tuple[dict, int]]) -> list[dict]:
+    return [_detail_variant(variant, units) for variant, units in allocations]
+
+
+def _detail_variant(variant: dict, units: int) -> dict:
+    multiplier = variant["multiplier"]
+    return {
+        "raw_sku": variant["raw_sku"],
+        "multiplier": multiplier,
+        "units": units,
+        "pieces": units * multiplier,
+        "weight_grams": variant.get("weight_grams"),
+        "price_idr": variant.get("price_idr"),
+    }
+
+
 def _enrich_tiktokshop_prices(variants: list[dict]) -> None:
     """Best-effort: attach price_idr to variants from product detail responses."""
     product_ids = {v["product_id"] for v in variants if v.get("product_id")}
@@ -358,56 +386,39 @@ def _extract_price_idr(value: Any) -> int | None:
             "tax_exclusive_price",
             "retail_price",
             "original_price",
-            "list_price",
             "amount",
             "value",
+            "cent_amount",
+            "min_sale_price",
+            "max_sale_price",
+            "currency_price",
+            "price_detail",
         ):
-            parsed = _extract_price_idr(value.get(key))
-            if parsed is not None:
-                return parsed
+            if key in value:
+                parsed = _extract_price_idr(value[key])
+                if parsed is not None:
+                    return parsed
+        return None
+
     return None
 
 
 def _parse_price_string(value: str) -> int | None:
-    cleaned = value.strip()
-    if not cleaned:
+    stripped = value.strip()
+    if not stripped:
         return None
 
-    # Handles API values like "5000", "5000.00", "Rp5.000",
-    # "5,000", and Indonesian-style "Rp5.000,00".
-    numeric = re.sub(r"[^0-9.,]", "", cleaned)
-    if not numeric:
+    digits = re.sub(r"[^0-9]", "", stripped)
+    if not digits:
         return None
-
-    if "," in numeric and "." in numeric:
-        last_comma = numeric.rfind(",")
-        last_dot = numeric.rfind(".")
-        if last_comma > last_dot:
-            numeric = numeric.replace(".", "").replace(",", ".")
-        else:
-            numeric = numeric.replace(",", "")
-    elif "," in numeric:
-        cents_or_decimals = numeric.rsplit(",", 1)[1]
-        if len(cents_or_decimals) <= 2:
-            numeric = numeric.replace(",", ".")
-        else:
-            numeric = numeric.replace(",", "")
-    elif numeric.count(".") == 1:
-        cents_or_decimals = numeric.rsplit(".", 1)[1]
-        if len(cents_or_decimals) == 3:
-            numeric = numeric.replace(".", "")
-
-    try:
-        return round(float(numeric))
-    except ValueError:
-        return None
-
-
-def _represented_pieces(allocations: list[tuple[dict, int]]) -> int:
-    return sum(variant["multiplier"] * units for variant, units in allocations)
+    return int(digits)
 
 
 def _format_price_note(price_idr: int | None) -> str:
     if price_idr is None:
         return ""
     return f" — Rp{price_idr:,}".replace(",", ".")
+
+
+def _represented_pieces(allocations: list[tuple[dict, int]]) -> int:
+    return sum(variant["multiplier"] * units for variant, units in allocations)

@@ -11,7 +11,7 @@ from src.main import (
 from src.stock_allocator import split_across_platforms
 from src.stock_balance_price_rule import (
     _allocate_tiktokshop_balance,
-    _enrich_tiktokshop_prices,
+    _enrich_tiktokshop_details,
     _format_and_push_tiktokshop_allocations,
     _represented_pieces,
 )
@@ -115,7 +115,7 @@ def _set_one_sku(
 
     shopee_target_pieces, tiktokshop_target_pieces = split_across_platforms(total_pieces)
     tiktokshop_variants = tiktokshop_catalog[base_sku]
-    _enrich_tiktokshop_prices(tiktokshop_variants)
+    _enrich_tiktokshop_details(tiktokshop_variants)
     tiktokshop_allocations = _allocate_tiktokshop_balance(
         tiktokshop_target_pieces,
         tiktokshop_variants,

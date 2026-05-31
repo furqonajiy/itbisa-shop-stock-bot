@@ -174,7 +174,6 @@ def send_stock_get_summary(report: dict) -> None:
     shopee = sorted(report["shopee_variants"], key=lambda v: v["multiplier"])
     tiktokshop = sorted(report["tiktokshop_variants"], key=lambda v: v["multiplier"])
 
-    raw_skus = {v["raw_sku"] for v in shopee + tiktokshop}
     shopee_total_pcs = sum(v["stock_units"] * v["multiplier"] for v in shopee)
     tiktokshop_total_pcs = sum(v["stock_units"] * v["multiplier"] for v in tiktokshop)
 
@@ -182,7 +181,6 @@ def send_stock_get_summary(report: dict) -> None:
         "📊 *Stock Get* — Selesai",
         "",
         f"✅ `{base_sku}`",
-        f"Ditemukan: {len(raw_skus)} varian ({SHOPEE_LABEL} {len(shopee)}, {TIKTOKSHOP_LABEL} {len(tiktokshop)})",
         "",
         "📊 *Ringkas*",
         f"{SHOPEE_LABEL} total: {_fmt_int(shopee_total_pcs)} pcs",

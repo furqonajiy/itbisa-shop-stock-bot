@@ -456,8 +456,8 @@ TELEGRAM_CHAT_ID
 These values live in `src/config.py`, not in GitHub Secrets:
 
 ```python
-TIKTOKSHOP_SMALL_PACK_RESERVE_PIECES = 200
-TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 200
+TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 400   # per-variant unit cap (TikTok Shop allocator)
+DELAY_BETWEEN_CALLS_SECONDS = 1.0
 MAX_SKUS_PER_RUN = 500
 ```
 

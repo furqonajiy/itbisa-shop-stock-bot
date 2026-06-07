@@ -1,14 +1,16 @@
 """
 stock_get.py
 ------------
-CLI entry for /stock_get SKU. Read-only stock inspection across Shopee
-and TikTok Shop. Mirrors the dispatch shape of stock_set.py.
+CLI entry for /stock_get SKU or keyword search. Read-only stock inspection
+across Shopee and TikTok Shop. Mirrors the dispatch shape of stock_set.py.
 
 Usage:
+  python scripts/stock_get.py --sku 555
+  python scripts/stock_get.py --sku "741 CATHODE"
   python scripts/stock_get.py --sku ITBISA-IC-NE555P-DIP8
 
 Triggered by:
-  • /stock_get SKU from the Telegram bot Worker
+  • /stock_get SKU-or-keyword from the Telegram bot Worker
   • Manual workflow_dispatch on .github/workflows/get.yml
 
 This is a READ-ONLY operation — no write APIs are called. The only
@@ -37,7 +39,7 @@ def parse_args() -> argparse.Namespace:
         "--sku",
         type=str,
         required=True,
-        help="SKU to inspect (e.g. ITBISA-IC-NE555P-DIP8).",
+        help='SKU or keyword query to inspect (e.g. 555, "741 CATHODE", or ITBISA-IC-NE555P-DIP8).',
     )
     return parser.parse_args()
 

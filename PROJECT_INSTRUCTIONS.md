@@ -53,23 +53,23 @@ Operator provides base SKU only. Pack-size variants: `<digits>PCS-<base_sku>` (e
 `stock_set_price_rule.py` / `stock_balance_price_rule.py` = set/balance orchestration for the low-price 1PCS rule. `stock_balance_preserve.py` preserves the grand total when the allocator can't fully represent input. `stock_balance_delta_summary.py` = compact before→after deltas. `stock_get_compact.py` / `shopee_detail_enrichment.py` = price/weight enrichment for Telegram.
 
 ## TikTok Shop weight enrichment (/stock_get only)
-`202502` search omits `package_weight` (→ `weight_grams = 0`). `run_stock_get_mode` calls `fetch_product_detail(product_id)` (GET `/product/202309/products/{product_id}`) once per `product_id`, overwriting only `weight_grams == 0`. Best-effort (failure → 0). NOT called from `fetch_catalog`. Shopee weight comes from `fetch_catalog`.
+`202502` search omits `package_weight` (→ `weight_grams = 0`). `run_stock_get_mode` calls `fetch_product_detail(product_id)` (202309 product detail) once per `product_id`, overwriting only zeros. Best-effort. Shopee weight comes from `fetch_catalog`.
 
 ## Clients
-- **Shopee:** `get_item_list` + `get_item_base_info` + `get_model_list`; `update_stock` → `/api/v2/product/update_stock` (absolute). Shop-level HMAC-SHA256 signing.
-- **TikTok Shop:** `/product/202502/products/search`; `update_stock_batch` → `/product/202309/products/{product_id}/inventory/update` (absolute). Signed + `x-tts-access-token`; `shop_cipher` from `/authorization/202309/shops`.
+- **Shopee:** `get_item_list` + `get_item_base_info` + `get_model_list`; `update_stock` (absolute). Shop-level HMAC-SHA256 signing.
+- **TikTok Shop:** `/product/202502/products/search`; `update_stock_batch` → `/product/202309/products/{id}/inventory/update` (absolute). Signed + `x-tts-access-token`; `shop_cipher` from `/authorization/202309/shops`.
 
 ## Telegram (`src/telegram_sender.py`)
-Markdown (legacy), `_send` caps at 4000 chars. Labels: `SHOPEE_LABEL = "🟧 Shopee"`, `TIKTOKSHOP_LABEL = "🟦 TikTok Shop"`. `/stock_set` & `/stock_balance`: 1 SKU → detailed (balance shows before→after signed delta), 2+ → compact. `/stock_get`: per-variant units + weight. `send_alert(text, mode)` → `🚨 *{mode}* — Error`.
+Markdown (legacy), `_send` caps at 4000 chars. Labels `SHOPEE_LABEL = "🟧 Shopee"`, `TIKTOKSHOP_LABEL = "🟦 TikTok Shop"`. `/stock_set` & `/stock_balance`: 1 SKU → detailed (balance = before→after delta), 2+ → compact. `/stock_get`: per-variant units + weight. `send_alert(text, mode)` → `🚨 *{mode}* — Error`.
 
 ## Workflows
-All `workflow_dispatch` only. `set.yml` (`stock-set`, `cancel-in-progress: false`): SKU mode runs `stock_set_price.py`, Excel mode `stock_set.py`. `get.yml` (`stock-get`, `cancel-in-progress: true`). `balance.yml` (`stock-balance`, `cancel-in-progress: false`). All: checkout `main`, overlay `data/` from `bot-state`, Python 3.11, commit token files to `bot-state` after every run.
+All `workflow_dispatch` only. `set.yml` (`stock-set`, no-cancel): SKU mode runs `stock_set_price.py`, Excel mode `stock_set.py`. `get.yml` (`stock-get`, cancel-in-progress). `balance.yml` (`stock-balance`, no-cancel). All: checkout `main`, overlay `data/` from `bot-state`, Python 3.11, commit token files to `bot-state` every run.
 
 ## Conventions
-GitHub Actions only. `main` = source; `bot-state` = token files only (never protect). Never hardcode secrets. Self-contained, no shared library. Minimal targeted changes. Telegram strings Bahasa Indonesia; never abbreviate "TikTok Shop"; use "stock" not "inventory" (except endpoints like `/inventory/update`). Runtime ref `main`.
+GitHub Actions only. `main` = source; `bot-state` = token files only (never protect). Never hardcode secrets. Self-contained, no shared library. Minimal changes. Telegram strings Bahasa Indonesia; never abbreviate "TikTok Shop"; use "stock" not "inventory" (except endpoints like `/inventory/update`).
 
 ## Development workflow (process standard)
-- Branch from `main` using `feature/<short-description>`. Always open a PR into `main` and **merge with a merge commit (`--no-ff`)** — never squash, never fast-forward. Commits/PRs authored as **`C - Furqon Aji Yudhistira <furqonajiy@gmail.com>`** (never "Claude").
+- Branch `feature/<short-description>` off `main`; doc/marker updates ride in the **same feature branch/PR as the code** (no separate branch). PR + **merge commit (`--no-ff`)**, never squash/fast-forward. Merge title representative, ends with PR number (e.g. `Update Project Instructions to the Latest State (#47)`). Commits authored **`C - Furqon Aji Yudhistira <furqonajiy@gmail.com>`**. Sync marker `YYYY-MM-DD_HHMM.txt` (WIB) renamed each update; `PROJECT_INSTRUCTIONS.md` updated only when asked.
 
 ## Flag before changing
 Allocation (Shopee equal-share / TikTok per-variant cap + 1PCS-reserve exception), the price-aware `/stock_set` runner, the 50:50 split, `parse_sku()` uppercase, token rotation, `bot-state`, workflow concurrency, `/stock_set` `/stock_get` `/stock_balance` inputs, the multi-vs-single entry points, `_set_one_sku`/`_balance_one_sku` result shape, weight enrichment, `202502` vs `202309` usage, signing.

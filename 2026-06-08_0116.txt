@@ -1,0 +1,6 @@
+Sync marker for ITBisa project instructions.
+
+Filename = the last time this repo's docs / PROJECT_INSTRUCTIONS.md were updated,
+in WIB (Asia/Jakarta), format YYYY-MM-DD_HHMM. On every update to this repo,
+rename this file to the current WIB timestamp. Compare this timestamp with the
+copies pasted into the Claude and ChatGPT projects to confirm they are in sync.

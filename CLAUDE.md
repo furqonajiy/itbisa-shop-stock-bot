@@ -43,9 +43,9 @@ Input is total physical warehouse stock. Shopee share = `ceil(total/2)`; TikTok 
 - `run_stock_balance_multi(base_skus, dry_run)`. Walks both catalogs ONCE, loops per SKU. `_walk_balance_catalogs()` is the shared single walk.
 - `run_stock_balance_mode(base_sku, dry_run)` → thin wrapper delegating to `run_stock_balance_multi([base_sku], …)`.
 - `_set_one_sku(...)` / `_balance_one_sku(...)`: per-SKU helpers, **no Telegram side effects** — return a result dict so the caller chooses detailed vs compact output.
-    - set result: `{ base_sku, status, reason, total_pieces, shopee_pieces, tiktokshop_pieces, shopee_lines, tiktokshop_lines, shopee_status, tiktokshop_status }`
-    - balance result: `{ base_sku, status, reason, total_pieces, shopee_before_pieces, tiktokshop_before_pieces, shopee_after_pieces, tiktokshop_after_pieces, shopee_lines, tiktokshop_lines, shopee_status, tiktokshop_status }`
-    - `status` ∈ `ok | dry_run | skipped | failed`.
+  - set result: `{ base_sku, status, reason, total_pieces, shopee_pieces, tiktokshop_pieces, shopee_lines, tiktokshop_lines, shopee_status, tiktokshop_status }`
+  - balance result: `{ base_sku, status, reason, total_pieces, shopee_before_pieces, tiktokshop_before_pieces, shopee_after_pieces, tiktokshop_after_pieces, shopee_lines, tiktokshop_lines, shopee_status, tiktokshop_status }`
+  - `status` ∈ `ok | dry_run | skipped | failed`.
 - Both reuse `_format_and_push_shopee` / `_format_and_push_tiktokshop` for writes — no duplicated allocation logic.
 - `run_excel_mode(path, dry_run)` is independent (own inline loop + `send_run_summary`); leave it untouched by multi-SKU work.
 

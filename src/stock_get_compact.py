@@ -8,38 +8,25 @@ from src.stock_balance_price_rule import _fetch_tiktokshop_sku_details
 
 
 def parse_stock_get_skus(raw_sku: str) -> list[str]:
-    """Parse one or more base SKUs from newline-separated input."""
+    """Parse one or more SKU search queries from newline-separated input."""
     return [sku.strip().upper() for sku in (raw_sku or "").splitlines() if sku.strip()]
 
 
 def run_stock_get_mode(base_sku: str) -> int:
-    """Read-only stock inspection for one or more base SKUs across both platforms."""
-    base_skus = parse_stock_get_skus(base_sku)
-    if not base_skus:
+    """Read-only stock inspection for one or more SKU queries across both platforms."""
+    queries = parse_stock_get_skus(base_sku)
+    if not queries:
         print("✗ --sku must not be empty.")
         return 2
-    if len(base_skus) == 1:
-        return _run_single_stock_get_mode(base_skus[0])
-    return run_stock_get_multi_mode(base_skus)
 
-
-def run_stock_get_multi_mode(base_skus: list[str]) -> int:
-    """Read-only compact stock inspection for multiple base SKUs."""
     print("=" * 70)
-    print("ITBisa Shop Stock Bot — Get mode (read-only, multi SKU)")
+    print("ITBisa Shop Stock Bot — Get mode (read-only)")
     print("=" * 70)
-    print(f"SKU count: {len(base_skus)}")
+    print(f"Query count: {len(queries)}")
     print()
 
     try:
-        print("[1/2] Walking Shopee catalog...")
-        shopee_catalog = shopee_client.fetch_catalog()
-        print(f"  → {len(shopee_catalog)} base SKU(s) discovered on Shopee")
-
-        print("[2/2] Walking TikTok Shop catalog...")
-        tiktokshop_catalog = tiktokshop_client.fetch_catalog()
-        print(f"  → {len(tiktokshop_catalog)} base SKU(s) discovered on TikTok Shop")
-        print()
+        shopee_catalog, tiktokshop_catalog = _fetch_catalogs()
     except shopee_auth.RefreshTokenExpiredError as e:
         msg = (
             f"🔐 Otorisasi Shopee kadaluarsa. Mohon otorisasi ulang aplikasi "
@@ -49,6 +36,65 @@ def run_stock_get_multi_mode(base_skus: list[str]) -> int:
         print(f"✗ {msg}")
         telegram_sender.send_alert(msg, mode="Get Stock")
         return 1
+
+    resolved_skus, missing_queries = _resolve_stock_get_queries(
+        queries,
+        shopee_catalog=shopee_catalog,
+        tiktokshop_catalog=tiktokshop_catalog,
+    )
+
+    if missing_queries:
+        for query in missing_queries:
+            print(f"✗ Query `{query}` tidak menemukan SKU yang cocok di Shopee maupun TikTok Shop.")
+
+    if not resolved_skus:
+        msg = (
+            "Tidak ada SKU yang cocok dengan query: "
+            + ", ".join(f"`{query}`" for query in missing_queries)
+        )
+        telegram_sender.send_alert(msg, mode="Get Stock")
+        return 1
+
+    if len(resolved_skus) == 1:
+        status = _run_single_stock_get_mode(
+            resolved_skus[0],
+            shopee_catalog=shopee_catalog,
+            tiktokshop_catalog=tiktokshop_catalog,
+        )
+    else:
+        status = run_stock_get_multi_mode(
+            resolved_skus,
+            shopee_catalog=shopee_catalog,
+            tiktokshop_catalog=tiktokshop_catalog,
+        )
+
+    return 1 if missing_queries else status
+
+
+def run_stock_get_multi_mode(
+    base_skus: list[str],
+    *,
+    shopee_catalog: dict[str, list[dict]] | None = None,
+    tiktokshop_catalog: dict[str, list[dict]] | None = None,
+) -> int:
+    """Read-only compact stock inspection for multiple base SKUs."""
+    if shopee_catalog is None or tiktokshop_catalog is None:
+        print("=" * 70)
+        print("ITBisa Shop Stock Bot — Get mode (read-only, multi SKU)")
+        print("=" * 70)
+        print(f"SKU count: {len(base_skus)}")
+        print()
+        try:
+            shopee_catalog, tiktokshop_catalog = _fetch_catalogs()
+        except shopee_auth.RefreshTokenExpiredError as e:
+            msg = (
+                f"🔐 Otorisasi Shopee kadaluarsa. Mohon otorisasi ulang aplikasi "
+                f"di Shopee Open Platform Console, lalu update file "
+                f"data/shopee_tokens.json di branch bot-state. ({e})"
+            )
+            print(f"✗ {msg}")
+            telegram_sender.send_alert(msg, mode="Get Stock")
+            return 1
 
     results: list[dict] = []
     for sku in base_skus:
@@ -81,32 +127,32 @@ def run_stock_get_multi_mode(base_skus: list[str]) -> int:
     return 0 if all(r["status"] == "ok" for r in results) else 1
 
 
-def _run_single_stock_get_mode(base_sku: str) -> int:
+def _run_single_stock_get_mode(
+    base_sku: str,
+    *,
+    shopee_catalog: dict[str, list[dict]] | None = None,
+    tiktokshop_catalog: dict[str, list[dict]] | None = None,
+) -> int:
     """Read-only stock inspection for one base SKU across both platforms."""
-    print("=" * 70)
-    print("ITBisa Shop Stock Bot — Get mode (read-only)")
-    print("=" * 70)
+    if shopee_catalog is None or tiktokshop_catalog is None:
+        print("=" * 70)
+        print("ITBisa Shop Stock Bot — Get mode (read-only)")
+        print("=" * 70)
+        print()
+        try:
+            shopee_catalog, tiktokshop_catalog = _fetch_catalogs()
+        except shopee_auth.RefreshTokenExpiredError as e:
+            msg = (
+                f"🔐 Otorisasi Shopee kadaluarsa. Mohon otorisasi ulang aplikasi "
+                f"di Shopee Open Platform Console, lalu update file "
+                f"data/shopee_tokens.json di branch bot-state. ({e})"
+            )
+            print(f"✗ {msg}")
+            telegram_sender.send_alert(msg, mode="Get Stock")
+            return 1
+
     print(f"SKU: {base_sku}")
     print()
-
-    try:
-        print("[1/2] Walking Shopee catalog...")
-        shopee_catalog = shopee_client.fetch_catalog()
-        print(f"  → {len(shopee_catalog)} base SKU(s) discovered on Shopee")
-
-        print("[2/2] Walking TikTok Shop catalog...")
-        tiktokshop_catalog = tiktokshop_client.fetch_catalog()
-        print(f"  → {len(tiktokshop_catalog)} base SKU(s) discovered on TikTok Shop")
-        print()
-    except shopee_auth.RefreshTokenExpiredError as e:
-        msg = (
-            f"🔐 Otorisasi Shopee kadaluarsa. Mohon otorisasi ulang aplikasi "
-            f"di Shopee Open Platform Console, lalu update file "
-            f"data/shopee_tokens.json di branch bot-state. ({e})"
-        )
-        print(f"✗ {msg}")
-        telegram_sender.send_alert(msg, mode="Get Stock")
-        return 1
 
     shopee_variants = shopee_catalog.get(base_sku, [])
     tiktokshop_variants = tiktokshop_catalog.get(base_sku, [])
@@ -140,6 +186,61 @@ def _run_single_stock_get_mode(base_sku: str) -> int:
         "tiktokshop_variants": tiktokshop_variants,
     })
     return 0
+
+
+def _fetch_catalogs() -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
+    print("[1/2] Walking Shopee catalog...")
+    shopee_catalog = shopee_client.fetch_catalog()
+    print(f"  → {len(shopee_catalog)} base SKU(s) discovered on Shopee")
+
+    print("[2/2] Walking TikTok Shop catalog...")
+    tiktokshop_catalog = tiktokshop_client.fetch_catalog()
+    print(f"  → {len(tiktokshop_catalog)} base SKU(s) discovered on TikTok Shop")
+    print()
+    return shopee_catalog, tiktokshop_catalog
+
+
+def _resolve_stock_get_queries(
+    queries: list[str],
+    *,
+    shopee_catalog: dict[str, list[dict]],
+    tiktokshop_catalog: dict[str, list[dict]],
+) -> tuple[list[str], list[str]]:
+    """Resolve exact SKU or keyword queries into base SKUs.
+
+    A query matches a SKU when every whitespace-separated term exists somewhere
+    in the SKU. This makes inputs such as ``555`` and ``741 CATHODE`` work while
+    still preserving exact full-SKU input.
+    """
+    all_skus = sorted(set(shopee_catalog) | set(tiktokshop_catalog))
+    resolved: list[str] = []
+    missing: list[str] = []
+
+    for query in queries:
+        if query in shopee_catalog or query in tiktokshop_catalog:
+            matches = [query]
+        else:
+            terms = [term for term in query.split() if term]
+            matches = [
+                sku for sku in all_skus
+                if terms and all(term in sku for term in terms)
+            ]
+
+        if not matches:
+            missing.append(query)
+            continue
+
+        for sku in matches:
+            if sku not in resolved:
+                resolved.append(sku)
+
+        if query != matches[0] or len(matches) > 1:
+            print(f"Query `{query}` cocok dengan {len(matches)} SKU:")
+            for sku in matches:
+                print(f"  • {sku}")
+            print()
+
+    return resolved, missing
 
 
 def _total_pieces(variants: list[dict]) -> int:

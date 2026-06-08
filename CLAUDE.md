@@ -116,7 +116,7 @@ Input is total physical warehouse stock. Shopee share = `ceil(total/2)`; TikTok 
 - The merge commit title must be **representative and end with the PR number**, e.g. `Update Project Instructions to the Latest State (#47)` — never the default `Merge pull request …`.
 - Commits and PRs are authored as **`C - Furqon Aji Yudhistira <furqonajiy@gmail.com>`** (never "Claude").
 - Keep changes minimal and targeted; update `CLAUDE.md` / `README.md` in the same PR whenever behavior or process changes.
-- `PROJECT_INSTRUCTIONS.md` is the synced source for the Claude & ChatGPT project instructions (≤ 8000 chars, ChatGPT limit). Update it **only when explicitly asked**, not on every change.
+- `PROJECT_INSTRUCTIONS.md` (this repo) and `PROJECT_INSTRUCTIONS_ALL.md` (umbrella covering all 5 repos; identical copy committed in every repo) are the synced Claude & ChatGPT project-instruction sources (≤ 8000 chars each, ChatGPT limit). Update them **only when explicitly asked**, not on every change.
 - Sync marker: a file named `YYYY-MM-DD_HHMM.txt` (WIB) sits at the repo root. **On every update to this repo, rename it to the current WIB timestamp** — it signals whether the repo / Claude / ChatGPT instructions are in sync.
 - Doc/marker updates (this file, `PROJECT_INSTRUCTIONS.md`, the sync marker) ride in the **same feature branch and PR as the related code change** — never a separate doc-only branch (avoids noise).
 

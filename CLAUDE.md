@@ -1,5 +1,7 @@
 # CLAUDE.md — itbisa-shop-stock-bot
 
+> **Single source of truth for this repo.** Read automatically by Claude Code and pasted into the Claude Chat project. `AGENTS.md` (ChatGPT Codex) points here; `CHATGPT_CHAT.md` is the ≤ 8000-char condensed copy for ChatGPT Chat. Keep all three at the repo root.
+
 Python bot: set, read, and rebalance Shopee + TikTok Shop stock from one base SKU (or many in one set/balance run). **No cron — `workflow_dispatch` only.** Triggered manually from the Actions tab, by the Telegram Worker, or by the order bots at end-of-run.
 
 ## Stack & files
@@ -114,11 +116,13 @@ Input is total physical warehouse stock. Shopee share = `ceil(total/2)`; TikTok 
 - Branch from `main` using `feature/<short-description>` (e.g. `feature/document-dev-workflow`).
 - Always open a PR into `main` and **merge with a merge commit (`--no-ff`)** — never squash, never fast-forward — so the feature branch stays an ancestor of `main`.
 - The merge commit title must be **representative and end with the PR number**, e.g. `Update Project Instructions to the Latest State (#47)` — never the default `Merge pull request …`.
-- Commits and PRs are authored as **`C - Furqon Aji Yudhistira <furqonajiy@gmail.com>`** (never "Claude").
+- Commits and PRs are authored as **`C - Furqon Aji Yudhistira <furqonajiy@gmail.com>`** — never an AI/assistant identity.
+- **No AI/assistant references anywhere** — not in branch names, commit messages, PR titles/bodies, code, or comments. No mention of any AI assistant by name, no `Co-Authored-By` trailer, no "Generated with/by" line, no model ids, no session links. History must read as human-authored. (If the PR tool auto-appends such a footer, edit the PR body to remove it and re-check.)
+- CLI commands handed to the maintainer are given in **PowerShell** syntax (Windows).
 - Keep changes minimal and targeted; update `CLAUDE.md` / `README.md` in the same PR whenever behavior or process changes.
-- `PROJECT_INSTRUCTIONS.md` (this repo) and `PROJECT_INSTRUCTIONS_ALL.md` (umbrella covering all 5 repos; identical copy committed in every repo) are the synced Claude & ChatGPT project-instruction sources (≤ 8000 chars each, ChatGPT limit). Update them **only when explicitly asked**, not on every change.
-- Sync marker: a file named `YYYY-MM-DD_HHMM.txt` (WIB) sits at the repo root. **On every update to this repo, rename it to the current WIB timestamp** — it signals whether the repo / Claude / ChatGPT instructions are in sync.
-- Doc/marker updates (this file, `PROJECT_INSTRUCTIONS.md`, the sync marker) ride in the **same feature branch and PR as the related code change** — never a separate doc-only branch (avoids noise).
+- **AI-instruction files (repo root, auto-discovered):** `CLAUDE.md` is the single source of truth — read by Claude Code and pasted into the Claude Chat project (no tight size cap). `AGENTS.md` is a thin pointer to `CLAUDE.md` for ChatGPT Codex, carrying the author-identity / no-AI-refs / feature→PR→merge / PowerShell rules inline. `CHATGPT_CHAT.md` is a ≤ 8000-char condensed copy of this file for ChatGPT Chat (its project-instruction limit). Update these **only when explicitly asked**, and keep `CHATGPT_CHAT.md` in step with `CLAUDE.md`.
+- Sync marker: a file named `YYYY-MM-DD_HHMM.txt` (WIB) sits at the repo root. **On every update to this repo, rename it to the current WIB timestamp** — it signals whether the repo and the AI-instruction files are in sync.
+- Doc/marker updates (`CLAUDE.md`, `AGENTS.md`, `CHATGPT_CHAT.md`, the sync marker) ride in the **same feature branch and PR as the related code change** — never a separate doc-only branch (avoids noise).
 
 ## Flag before changing
 Stock allocation (Shopee equal-share / TikTok per-variant cap + `TIKTOKSHOP_1PCS_RESERVE_BASE_SKUS` exception), the price-aware `/stock_set` runner, the 50:50 split, `parse_sku()` uppercase normalization, token rotation, `bot-state`, workflow concurrency (incl. `stock-set` `cancel-in-progress: false` queuing semantics), `/stock_set` `/stock_get` `/stock_balance` inputs (multi-SKU format, SKU/JUMLAH pairs), `run_stock_set_multi` vs `run_single_sku_mode`, `run_stock_balance_multi` vs `run_stock_balance_mode`, `_set_one_sku` / `_balance_one_sku` result-dict shape, the 1-SKU-detailed vs 2+-SKU-compact Telegram strategy, `fetch_product_detail` weight enrichment, `202502` vs `202309` endpoint usage and the `package_weight` path, `send_alert(text, mode)` per-mode header, signing.

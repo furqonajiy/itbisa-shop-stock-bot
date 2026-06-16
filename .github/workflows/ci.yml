@@ -1,0 +1,26 @@
+name: CI
+
+# Quality gate only — runs the unit tests on every PR and on pushes to main.
+# This does NOT run the bot (set.yml / get.yml / balance.yml are the
+# workflow_dispatch execution workflows); it never touches bot-state or any
+# platform API, and needs no secrets.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run unit tests
+        run: pytest -q

@@ -25,9 +25,11 @@ from src.main import (
     _send_single_balance_telegram,
     _walk_balance_catalogs,
 )
+from src.shopee_detail_enrichment import enrich_shopee_prices
 from src.stock_allocator import (
     allocate_pack_sizes,
-    split_across_platforms,
+    shopee_min_reserve_units,
+    split_with_shopee_min_reserve,
 )
 
 LOW_PRICE_1PCS_THRESHOLD_IDR = 5000
@@ -129,6 +131,12 @@ def _balance_one_sku(
     tiktokshop_variants = tiktokshop_catalog[base_sku]
 
     _enrich_tiktokshop_details(tiktokshop_variants)
+    # Best-effort Shopee price lookup so we can reserve the minimum-purchase
+    # quantity before the split. Never let a price hiccup break balancing.
+    try:
+        enrich_shopee_prices(shopee_variants)
+    except Exception as e:  # noqa: BLE001 - best-effort enrichment
+        print(f"  [shopee] price enrichment failed; skipping min-purchase reserve: {e}")
 
     shopee_before_pieces = sum(
         v["stock_units"] * v["multiplier"] for v in shopee_variants
@@ -154,7 +162,19 @@ def _balance_one_sku(
         result["tiktokshop_before_pieces"] = tiktokshop_before_pieces
         return result
 
-    shopee_target_pieces, tiktokshop_target_pieces = split_across_platforms(total_pieces)
+    shopee_unit_price = _shopee_unit_price(shopee_variants)
+    reserve_units = shopee_min_reserve_units(
+        total_pieces, shopee_unit_price, config.SHOPEE_MIN_PURCHASE_IDR
+    )
+    if reserve_units > 0:
+        print(
+            f"Shopee min-purchase reserve: Rp{config.SHOPEE_MIN_PURCHASE_IDR:,} ÷ "
+            f"Rp{shopee_unit_price:,}/unit → {reserve_units} unit di-reserve ke "
+            f"Shopee dulu, sisanya dibagi 50:50."
+        )
+    shopee_target_pieces, tiktokshop_target_pieces = split_with_shopee_min_reserve(
+        total_pieces, shopee_unit_price, config.SHOPEE_MIN_PURCHASE_IDR
+    )
     tiktokshop_allocations = _allocate_tiktokshop_balance(
         tiktokshop_target_pieces,
         tiktokshop_variants,
@@ -267,6 +287,17 @@ def _find_low_price_1pcs_variant(variants: list[dict]) -> dict | None:
         price_idr = variant.get("price_idr")
         if price_idr is not None and price_idr < LOW_PRICE_1PCS_THRESHOLD_IDR:
             return variant
+    return None
+
+
+def _shopee_unit_price(variants: list[dict]) -> int | None:
+    """Shopee per-unit (1PCS) price in IDR for sizing the minimum-purchase
+    reserve, or None if unknown. Shopee listings are single 1PCS products, so
+    the multiplier==1 variant's price is the per-unit price. Requires
+    enrich_shopee_prices to have run first (best-effort)."""
+    for variant in variants:
+        if variant.get("multiplier") == 1:
+            return variant.get("price_idr")
     return None
 
 

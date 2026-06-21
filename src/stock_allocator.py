@@ -79,6 +79,7 @@ Allocation algorithms (per platform, per base SKU):
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Iterable
 
@@ -156,6 +157,63 @@ def split_across_platforms(total_pieces: int) -> tuple[int, int]:
     tiktokshop_pieces = total_pieces // 2
     shopee_pieces = total_pieces - tiktokshop_pieces
     return shopee_pieces, tiktokshop_pieces
+
+
+def shopee_min_reserve_units(
+        total_pieces: int,
+        shopee_unit_price_idr: int | float | None,
+        min_purchase_idr: int,
+) -> int:
+    """
+    Units to reserve to Shopee so a single-SKU Shopee order can meet the
+    platform minimum order value: `ceil(min_purchase_idr / unit_price)`, capped
+    at `total_pieces` (can't reserve more than exists).
+
+    Returns 0 (no reserve) when the price or minimum is unknown / non-positive —
+    callers treat this as a plain 50:50 split. Pure.
+
+    Examples (min_purchase_idr=15000):
+      shopee_min_reserve_units(100, 1000, 15000) -> 15
+      shopee_min_reserve_units(100, 5000, 15000) -> 3
+      shopee_min_reserve_units(100, 20000, 15000) -> 1
+      shopee_min_reserve_units(10, 1000, 15000)  -> 10   # total < 15, give all
+      shopee_min_reserve_units(100, None, 15000) -> 0    # price unknown
+    """
+    if total_pieces <= 0:
+        return 0
+    if not shopee_unit_price_idr or shopee_unit_price_idr <= 0:
+        return 0
+    if not min_purchase_idr or min_purchase_idr <= 0:
+        return 0
+    min_units = math.ceil(min_purchase_idr / shopee_unit_price_idr)
+    return min(min_units, total_pieces)
+
+
+def split_with_shopee_min_reserve(
+        total_pieces: int,
+        shopee_unit_price_idr: int | float | None,
+        min_purchase_idr: int,
+) -> tuple[int, int]:
+    """
+    50:50 split that first reserves enough units to Shopee to clear the platform
+    minimum order value (see `shopee_min_reserve_units`), then splits the
+    remainder 50:50 (Shopee absorbs the +1 on odd remainders).
+
+    Falls back to a plain `split_across_platforms` when no reserve applies
+    (unknown price / disabled minimum). The two returned values always sum to
+    `total_pieces`. Pure.
+
+    Returns (shopee_pieces, tiktokshop_pieces).
+
+    Example: total=100, unit price Rp1.000, min Rp15.000
+      reserve = 15; remainder 85 -> split (43, 42)
+      -> Shopee 58, TikTok Shop 42  (sum 100)
+    """
+    reserve = shopee_min_reserve_units(
+        total_pieces, shopee_unit_price_idr, min_purchase_idr
+    )
+    shopee_extra, tiktokshop_pieces = split_across_platforms(total_pieces - reserve)
+    return reserve + shopee_extra, tiktokshop_pieces
 
 
 def allocate_pack_sizes(

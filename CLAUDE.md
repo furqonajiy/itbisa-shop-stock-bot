@@ -10,7 +10,7 @@ Python bot: set, read, and rebalance Shopee + TikTok Shop stock from one base SK
 - Price-aware + summary helpers: `src/stock_set_price_rule.py`, `src/stock_balance_price_rule.py`, `src/stock_balance_preserve.py`, `src/stock_balance_delta_summary.py`, `src/stock_get_compact.py`, `src/shopee_detail_enrichment.py`.
 - CLIs: `scripts/stock_set.py`, `scripts/stock_set_price.py`, `scripts/stock_get.py`, `scripts/stock_balance.py`, `scripts/stock_debug.py`.
 - Workflows: `.github/workflows/set.yml`, `get.yml`, `balance.yml` (execution, `workflow_dispatch`; all pip-cached); `ci.yml` (quality gate — runs `pytest` on PRs that touch code/tests/deps, pip-cached, cancels superseded runs; no secrets, never touches `bot-state`). Write paths (`set`/`balance`) carry no kill-timeout by design (`cancel-in-progress: false` — never cancel mid-write); `get` (read-only) and `ci` have a runaway-safe `timeout-minutes`.
-- Tests: `tests/` (pytest). Covers the pure logic only — `stock_allocator.py` (50:50 split, Shopee equal-share, TikTok Shop cap + overflow, 1PCS reserve, `parse_sku`, `verify_allocation`). Dev deps in `requirements-dev.txt`. Run `pytest -q`. No network/API calls are unit-tested (use `--dry-run` for that).
+- Tests: `tests/` (pytest). Covers the pure logic only — `stock_allocator.py` (50:50 split, Shopee equal-share, TikTok Shop cap + overflow, 1PCS reserve, Shopee minimum-purchase reserve `shopee_min_reserve_units` / `split_with_shopee_min_reserve`, `parse_sku`, `verify_allocation`). Dev deps in `requirements-dev.txt`. Run `pytest -q`. No network/API calls are unit-tested (use `--dry-run` for that).
 
 ## State / tokens
 - Token files ONLY: `data/shopee_tokens.json`, `data/tiktokshop_tokens.json`. Committed to `bot-state` after every run (tokens can rotate even on read-only/dry-run reads).
@@ -21,6 +21,9 @@ Python bot: set, read, and rebalance Shopee + TikTok Shop stock from one base SK
 
 ## Split rule (50:50) — `split_across_platforms`
 Input is total physical warehouse stock. Shopee share = `ceil(total/2)`; TikTok Shop share = `floor(total/2)`; odd totals give Shopee +1. Same rule for `/stock_set` and `/stock_balance`.
+
+## Shopee minimum-purchase reserve (`/stock_balance` only) — `split_with_shopee_min_reserve`
+Shopee enforces a minimum order value (`SHOPEE_MIN_PURCHASE_IDR`, default Rp 15.000). During balance the bot reserves `reserve = min(ceil(SHOPEE_MIN_PURCHASE_IDR / shopee_unit_price), total)` units to Shopee **first**, then splits the remainder 50:50 — so a buyer can place a single-SKU Shopee order that meets the minimum. The Shopee unit price is the `multiplier == 1` (1PCS) variant's `price_idr`, obtained best-effort via `enrich_shopee_prices` (called in `stock_balance_price_rule._balance_one_sku` before the split, wrapped in try/except). **Fallbacks:** unknown price / `SHOPEE_MIN_PURCHASE_IDR = 0` → no reserve (plain 50:50); `total < reserve` → all to Shopee, 0 to TikTok Shop. Shopee listings are single 1PCS products, so reserving to Shopee's total lands the units on the 1PCS variant. Pure math in `shopee_min_reserve_units` / `split_with_shopee_min_reserve` (`stock_allocator.py`); wired only into the production balance runner (`stock_balance_price_rule`), not `/stock_set`.
 
 ## Allocation — lives in `src/stock_allocator.py` only
 - Set absolute stock units per variant, never deltas. Platform clients fetch catalogs and write only — no allocation logic in clients.
@@ -39,6 +42,7 @@ Input is total physical warehouse stock. Shopee share = `ceil(total/2)`; TikTok 
 - `TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 400` (active TikTok Shop per-variant unit cap)
 - `MAX_SKUS_PER_RUN = 500`
 - `DELAY_BETWEEN_CALLS_SECONDS = 1.0`
+- `SHOPEE_MIN_PURCHASE_IDR = 15000` (Shopee min order value driving the balance reserve; 0 disables)
 
 ## main.py entry points
 - `run_stock_set_multi(desired, dry_run)` where `desired` is `dict[base_sku, total_pieces]`. Walks both catalogs ONCE for the whole batch, loops per SKU. Enforces `MAX_SKUS_PER_RUN` against `desired`.
@@ -126,4 +130,4 @@ Input is total physical warehouse stock. Shopee share = `ceil(total/2)`; TikTok 
 - Doc/marker updates (`CLAUDE.md`, `AGENTS.md`, `CHATGPT_CHAT.md`, the sync marker) ride in the **same feature branch and PR as the related code change** — never a separate doc-only branch (avoids noise).
 
 ## Flag before changing
-Stock allocation (Shopee equal-share / TikTok per-variant cap + `TIKTOKSHOP_1PCS_RESERVE_BASE_SKUS` exception), the price-aware `/stock_set` runner, the 50:50 split, `parse_sku()` uppercase normalization, token rotation, `bot-state`, workflow concurrency (incl. `stock-set` `cancel-in-progress: false` queuing semantics), `/stock_set` `/stock_get` `/stock_balance` inputs (multi-SKU format, SKU/JUMLAH pairs), `run_stock_set_multi` vs `run_single_sku_mode`, `run_stock_balance_multi` vs `run_stock_balance_mode`, `_set_one_sku` / `_balance_one_sku` result-dict shape, the 1-SKU-detailed vs 2+-SKU-compact Telegram strategy, `fetch_product_detail` weight enrichment, `202502` vs `202309` endpoint usage and the `package_weight` path, `send_alert(text, mode)` per-mode header, signing.
+Stock allocation (Shopee equal-share / TikTok per-variant cap + `TIKTOKSHOP_1PCS_RESERVE_BASE_SKUS` exception), the price-aware `/stock_set` runner, the 50:50 split, the Shopee minimum-purchase reserve (`SHOPEE_MIN_PURCHASE_IDR`, `split_with_shopee_min_reserve`, `_shopee_unit_price` + the best-effort `enrich_shopee_prices` call in the balance path), `parse_sku()` uppercase normalization, token rotation, `bot-state`, workflow concurrency (incl. `stock-set` `cancel-in-progress: false` queuing semantics), `/stock_set` `/stock_get` `/stock_balance` inputs (multi-SKU format, SKU/JUMLAH pairs), `run_stock_set_multi` vs `run_single_sku_mode`, `run_stock_balance_multi` vs `run_stock_balance_mode`, `_set_one_sku` / `_balance_one_sku` result-dict shape, the 1-SKU-detailed vs 2+-SKU-compact Telegram strategy, `fetch_product_detail` weight enrichment, `202502` vs `202309` endpoint usage and the `package_weight` path, `send_alert(text, mode)` per-mode header, signing.

@@ -9,10 +9,13 @@ different message shape — this is a transactional report, not an order label.
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta, timezone
 
 import requests
 
 from src import config
+
+_WIB = timezone(timedelta(hours=7))
 
 _TELEGRAM_API = "https://api.telegram.org"
 _MAX_MESSAGE_CHARS = 4000  # Telegram caps at 4096; leave headroom
@@ -330,6 +333,46 @@ def send_stock_balance_multi_summary(report: dict) -> None:
     _send(_join(lines))
 
 
+def send_low_stock_summary(items: list[dict], threshold: int) -> None:
+    """Low-stock report (/stock_low): every base SKU below the threshold.
+
+    `items` is the output of low_stock.find_low_stock (sorted ascending by
+    total). The list can be long, so the message is split across multiple
+    Telegram sends on line boundaries.
+    """
+    if not items:
+        _send(
+            f"📉 *Stock Rendah* (< {_fmt_int(threshold)} pcs)\n\n"
+            f"✅ Tidak ada SKU di bawah {_fmt_int(threshold)} pcs."
+        )
+        return
+
+    lines = [
+        f"📉 *Stock Rendah* (< {_fmt_int(threshold)} pcs) — {len(items)} SKU",
+        "",
+    ]
+    for it in items:
+        lines.append(
+            f"• `{it['base_sku']}`: {_fmt_int(it['total'])} pcs "
+            f"(🟧 {_fmt_int(it['shopee'])} / 🟦 {_fmt_int(it['tiktokshop'])})"
+        )
+    lines.append("")
+    lines.append(f"*Ringkasan:* {len(items)} SKU di bawah {_fmt_int(threshold)} pcs.")
+
+    _send_chunked(lines)
+
+
+def send_low_stock_skipped(last_run_iso: str | None) -> None:
+    """Reply when /stock_low is triggered again within the throttle window."""
+    when = _fmt_wib(last_run_iso)
+    when_note = f" (terakhir {when} WIB)" if when else ""
+    _send(
+        f"📉 *Stock Rendah*\n\n"
+        f"Laporan sudah dibuat{when_note}. Maks. 1× per "
+        f"{config.LOW_STOCK_MIN_INTERVAL_HOURS} jam — coba lagi nanti."
+    )
+
+
 def send_alert(text: str, mode: str = "Set Stock") -> None:
     decorated = _decorate_platforms(text)
     _send(f"🚨 *{mode}* — Error\n\n{decorated}")
@@ -359,6 +402,32 @@ def _send(text: str) -> None:
 
 def _join(lines: list[str]) -> str:
     return "\n".join(lines)
+
+
+def _send_chunked(lines: list[str]) -> None:
+    """Send lines across multiple messages, each within _MAX_MESSAGE_CHARS,
+    splitting only on line boundaries so no Markdown span is cut mid-line."""
+    buf: list[str] = []
+    size = 0
+    for line in lines:
+        add = len(line) + 1
+        if buf and size + add > _MAX_MESSAGE_CHARS:
+            _send("\n".join(buf))
+            buf, size = [], 0
+        buf.append(line)
+        size += add
+    if buf:
+        _send("\n".join(buf))
+
+
+def _fmt_wib(iso_utc: str | None) -> str:
+    """Format a UTC ISO timestamp as 'YYYY-MM-DD HH:MM' in WIB, or '' if unparseable."""
+    if not iso_utc:
+        return ""
+    try:
+        return datetime.fromisoformat(iso_utc).astimezone(_WIB).strftime("%Y-%m-%d %H:%M")
+    except (ValueError, TypeError):
+        return ""
 
 
 def _truncate(s: str, n: int) -> str:

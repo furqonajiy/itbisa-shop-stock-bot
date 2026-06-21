@@ -1,13 +1,29 @@
 name: CI
 
-# Quality gate only — runs the unit tests on every PR and on pushes to main.
+# Quality gate only — runs the unit tests on PRs that touch code/tests/deps.
 # This does NOT run the bot (set.yml / get.yml / balance.yml are the
 # workflow_dispatch execution workflows); it never touches bot-state or any
 # platform API, and needs no secrets.
+#
+# To conserve GitHub Actions minutes:
+#   - PR-only (no push trigger): merges already passed CI on the PR.
+#   - paths filter: skips doc/marker-only PRs.
+#   - concurrency: cancels a superseded run when new commits are pushed.
+#   - pip cache: avoids re-downloading dependencies each run.
 on:
   pull_request:
-  push:
-    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/**"
+      - "requirements*.txt"
+      - "pytest.ini"
+      - "conftest.py"
+      - ".github/workflows/ci.yml"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -15,11 +31,16 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
       - name: Install dev dependencies
         run: pip install -r requirements-dev.txt
       - name: Run unit tests

@@ -23,6 +23,8 @@ concurrency:
 jobs:
   get-stock:
     runs-on: ubuntu-latest
+    # Read-only query (cancel-in-progress: true) — a runaway-safe cap is fine.
+    timeout-minutes: 10
 
     # The bot reads + writes data/ on the bot-state branch (token rotation).
     permissions:

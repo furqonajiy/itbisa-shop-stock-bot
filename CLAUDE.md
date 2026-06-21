@@ -9,7 +9,7 @@ Python bot: set, read, and rebalance Shopee + TikTok Shop stock from one base SK
 - Core: `src/main.py`, `src/config.py`, `src/stock_allocator.py` (allocation math), `src/shopee_client.py`, `src/tiktokshop_client.py`, `src/shopee_auth.py`, `src/tiktokshop_auth.py`, `src/telegram_sender.py`, `src/excel_reader.py`.
 - Price-aware + summary helpers: `src/stock_set_price_rule.py`, `src/stock_balance_price_rule.py`, `src/stock_balance_preserve.py`, `src/stock_balance_delta_summary.py`, `src/stock_get_compact.py`, `src/shopee_detail_enrichment.py`.
 - CLIs: `scripts/stock_set.py`, `scripts/stock_set_price.py`, `scripts/stock_get.py`, `scripts/stock_balance.py`, `scripts/stock_debug.py`.
-- Workflows: `.github/workflows/set.yml`, `get.yml`, `balance.yml` (execution, `workflow_dispatch`); `ci.yml` (quality gate — runs `pytest` on PRs/pushes, no secrets, never touches `bot-state`).
+- Workflows: `.github/workflows/set.yml`, `get.yml`, `balance.yml` (execution, `workflow_dispatch`; all pip-cached); `ci.yml` (quality gate — runs `pytest` on PRs that touch code/tests/deps, pip-cached, cancels superseded runs; no secrets, never touches `bot-state`). Write paths (`set`/`balance`) carry no kill-timeout by design (`cancel-in-progress: false` — never cancel mid-write); `get` (read-only) and `ci` have a runaway-safe `timeout-minutes`.
 - Tests: `tests/` (pytest). Covers the pure logic only — `stock_allocator.py` (50:50 split, Shopee equal-share, TikTok Shop cap + overflow, 1PCS reserve, `parse_sku`, `verify_allocation`). Dev deps in `requirements-dev.txt`. Run `pytest -q`. No network/API calls are unit-tested (use `--dry-run` for that).
 
 ## State / tokens

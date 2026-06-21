@@ -29,7 +29,7 @@ def find_low_stock(
         threshold: int,
 ) -> list[dict]:
     """Pure scan: every base SKU (union of both catalogs) whose combined on-hand
-    pieces are strictly below `threshold`, sorted ascending by total then SKU.
+    pieces are strictly below `threshold`, sorted ascending by base SKU.
 
     Each item: {base_sku, total, shopee, tiktokshop}. `total` is the combined
     on-hand the bot would split 50:50; that is the reorder-relevant quantity.
@@ -46,7 +46,7 @@ def find_low_stock(
                 "shopee": shopee,
                 "tiktokshop": tiktokshop,
             })
-    items.sort(key=lambda x: (x["total"], x["base_sku"]))
+    items.sort(key=lambda x: x["base_sku"])
     return items
 
 

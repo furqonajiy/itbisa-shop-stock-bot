@@ -26,12 +26,18 @@ def test_flags_combined_total_below_threshold():
     }
     result = find_low_stock(shopee, tiktokshop, threshold=50)
 
-    assert [r["base_sku"] for r in result] == ["A", "B", "D"]  # sorted by total
-    assert [r["total"] for r in result] == [5, 20, 40]
+    assert [r["base_sku"] for r in result] == ["A", "B", "D"]  # sorted by SKU
     by_sku = {r["base_sku"]: r for r in result}
+    assert by_sku["A"]["total"] == 5
     assert (by_sku["A"]["shopee"], by_sku["A"]["tiktokshop"]) == (5, 0)
     assert (by_sku["B"]["shopee"], by_sku["B"]["tiktokshop"]) == (10, 10)
     assert (by_sku["D"]["shopee"], by_sku["D"]["tiktokshop"]) == (0, 40)
+
+
+def test_sorted_by_sku_ascending_not_by_total():
+    # SKU order must differ from total order here: ALPHA has more stock than ZEBRA.
+    result = find_low_stock({"ZEBRA": [_v(5)], "ALPHA": [_v(40)]}, {}, threshold=50)
+    assert [r["base_sku"] for r in result] == ["ALPHA", "ZEBRA"]
 
 
 def test_threshold_is_strict_less_than():

@@ -111,3 +111,12 @@ MAX_SKUS_PER_RUN = 500
 # disable the reserve (plain 50:50). Best-effort: if the Shopee price is
 # unknown, no reserve is applied.
 SHOPEE_MIN_PURCHASE_IDR = 15000
+
+# Low-stock report (/stock_low): a base SKU is "low" when its combined on-hand
+# stock (Shopee + TikTok Shop, in pieces) is below this threshold.
+LOW_STOCK_THRESHOLD = 50
+
+# Throttle for the low-stock report. The report (a full two-platform catalog
+# scan) is generated at most once per this many hours; repeat triggers within
+# the window get an "already generated today" reply instead of re-scanning.
+LOW_STOCK_MIN_INTERVAL_HOURS = 24

@@ -45,12 +45,13 @@ Operator provides base SKU only. Pack-size variants: `<digits>PCS-<base_sku>` (e
 - `stock_set.py`: single (`--sku S --pieces N`), multi (`--sku S1 S2 --pieces N1 N2`, equal-length), Excel (`stock_set.py stock.xlsx`; A=base SKU, B=total pieces).
 - `stock_get.py --sku BASE_SKU`: read-only. `stock_balance.py --sku … [--dry-run]`: dedupes, uppercases, rejects `XPCS-`.
 - `stock_debug.py`: operator/diagnostic only, read-only, not wired to the Worker. `stock_set_price.py`: **price-aware** set runner — what production `set.yml` runs for SKU mode.
+- `stock_low.py` (`/stock_low`, `low.yml`): read-only — base SKUs with combined stock < 50 pcs; throttled 1×/24h (`low_stock_throttle`).
 
 ## Price-aware layer (TikTok Shop low-price 1PCS variants)
-`stock_set_price_rule.py`, `stock_balance_price_rule.py`, `stock_balance_preserve.py` (preserve grand total when allocator can't fully represent input), `stock_balance_delta_summary.py` (before→after deltas), `stock_get_compact.py`, `shopee_detail_enrichment.py`.
+`stock_set_price_rule.py`, `stock_balance_price_rule.py`, `stock_balance_preserve.py` (preserve total), `stock_balance_delta_summary.py` (deltas), `stock_get_compact.py`, `shopee_detail_enrichment.py`.
 
 ## TikTok Shop weight enrichment (/stock_get only)
-`202502` search omits `package_weight` → catalog weight is 0. `run_stock_get_mode` calls `fetch_product_detail(product_id)` (GET `/product/202309/products/{product_id}`) once per product_id, overwriting only where 0. Best-effort: failures leave 0 ("—"), logged to Actions only. Shopee weight comes from `fetch_catalog`.
+`202502` search omits `package_weight` → catalog weight 0. `run_stock_get_mode` calls `fetch_product_detail` (GET `/product/202309/products/{id}`) once per product_id, overwriting only where 0. Best-effort; Shopee weight from `fetch_catalog`.
 
 ## Clients
 - **Shopee:** `get_item_list` + `get_item_base_info` + `get_model_list`; `update_stock` → `/api/v2/product/update_stock` (absolute). Shop-level signing `partner_id+path+timestamp+access_token+shop_id`, HMAC-SHA256 with `partner_key`.

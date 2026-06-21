@@ -104,13 +104,18 @@ DELAY_BETWEEN_CALLS_SECONDS = 1.0
 # only when the catalog is intentionally larger.
 MAX_SKUS_PER_RUN = 500
 
-# Shopee minimum order value (IDR). During /stock_balance the bot reserves
-# enough units to Shopee — ceil(SHOPEE_MIN_PURCHASE_IDR / Shopee unit price) —
-# so a buyer can place a single-SKU Shopee order that meets the minimum, then
-# splits the remaining stock 50:50 across Shopee and TikTok Shop. Set to 0 to
-# disable the reserve (plain 50:50). Best-effort: if the Shopee price is
-# unknown, no reserve is applied.
-SHOPEE_MIN_PURCHASE_IDR = 15000
+# Shopee reserve (IDR). During /stock_balance and /stock_set the bot first
+# reserves enough units to Shopee to equal this stock value —
+# ceil(SHOPEE_RESERVE_IDR / Shopee unit price), e.g. Rp200.000 / Rp1.000 = 200
+# units — then splits the remaining stock between Shopee and TikTok Shop by
+# SHOPEE_SPLIT_PERCENT. Set to 0 to disable the reserve. Best-effort: if the
+# Shopee price is unknown, no reserve is applied.
+SHOPEE_RESERVE_IDR = 200000
+
+# Post-reserve split: Shopee gets this percent of the remaining stock, TikTok
+# Shop gets the rest (e.g. 70 → 70:30 Shopee:TikTok Shop). Shopee absorbs any
+# rounding remainder. Same split for /stock_balance and /stock_set.
+SHOPEE_SPLIT_PERCENT = 70
 
 # Low-stock report (/stock_low): a base SKU is "low" when its combined on-hand
 # stock (Shopee + TikTok Shop, in pieces) is below this threshold.

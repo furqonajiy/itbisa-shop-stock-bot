@@ -164,16 +164,20 @@ def _balance_one_sku(
 
     shopee_unit_price = _shopee_unit_price(shopee_variants)
     reserve_units = shopee_min_reserve_units(
-        total_pieces, shopee_unit_price, config.SHOPEE_MIN_PURCHASE_IDR
+        total_pieces, shopee_unit_price, config.SHOPEE_RESERVE_IDR
     )
     if reserve_units > 0:
         print(
-            f"Shopee min-purchase reserve: Rp{config.SHOPEE_MIN_PURCHASE_IDR:,} ÷ "
+            f"Shopee reserve: Rp{config.SHOPEE_RESERVE_IDR:,} ÷ "
             f"Rp{shopee_unit_price:,}/unit → {reserve_units} unit di-reserve ke "
-            f"Shopee dulu, sisanya dibagi 50:50."
+            f"Shopee dulu, sisanya dibagi "
+            f"{config.SHOPEE_SPLIT_PERCENT}:{100 - config.SHOPEE_SPLIT_PERCENT}."
         )
     shopee_target_pieces, tiktokshop_target_pieces = split_with_shopee_min_reserve(
-        total_pieces, shopee_unit_price, config.SHOPEE_MIN_PURCHASE_IDR
+        total_pieces,
+        shopee_unit_price,
+        config.SHOPEE_RESERVE_IDR,
+        config.SHOPEE_SPLIT_PERCENT,
     )
     tiktokshop_allocations = _allocate_tiktokshop_balance(
         tiktokshop_target_pieces,

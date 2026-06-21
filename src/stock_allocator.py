@@ -135,26 +135,33 @@ def parse_sku(seller_sku: str) -> tuple[str, int]:
     return seller_sku.upper(), 1
 
 
-def split_across_platforms(total_pieces: int) -> tuple[int, int]:
+def split_across_platforms(
+        total_pieces: int,
+        shopee_percent: int = 50,
+) -> tuple[int, int]:
     """
-    Splits total_pieces between Shopee and TikTok Shop 50:50.
+    Splits total_pieces between Shopee and TikTok Shop by `shopee_percent`
+    (Shopee's share; TikTok Shop gets the rest). Default 50 = even 50:50.
 
-    On odd totals, Shopee absorbs the +1 piece. Reason: Shopee almost
-    always has a 1-pc variant (or no variant at all), so the +1 is
-    trivially representable. TikTok Shop then runs its own pack-size
-    rebalance on a clean even number.
+    Shopee absorbs the rounding remainder (TikTok Shop gets the floored share).
+    Reason: Shopee almost always has a 1-pc variant (or no variant at all), so
+    the extra piece(s) are trivially representable; TikTok Shop then runs its
+    own pack-size rebalance on a clean number.
 
-    Returns (shopee_pieces, tiktokshop_pieces).
+    Returns (shopee_pieces, tiktokshop_pieces); the two always sum to total.
 
     Examples:
-      split_across_platforms(10000) -> (5000, 5000)
-      split_across_platforms(10001) -> (5001, 5000)
-      split_across_platforms(0)     -> (0, 0)
-      split_across_platforms(1)     -> (1, 0)
+      split_across_platforms(10000)        -> (5000, 5000)
+      split_across_platforms(10001)        -> (5001, 5000)
+      split_across_platforms(100, 70)      -> (70, 30)
+      split_across_platforms(10, 70)       -> (7, 3)
+      split_across_platforms(0)            -> (0, 0)
     """
     if total_pieces < 0:
         raise ValueError(f"total_pieces must be non-negative, got {total_pieces}")
-    tiktokshop_pieces = total_pieces // 2
+    if not 0 <= shopee_percent <= 100:
+        raise ValueError(f"shopee_percent must be 0..100, got {shopee_percent}")
+    tiktokshop_pieces = total_pieces * (100 - shopee_percent) // 100
     shopee_pieces = total_pieces - tiktokshop_pieces
     return shopee_pieces, tiktokshop_pieces
 
@@ -165,19 +172,18 @@ def shopee_min_reserve_units(
         min_purchase_idr: int,
 ) -> int:
     """
-    Units to reserve to Shopee so a single-SKU Shopee order can meet the
-    platform minimum order value: `ceil(min_purchase_idr / unit_price)`, capped
-    at `total_pieces` (can't reserve more than exists).
+    Units to reserve to Shopee so its stock equals `min_purchase_idr` of value:
+    `ceil(min_purchase_idr / unit_price)`, capped at `total_pieces` (can't
+    reserve more than exists).
 
-    Returns 0 (no reserve) when the price or minimum is unknown / non-positive —
-    callers treat this as a plain 50:50 split. Pure.
+    Returns 0 (no reserve) when the price or value is unknown / non-positive —
+    callers then split the whole total. Pure.
 
-    Examples (min_purchase_idr=15000):
-      shopee_min_reserve_units(100, 1000, 15000) -> 15
-      shopee_min_reserve_units(100, 5000, 15000) -> 3
-      shopee_min_reserve_units(100, 20000, 15000) -> 1
-      shopee_min_reserve_units(10, 1000, 15000)  -> 10   # total < 15, give all
-      shopee_min_reserve_units(100, None, 15000) -> 0    # price unknown
+    Examples (min_purchase_idr=200000):
+      shopee_min_reserve_units(1000, 1000, 200000) -> 200
+      shopee_min_reserve_units(1000, 5000, 200000) -> 40
+      shopee_min_reserve_units(100, 1000, 200000)  -> 100  # total < 200, give all
+      shopee_min_reserve_units(1000, None, 200000) -> 0    # price unknown
     """
     if total_pieces <= 0:
         return 0
@@ -193,26 +199,29 @@ def split_with_shopee_min_reserve(
         total_pieces: int,
         shopee_unit_price_idr: int | float | None,
         min_purchase_idr: int,
+        shopee_percent: int = 50,
 ) -> tuple[int, int]:
     """
-    50:50 split that first reserves enough units to Shopee to clear the platform
-    minimum order value (see `shopee_min_reserve_units`), then splits the
-    remainder 50:50 (Shopee absorbs the +1 on odd remainders).
+    Reserve enough units to Shopee to clear `min_purchase_idr` of value (see
+    `shopee_min_reserve_units`), then split the remainder by `shopee_percent`
+    (Shopee's share of the rest).
 
     Falls back to a plain `split_across_platforms` when no reserve applies
-    (unknown price / disabled minimum). The two returned values always sum to
+    (unknown price / disabled value). The two returned values always sum to
     `total_pieces`. Pure.
 
     Returns (shopee_pieces, tiktokshop_pieces).
 
-    Example: total=100, unit price Rp1.000, min Rp15.000
-      reserve = 15; remainder 85 -> split (43, 42)
-      -> Shopee 58, TikTok Shop 42  (sum 100)
+    Example: total=1000, unit price Rp1.000, reserve Rp200.000, shopee_percent=70
+      reserve = 200; remainder 800 -> split (560, 240)
+      -> Shopee 760, TikTok Shop 240  (sum 1000)
     """
     reserve = shopee_min_reserve_units(
         total_pieces, shopee_unit_price_idr, min_purchase_idr
     )
-    shopee_extra, tiktokshop_pieces = split_across_platforms(total_pieces - reserve)
+    shopee_extra, tiktokshop_pieces = split_across_platforms(
+        total_pieces - reserve, shopee_percent
+    )
     return reserve + shopee_extra, tiktokshop_pieces
 
 

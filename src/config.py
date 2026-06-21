@@ -103,3 +103,11 @@ DELAY_BETWEEN_CALLS_SECONDS = 1.0
 # Fixed code constant, not an env var / GitHub Secret. Change this in code
 # only when the catalog is intentionally larger.
 MAX_SKUS_PER_RUN = 500
+
+# Shopee minimum order value (IDR). During /stock_balance the bot reserves
+# enough units to Shopee — ceil(SHOPEE_MIN_PURCHASE_IDR / Shopee unit price) —
+# so a buyer can place a single-SKU Shopee order that meets the minimum, then
+# splits the remaining stock 50:50 across Shopee and TikTok Shop. Set to 0 to
+# disable the reserve (plain 50:50). Best-effort: if the Shopee price is
+# unknown, no reserve is applied.
+SHOPEE_MIN_PURCHASE_IDR = 15000

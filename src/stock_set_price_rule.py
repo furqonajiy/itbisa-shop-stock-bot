@@ -8,7 +8,7 @@ from src.main import (
     _make_set_skip_result,
 )
 from src.shopee_detail_enrichment import enrich_shopee_prices
-from src.stock_allocator import split_across_platforms
+from src.stock_allocator import shopee_min_reserve_units, split_with_shopee_min_reserve
 from src.stock_balance_price_rule import (
     _allocate_tiktokshop_balance,
     _build_shopee_detail_variants,
@@ -16,6 +16,7 @@ from src.stock_balance_price_rule import (
     _enrich_tiktokshop_details,
     _format_and_push_tiktokshop_allocations,
     _represented_pieces,
+    _shopee_unit_price,
 )
 
 
@@ -115,11 +116,33 @@ def _set_one_sku(
         print(f"✗ {reason}")
         return _make_set_skip_result(base_sku, total_pieces, reason)
 
-    shopee_target_pieces, tiktokshop_target_pieces = split_across_platforms(total_pieces)
     shopee_variants = shopee_catalog[base_sku]
     tiktokshop_variants = tiktokshop_catalog[base_sku]
-    enrich_shopee_prices(shopee_variants)
+
+    # Best-effort Shopee price lookup so we can reserve the minimum-purchase
+    # quantity before the split — identical to /stock_balance. A price hiccup
+    # must never break the set.
+    try:
+        enrich_shopee_prices(shopee_variants)
+    except Exception as e:  # noqa: BLE001 - best-effort enrichment
+        print(f"  [shopee] price enrichment failed; skipping min-purchase reserve: {e}")
     _enrich_tiktokshop_details(tiktokshop_variants)
+
+    # Same balancing logic as /stock_balance: reserve enough units to Shopee to
+    # clear the minimum order value, then split the remainder 50:50.
+    shopee_unit_price = _shopee_unit_price(shopee_variants)
+    reserve_units = shopee_min_reserve_units(
+        total_pieces, shopee_unit_price, config.SHOPEE_MIN_PURCHASE_IDR
+    )
+    if reserve_units > 0:
+        print(
+            f"Shopee min-purchase reserve: Rp{config.SHOPEE_MIN_PURCHASE_IDR:,} ÷ "
+            f"Rp{shopee_unit_price:,}/unit → {reserve_units} unit di-reserve ke "
+            f"Shopee dulu, sisanya dibagi 50:50."
+        )
+    shopee_target_pieces, tiktokshop_target_pieces = split_with_shopee_min_reserve(
+        total_pieces, shopee_unit_price, config.SHOPEE_MIN_PURCHASE_IDR
+    )
     tiktokshop_allocations = _allocate_tiktokshop_balance(
         tiktokshop_target_pieces,
         tiktokshop_variants,

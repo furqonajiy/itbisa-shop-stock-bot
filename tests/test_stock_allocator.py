@@ -69,6 +69,26 @@ def test_split_negative_raises():
         split_across_platforms(-1)
 
 
+def test_split_70_30_shopee_heavy():
+    assert split_across_platforms(100, 70) == (70, 30)
+    assert split_across_platforms(10, 70) == (7, 3)
+    assert split_across_platforms(1, 70) == (1, 0)  # Shopee absorbs the remainder
+    assert split_across_platforms(0, 70) == (0, 0)
+
+
+def test_split_custom_percent_never_loses_a_piece():
+    for percent in (0, 30, 50, 70, 100):
+        for total in (0, 1, 2, 3, 7, 99, 100, 12345):
+            shopee, tiktokshop = split_across_platforms(total, percent)
+            assert shopee + tiktokshop == total
+            assert shopee >= 0 and tiktokshop >= 0
+
+
+def test_split_invalid_percent_raises():
+    with pytest.raises(ValueError):
+        split_across_platforms(100, 150)
+
+
 # ----------------------------------------------------------------------
 # allocate_pack_sizes — Shopee (no cap), equal-share
 # ----------------------------------------------------------------------

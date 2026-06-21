@@ -4,7 +4,7 @@ import pytest
 
 from src.stock_allocator import shopee_min_reserve_units, split_with_shopee_min_reserve
 
-MIN = 15000  # SHOPEE_MIN_PURCHASE_IDR default
+MIN = 15000  # arbitrary reserve value exercising the pure-function math
 
 
 # ----------------------------------------------------------------------
@@ -67,3 +67,33 @@ def test_split_never_loses_a_piece(total, price):
     shopee, tiktokshop = split_with_shopee_min_reserve(total, price, MIN)
     assert shopee + tiktokshop == total
     assert shopee >= 0 and tiktokshop >= 0
+
+
+# ----------------------------------------------------------------------
+# Production config: Rp200.000 reserve + 70:30 remainder split
+# ----------------------------------------------------------------------
+RESERVE = 200000  # SHOPEE_RESERVE_IDR
+PCT = 70          # SHOPEE_SPLIT_PERCENT
+
+
+def test_reserve_200k_examples():
+    assert shopee_min_reserve_units(1000, 1000, RESERVE) == 200   # 200000/1000
+    assert shopee_min_reserve_units(1000, 5000, RESERVE) == 40
+    assert shopee_min_reserve_units(100, 1000, RESERVE) == 100    # total < 200 -> all
+
+
+def test_split_reserve_then_70_30():
+    # total 1000, price 1.000 -> reserve 200; remainder 800 -> Shopee 560 / TikTok 240
+    assert split_with_shopee_min_reserve(1000, 1000, RESERVE, PCT) == (760, 240)
+
+
+def test_split_no_price_is_plain_70_30():
+    assert split_with_shopee_min_reserve(1000, None, RESERVE, PCT) == (700, 300)
+
+
+def test_split_reserve_70_30_never_loses_a_piece():
+    for total in (0, 1, 50, 199, 200, 201, 1000, 99999):
+        for price in (None, 1000, 5000):
+            shopee, tiktokshop = split_with_shopee_min_reserve(total, price, RESERVE, PCT)
+            assert shopee + tiktokshop == total
+            assert shopee >= 0 and tiktokshop >= 0

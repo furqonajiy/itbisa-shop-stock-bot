@@ -3,7 +3,7 @@
 Condensed `CLAUDE.md` for ChatGPT Chat (≤ 8000 chars). The repo's `CLAUDE.md` is the full source of truth.
 
 ## What it is
-Python bot that sets, reads, and rebalances Shopee + TikTok Shop stock from one base SKU (or many per run). **No cron — `workflow_dispatch` only**, triggered from the Actions tab, by the Telegram Worker, or by the order bots at end-of-run. GitHub Actions only: no server, DB, or long-running process.
+Python bot that sets, reads, and rebalances Shopee + TikTok Shop stock from one base SKU (or many per run). **No cron — `workflow_dispatch` only**, triggered from the Actions tab, by the Telegram Worker, or by the order bots at end-of-run. GitHub Actions only: no server/DB/long-running process.
 
 ## Stack & files (Python 3.11)
 - Core: `src/main.py`, `src/config.py`, `src/stock_allocator.py` (allocation math), `src/shopee_client.py`, `src/tiktokshop_client.py`, `src/shopee_auth.py`, `src/tiktokshop_auth.py`, `src/telegram_sender.py`, `src/excel_reader.py`.
@@ -17,8 +17,8 @@ Token files ONLY: `data/shopee_tokens.json`, `data/tiktokshop_tokens.json`, comm
 ## Golden rule
 **Never lose stock.** Every piece is accounted for. TikTok Shop overflow goes to the largest pack-size variant uncapped — never discarded.
 
-## Split rule (50:50) — `split_across_platforms`
-Input is total physical warehouse stock. Shopee = `ceil(total/2)`, TikTok Shop = `floor(total/2)` (odd totals give Shopee +1). Same for `/stock_set` and `/stock_balance`.
+## Split rule — `split_with_shopee_min_reserve`
+Reserve `ceil(SHOPEE_RESERVE_IDR / Shopee 1PCS price)` to Shopee first (Rp200.000 → ~200 units), then split the remainder **70:30** Shopee:TikTok Shop (`SHOPEE_SPLIT_PERCENT`). `/stock_set` = `/stock_balance`; unknown price → no reserve. Excel mode plain 50:50.
 
 ## Allocation — lives in `src/stock_allocator.py` only
 - Set absolute units per variant, never deltas. Clients fetch catalogs and write only — no allocation logic in clients.
@@ -44,14 +44,14 @@ Operator provides base SKU only. Pack-size variants: `<digits>PCS-<base_sku>` (e
 ## CLI modes
 - `stock_set.py`: single (`--sku S --pieces N`), multi (`--sku S1 S2 --pieces N1 N2`, equal-length), Excel (`stock_set.py stock.xlsx`; A=base SKU, B=total pieces).
 - `stock_get.py --sku BASE_SKU`: read-only. `stock_balance.py --sku … [--dry-run]`: dedupes, uppercases, rejects `XPCS-`.
-- `stock_debug.py`: operator/diagnostic only, read-only, not wired to the Worker. `stock_set_price.py`: **price-aware** set runner — what production `set.yml` runs for SKU mode.
+- `stock_debug.py`: operator/diagnostic only, read-only, not wired to the Worker. `stock_set_price.py`: **price-aware** set runner (production `set.yml` SKU mode).
 - `stock_low.py` (`/stock_low`, `low.yml`): read-only — base SKUs with combined stock < 50 pcs; throttled 1×/24h (`low_stock_throttle`).
 
 ## Price-aware layer (TikTok Shop low-price 1PCS variants)
-`stock_set_price_rule.py`, `stock_balance_price_rule.py`, `stock_balance_preserve.py` (preserve total), `stock_balance_delta_summary.py` (deltas), `stock_get_compact.py`, `shopee_detail_enrichment.py`.
+Modules: `*_price_rule`, `stock_balance_preserve`, `stock_balance_delta_summary`, `stock_get_compact`, `shopee_detail_enrichment` (see Stack list).
 
 ## TikTok Shop weight enrichment (/stock_get only)
-`202502` search omits `package_weight` → catalog weight 0. `run_stock_get_mode` calls `fetch_product_detail` (GET `/product/202309/products/{id}`) once per product_id, overwriting only where 0. Best-effort; Shopee weight from `fetch_catalog`.
+`202502` search omits `package_weight` → catalog weight 0. `run_stock_get_mode` calls `fetch_product_detail` (`/product/202309/products/{id}`) once per product_id, overwriting only where 0. Best-effort; Shopee weight from `fetch_catalog`.
 
 ## Clients
 - **Shopee:** `get_item_list` + `get_item_base_info` + `get_model_list`; `update_stock` → `/api/v2/product/update_stock` (absolute). Shop-level signing `partner_id+path+timestamp+access_token+shop_id`, HMAC-SHA256 with `partner_key`.
@@ -64,11 +64,11 @@ Legacy Markdown, single-space; `_send` caps at 4000 chars. `/stock_set` & `/stoc
 `set.yml` / `get.yml` / `balance.yml`: `workflow_dispatch` only. Concurrency: `stock-set` & `stock-balance` `cancel-in-progress: false` (never cancel mid-write); `stock-get` `true`. SKU set mode runs price-aware `scripts/stock_set_price.py`. All checkout `main`, overlay `data/` from `bot-state`, Python 3.11, commit token files back to `bot-state` after every run.
 
 ## Safety
-Run exceeding `MAX_SKUS_PER_RUN` → abort before any write, alert Telegram. Never silently update only one platform unless requested; report partial failures per SKU.
+Run exceeding `MAX_SKUS_PER_RUN` → abort before any write, alert Telegram. Never silently update only one platform unless requested; report partial failures.
 
 ## Workflow & identity (process standard)
 - Author commits/PRs as `C - Furqon Aji Yudhistira <furqonajiy@gmail.com>`. **No AI references** anywhere (branches, messages, PR text, code, comments) — no Co-Authored-By, no "Generated by", no session links.
 - Branch `feature/<desc>` off `main`; PR into `main`; merge with a merge commit (`--no-ff`); merge title ends with `(#PR)`. Docs + marker ride in the same PR. Maintainer is on Windows — give CLI commands in PowerShell.
 
 ## Flag before changing
-Allocation (Shopee equal-share / TikTok cap + 1PCS reserve), price-aware runners, 50:50 split, `parse_sku()` uppercasing, token rotation, `bot-state`, workflow concurrency, multi-SKU input formats, the result-dict shapes, `fetch_product_detail` weight enrichment, `202502` vs `202309` usage, signing.
+Allocation (Shopee equal-share / TikTok cap + 1PCS reserve), price-aware runners, Shopee reserve + 70:30 split, `parse_sku()` uppercasing, token rotation, `bot-state`, workflow concurrency, multi-SKU formats, result-dict shapes, `fetch_product_detail` weight enrichment, `202502` vs `202309`, signing.

@@ -64,8 +64,8 @@ Before splitting, the bot reserves `reserve = min(ceil(SHOPEE_RESERVE_IDR / shop
 - `run_excel_mode(path, dry_run)` is independent (own inline loop + `send_run_summary`); leave it untouched by multi-SKU work.
 
 ## Per-SKU failure isolation (never abort the whole batch)
-- **set:** SKU missing on both platforms → `skipped`; SKU only on one platform → `skipped`; platform write failure → `failed`. Continue with the rest.
-- **balance:** SKU missing on either platform → `skipped`; total pieces = 0 → `skipped`; platform write failure → `failed`. Continue. The run aborts only if the catalog walk itself fails.
+- **set:** SKU missing on **both** platforms → `skipped`; **SKU on only one platform → the full requested total is set on that platform (no split)** via `_set_shopee_only` / `_set_tiktokshop_only`; platform write failure → `failed`. Continue with the rest.
+- **balance:** SKU missing on either platform → `skipped` (single-platform stock is already 100% on its one platform — nothing to redistribute, and skipping avoids a redundant write); total pieces = 0 → `skipped`; platform write failure → `failed`. Continue. The run aborts only if the catalog walk itself fails.
 - Balance is idempotent — always writes when conditions are met, safe to call repeatedly (incl. order-bot auto-dispatch).
 
 ## CLI modes

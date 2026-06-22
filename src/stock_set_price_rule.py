@@ -106,15 +106,14 @@ def _set_one_sku(
         print(f"✗ {reason}")
         return _make_set_skip_result(base_sku, total_pieces, reason)
 
-    if not on_shopee:
-        reason = f"SKU `{base_sku}` hanya ada di TikTok Shop (tidak di Shopee). Tidak diproses."
-        print(f"✗ {reason}")
-        return _make_set_skip_result(base_sku, total_pieces, reason)
-
+    # Single-platform SKUs are valid: a SKU listed on only one platform has
+    # nothing to split with, so the full requested total goes to the platform
+    # that has it (instead of skipping the SKU).
     if not on_tiktokshop:
-        reason = f"SKU `{base_sku}` hanya ada di Shopee (tidak di TikTok Shop). Tidak diproses."
-        print(f"✗ {reason}")
-        return _make_set_skip_result(base_sku, total_pieces, reason)
+        return _set_shopee_only(base_sku, total_pieces, shopee_catalog[base_sku], dry_run)
+
+    if not on_shopee:
+        return _set_tiktokshop_only(base_sku, total_pieces, tiktokshop_catalog[base_sku], dry_run)
 
     shopee_variants = shopee_catalog[base_sku]
     tiktokshop_variants = tiktokshop_catalog[base_sku]
@@ -203,6 +202,102 @@ def _set_one_sku(
             tiktokshop_allocations,
         ),
         "shopee_status": shopee_status,
+        "tiktokshop_status": tiktokshop_status,
+    }
+
+
+def _set_shopee_only(
+        base_sku: str,
+        total_pieces: int,
+        shopee_variants: list[dict],
+        dry_run: bool,
+) -> dict:
+    """SKU exists only on Shopee → set the full total there (no split)."""
+    print(
+        f"SKU `{base_sku}` hanya ada di Shopee → set 100% "
+        f"({total_pieces} pcs) ke Shopee."
+    )
+    try:
+        enrich_shopee_prices(shopee_variants)
+    except Exception as e:  # noqa: BLE001 - best-effort enrichment (display only)
+        print(f"  [shopee] price enrichment failed: {e}")
+
+    shopee_lines, shopee_status = _format_and_push_shopee(
+        base_sku, total_pieces, shopee_variants, dry_run
+    )
+
+    if "❌" in shopee_status:
+        status_label = "failed"
+        reason = f"Shopee {shopee_status}"
+    else:
+        status_label = "dry_run" if dry_run else "ok"
+        reason = ""
+
+    return {
+        "base_sku": base_sku,
+        "status": status_label,
+        "reason": reason,
+        "total_pieces": total_pieces,
+        "shopee_pieces": total_pieces,
+        "tiktokshop_pieces": 0,
+        "shopee_lines": shopee_lines,
+        "tiktokshop_lines": [],
+        "shopee_detail_variants": _build_shopee_detail_variants(
+            total_pieces, shopee_variants
+        ),
+        "tiktokshop_detail_variants": [],
+        "shopee_status": shopee_status,
+        "tiktokshop_status": "tidak ada di TikTok Shop",
+    }
+
+
+def _set_tiktokshop_only(
+        base_sku: str,
+        total_pieces: int,
+        tiktokshop_variants: list[dict],
+        dry_run: bool,
+) -> dict:
+    """SKU exists only on TikTok Shop → set the full total there (no split)."""
+    print(
+        f"SKU `{base_sku}` hanya ada di TikTok Shop → set 100% "
+        f"({total_pieces} pcs) ke TikTok Shop."
+    )
+    _enrich_tiktokshop_details(tiktokshop_variants)
+
+    allocations = _allocate_tiktokshop_balance(total_pieces, tiktokshop_variants)
+    tiktokshop_pieces = _represented_pieces(allocations)
+    leftover = total_pieces - tiktokshop_pieces
+    if leftover:
+        # No Shopee listing to absorb an unrepresentable remainder.
+        print(
+            f"⚠️ TikTok Shop hanya bisa merepresentasikan {tiktokshop_pieces}/"
+            f"{total_pieces} pcs; {leftover} pcs tidak terwakili "
+            f"(tidak ada Shopee untuk menampung)."
+        )
+
+    tiktokshop_lines, tiktokshop_status = _format_and_push_tiktokshop_allocations(
+        allocations, dry_run
+    )
+
+    if "❌" in tiktokshop_status:
+        status_label = "failed"
+        reason = f"TikTok Shop {tiktokshop_status}"
+    else:
+        status_label = "dry_run" if dry_run else "ok"
+        reason = ""
+
+    return {
+        "base_sku": base_sku,
+        "status": status_label,
+        "reason": reason,
+        "total_pieces": total_pieces,
+        "shopee_pieces": 0,
+        "tiktokshop_pieces": tiktokshop_pieces,
+        "shopee_lines": [],
+        "tiktokshop_lines": tiktokshop_lines,
+        "shopee_detail_variants": [],
+        "tiktokshop_detail_variants": _build_tiktokshop_detail_variants(allocations),
+        "shopee_status": "tidak ada di Shopee",
         "tiktokshop_status": tiktokshop_status,
     }
 

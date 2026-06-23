@@ -251,13 +251,9 @@ def get_wholesale(item_id: int) -> list[tuple[int, int, int]]:
     Read the item's "Harga Grosir" wholesale tiers.
 
     Shopee v2 has NO standalone get_wholesale endpoint (it 404s); wholesale is
-    a field on the item, so we read it from get_item_base_info. Returns a list
-    of (min_count, max_count, unit_price), ascending; [] on any error / none.
-
-    Best-effort + verbose diagnostics: logs the item's field keys and any
-    wholesale-like field so the real shape can be confirmed from the Actions
-    log. Parses `wholesales`/`wholesale_list` with `min_count`/`min`,
-    `max_count`/`max`, `unit_price`/`price` spellings.
+    the `wholesales` field on the item, returned by get_item_base_info. Returns
+    a list of (min_count, max_count, unit_price) ascending; [] on error / none.
+    Best-effort and read-only — never raises.
     """
     try:
         data = _signed_get(
@@ -265,43 +261,27 @@ def get_wholesale(item_id: int) -> list[tuple[int, int, int]]:
             {"item_id_list": str(item_id)},
         )
     except Exception as e:  # noqa: BLE001 - read-only, never break /stock_get
-        print(f"  [shopee] wholesale probe({item_id}): get_item_base_info failed: {e}")
+        print(f"  [shopee] get_wholesale({item_id}): get_item_base_info failed: {e}")
         return []
 
     if data.get("error"):
         print(
-            f"  [shopee] wholesale probe({item_id}): "
+            f"  [shopee] get_wholesale({item_id}): "
             f"error={data.get('error')!r} message={data.get('message')!r}"
         )
         return []
 
     items = (data.get("response") or {}).get("item_list") or []
     if not items:
-        print(f"  [shopee] wholesale probe({item_id}): empty item_list")
         return []
 
-    item = items[0]
-    keys = sorted(item.keys())
-    print(f"  [shopee] wholesale probe({item_id}): item keys={keys}")
-    print(f"  [shopee] wholesale probe({item_id}): full item={str(item)[:2500]}")
-    for k in keys:
-        if any(s in k.lower() for s in ("whole", "grosir", "tier", "bulk", "price")):
-            print(f"  [shopee] wholesale probe({item_id}): {k}={str(item[k])[:400]}")
-
-    raw = item.get("wholesales")
-    if raw is None:
-        raw = item.get("wholesale_list") or []
-
     tiers: list[tuple[int, int, int]] = []
-    for w in (raw or []):
+    for w in (items[0].get("wholesales") or []):
         if not isinstance(w, dict):
             continue
-        mn = w.get("min_count", w.get("min"))
-        mx = w.get("max_count", w.get("max"))
-        price = w.get("unit_price", w.get("price"))
         try:
-            tiers.append((int(mn), int(mx), int(price)))
-        except (TypeError, ValueError):
+            tiers.append((int(w["min_count"]), int(w["max_count"]), int(w["unit_price"])))
+        except (KeyError, TypeError, ValueError):
             continue
     tiers.sort(key=lambda t: t[0])
     return tiers

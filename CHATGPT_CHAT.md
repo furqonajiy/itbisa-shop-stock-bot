@@ -55,11 +55,11 @@ Modules: `*_price_rule`, `stock_balance_preserve`, `stock_balance_delta_summary`
 `202502` search omits `package_weight` → weight 0. `run_stock_get_mode` enriches via `fetch_product_detail` (202309) per product. Best-effort; Shopee weight from `fetch_catalog`.
 
 ## Clients
-- **Shopee:** `get_item_list` + `get_item_base_info` + `get_model_list`; `update_stock`/`update_price`/`set_wholesale` (Harga Grosir, best-effort) → `/api/v2/product/*`. Shop-level signing `partner_id+path+timestamp+access_token+shop_id`, HMAC-SHA256 with `partner_key`.
+- **Shopee:** `get_item_list` + `get_item_base_info` + `get_model_list`; `update_stock`/`update_price`/`set_wholesale`/`get_wholesale` (Harga Grosir, best-effort) → `/api/v2/product/*`. Shop-level signing `partner_id+path+timestamp+access_token+shop_id`, HMAC-SHA256 with `partner_key`.
 - **TikTok Shop:** `/product/202502/products/search`; `update_stock_batch` → `/product/202309/products/{product_id}/inventory/update` (absolute). Signed + `x-tts-access-token`; `shop_cipher` from `/authorization/202309/shops`.
 
 ## Telegram output (`src/telegram_sender.py`)
-Legacy Markdown, single-space; `_send` caps at 4000 chars. `/stock_set` & `/stock_balance`: 1 SKU → detailed (balance shows before→after delta), 2+ → compact. `/stock_get` per-variant 🟧/🟦 units+weight. `/harga_set` → `send_harga_set_summary` (per-variant TikTok price). Labels `SHOPEE_LABEL`/`TIKTOKSHOP_LABEL` = 🟧/🟦. Bahasa Indonesia; never abbreviate "TikTok Shop"; "stock" not "inventory".
+Legacy Markdown, single-space; `_send` caps at 4000 chars. `/stock_set` & `/stock_balance`: 1 SKU → detailed (balance shows before→after delta), 2+ → compact. `/stock_get` per-variant 🟧/🟦 units+weight (Shopee detail also shows Harga Grosir tiers). `/harga_set` → `send_harga_set_summary`. Labels 🟧/🟦. Bahasa Indonesia; never abbreviate "TikTok Shop"; "stock" not "inventory".
 
 ## Workflows
 `set.yml` / `get.yml` / `balance.yml` / `low.yml` / `harga.yml`: `workflow_dispatch` only. Write paths (`stock-set`, `stock-balance`, `stock-harga`) `cancel-in-progress: false` (never cancel mid-write); `stock-get` `true`. SKU set mode runs price-aware `scripts/stock_set_price.py`. All checkout `main`, overlay `data/` from `bot-state`, Python 3.11, commit token files back to `bot-state` after every run.

@@ -167,6 +167,7 @@ def _run_single_stock_get_mode(
         return 1
 
     enrich_shopee_prices(shopee_variants)
+    _enrich_shopee_wholesale(shopee_variants)
     _enrich_tiktokshop_detail(tiktokshop_variants)
 
     for label, variants in (("Shopee", shopee_variants), ("TikTok Shop", tiktokshop_variants)):
@@ -245,6 +246,22 @@ def _resolve_stock_get_queries(
 
 def _total_pieces(variants: list[dict]) -> int:
     return sum(int(v["stock_units"]) * int(v["multiplier"]) for v in variants)
+
+
+def _enrich_shopee_wholesale(variants: list[dict]) -> None:
+    """Attach each Shopee variant's "Harga Grosir" tiers (`wholesale_tiers`).
+
+    Best-effort and read-only: one get_wholesale call per unique item_id; a
+    failure leaves the variant without tiers (renders nothing).
+    """
+    by_item: dict[int, list[tuple[int, int, int]]] = {}
+    for variant in variants:
+        item_id = variant.get("item_id")
+        if item_id is None:
+            continue
+        if item_id not in by_item:
+            by_item[item_id] = shopee_client.get_wholesale(item_id)
+        variant["wholesale_tiers"] = by_item[item_id]
 
 
 def _enrich_tiktokshop_detail(variants: list[dict]) -> None:

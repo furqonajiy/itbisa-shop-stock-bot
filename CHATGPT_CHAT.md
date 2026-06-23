@@ -46,16 +46,16 @@ Shopee/TikTok base URLs; `TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 400`; `MAX_SKUS_PER
 - `stock_get.py --sku BASE_SKU`: read-only. `stock_balance.py --sku … [--dry-run]`: dedupes, uppercases, rejects `XPCS-`.
 - `stock_debug.py`: operator/diagnostic only, read-only, not wired to the Worker. `stock_set_price.py`: **price-aware** set runner (production `set.yml` SKU mode).
 - `stock_low.py` (`/stock_low`, `low.yml`): read-only — base SKUs with combined stock < 50 pcs; throttled 1×/24h (`low_stock_throttle`).
-- `harga_set.py` (`/harga_set`, `harga.yml`): tiered pricing (`harga_set_price.py`). `(JUMLAH HARGA)` pairs; each TikTok Shop pack-size variant priced by the tier its multiplier bands into × pack size (`update_price_batch`, 202309). TikTok Shop only; Shopee Harga Grosir later.
+- `harga_set.py` (`/harga_set`, `harga.yml`): tiered pricing (`harga_set_price.py`). `(JUMLAH HARGA)` pairs; TikTok pack-size variant priced by its tier × pack size (`update_price_batch`, 202309); Shopee 1PCS listing gets base price + Harga Grosir tiers (`set_wholesale`, best-effort).
 
 ## Price-aware layer (TikTok Shop low-price 1PCS variants)
 Modules: `*_price_rule`, `stock_balance_preserve`, `stock_balance_delta_summary`, `stock_get_compact`, `shopee_detail_enrichment` (see Stack list).
 
 ## TikTok Shop weight enrichment (/stock_get only)
-`202502` search omits `package_weight` → catalog weight 0. `run_stock_get_mode` calls `fetch_product_detail` (202309) per product_id, overwriting only where 0. Best-effort; Shopee weight from `fetch_catalog`.
+`202502` search omits `package_weight` → weight 0. `run_stock_get_mode` enriches via `fetch_product_detail` (202309) per product. Best-effort; Shopee weight from `fetch_catalog`.
 
 ## Clients
-- **Shopee:** `get_item_list` + `get_item_base_info` + `get_model_list`; `update_stock` → `/api/v2/product/update_stock` (absolute). Shop-level signing `partner_id+path+timestamp+access_token+shop_id`, HMAC-SHA256 with `partner_key`.
+- **Shopee:** `get_item_list` + `get_item_base_info` + `get_model_list`; `update_stock`/`update_price`/`set_wholesale` (Harga Grosir, best-effort) → `/api/v2/product/*`. Shop-level signing `partner_id+path+timestamp+access_token+shop_id`, HMAC-SHA256 with `partner_key`.
 - **TikTok Shop:** `/product/202502/products/search`; `update_stock_batch` → `/product/202309/products/{product_id}/inventory/update` (absolute). Signed + `x-tts-access-token`; `shop_cipher` from `/authorization/202309/shops`.
 
 ## Telegram output (`src/telegram_sender.py`)

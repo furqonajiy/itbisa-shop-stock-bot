@@ -2,7 +2,11 @@
 
 import pytest
 
-from src.harga_set_price import parse_tiers, unit_price_for_quantity
+from src.harga_set_price import (
+    compute_shopee_pricing,
+    parse_tiers,
+    unit_price_for_quantity,
+)
 
 
 # ----------------------------------------------------------------------
@@ -88,3 +92,31 @@ def test_band_variant_listing_price_is_unit_times_pack():
     # 50PCS variant at the 50-tier: listing price = 739 * 50.
     unit = unit_price_for_quantity(TIERS, 50)
     assert unit * 50 == 36950
+
+
+# ----------------------------------------------------------------------
+# compute_shopee_pricing (base price + Harga Grosir wholesale tiers)
+# ----------------------------------------------------------------------
+def test_shopee_pricing_documented_example():
+    base, wholesale = compute_shopee_pricing([(1, 749), (50, 739), (100, 699)])
+    assert base == 749
+    assert wholesale == [(50, 99, 739), (100, 999999, 699)]
+
+
+def test_shopee_pricing_single_tier_has_no_wholesale():
+    base, wholesale = compute_shopee_pricing([(1, 749)])
+    assert base == 749
+    assert wholesale == []
+
+
+def test_shopee_pricing_three_bulk_bands_are_contiguous():
+    base, wholesale = compute_shopee_pricing([(1, 100), (10, 90), (50, 80), (100, 70)])
+    assert base == 100
+    assert wholesale == [(10, 49, 90), (50, 99, 80), (100, 999999, 70)]
+
+
+def test_shopee_pricing_falls_back_to_lowest_tier_when_no_qty1():
+    # No tier starts at 1: base falls back to the lowest tier's price.
+    base, wholesale = compute_shopee_pricing([(50, 739), (100, 699)])
+    assert base == 739
+    assert wholesale == [(50, 99, 739), (100, 999999, 699)]

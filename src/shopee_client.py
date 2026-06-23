@@ -252,23 +252,47 @@ def get_wholesale(item_id: int) -> list[tuple[int, int, int]]:
     list of (min_count, max_count, unit_price), ascending by min_count.
 
     Best-effort: returns [] on any error or when no wholesale is configured.
-    Same endpoint caveat as set_wholesale (pending live verification).
+    Emits verbose diagnostics to the Actions log (raw response keys / API
+    error / tier count) so the actual Shopee response shape can be confirmed
+    — the endpoint + field names are still pending live verification. Parses
+    both `wholesale_list`/`wholesales` and `min_count`/`min`, `max_count`/`max`,
+    `unit_price`/`price` field spellings defensively.
     """
+    path = "/api/v2/product/get_wholesale"
     try:
-        data = _signed_get("/api/v2/product/get_wholesale", {"item_id": item_id})
+        data = _signed_get(path, {"item_id": item_id})
     except Exception as e:  # noqa: BLE001 - read-only, never break /stock_get
-        print(f"  [shopee] get_wholesale failed for {item_id}: {e}")
+        print(f"  [shopee] get_wholesale({item_id}): request failed: {e}")
         return []
 
     if data.get("error"):
+        print(
+            f"  [shopee] get_wholesale({item_id}): API error "
+            f"error={data.get('error')!r} message={data.get('message')!r}"
+        )
         return []
 
-    raw = (data.get("response") or {}).get("wholesale_list") or []
+    resp = data.get("response") or {}
+    raw = resp.get("wholesale_list")
+    if raw is None:
+        raw = resp.get("wholesales") or []
+    print(
+        f"  [shopee] get_wholesale({item_id}): response_keys="
+        f"{sorted(resp.keys()) if isinstance(resp, dict) else type(resp).__name__}; "
+        f"tiers={len(raw) if isinstance(raw, list) else 'n/a'}; raw={str(resp)[:300]}"
+    )
+
     tiers: list[tuple[int, int, int]] = []
-    for w in raw:
+    for w in (raw or []):
+        if not isinstance(w, dict):
+            continue
+        mn = w.get("min_count", w.get("min"))
+        mx = w.get("max_count", w.get("max"))
+        price = w.get("unit_price", w.get("price"))
         try:
-            tiers.append((int(w["min_count"]), int(w["max_count"]), int(w["unit_price"])))
-        except (KeyError, TypeError, ValueError):
+            tiers.append((int(mn), int(mx), int(price)))
+        except (TypeError, ValueError):
+            print(f"  [shopee] get_wholesale({item_id}): unparseable tier {w!r}")
             continue
     tiers.sort(key=lambda t: t[0])
     return tiers

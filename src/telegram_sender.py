@@ -538,7 +538,25 @@ def _compact_set_variant_line(line: str, base_sku: str) -> str:
 def _stock_get_variant_lines(variants: list[dict], base_sku: str) -> list[str]:
     if not variants:
         return ["_(tidak ada varian)_"]
-    return [_stock_get_variant_line(variant, base_sku) for variant in variants]
+    out: list[str] = []
+    for variant in variants:
+        out.append(_stock_get_variant_line(variant, base_sku))
+        # Shopee variants carry their "Harga Grosir" tiers (TikTok variants don't).
+        grosir = _wholesale_line(variant.get("wholesale_tiers"))
+        if grosir:
+            out.append(grosir)
+    return out
+
+
+def _wholesale_line(wholesale_tiers) -> str:
+    """One indented "Harga Grosir" line, or "" when there are no tiers."""
+    if not wholesale_tiers:
+        return ""
+    parts = []
+    for mn, mx, price in wholesale_tiers:
+        hi = "∞" if int(mx) >= 999999 else _fmt_int(mx)
+        parts.append(f"{_fmt_int(mn)}–{hi}: Rp{_fmt_int(price)}")
+    return "  Harga Grosir: " + ", ".join(parts)
 
 
 def _stock_get_variant_line(variant: dict, base_sku: str) -> str:

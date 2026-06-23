@@ -40,6 +40,10 @@ Three public functions, all platform-specific:
       names are best-effort and pending live verification (the official
       Shopee docs are login-gated).
 
+  get_wholesale(item_id) -> list[(min_count, max_count, unit_price)]
+      Reads the item's current "Harga Grosir" wholesale tiers. Best-effort:
+      returns [] on any error or when none are set. Used by /stock_get.
+
   describe() -> str
       One-line "live | sandbox" identifier for log/Telegram headers.
 
@@ -240,6 +244,34 @@ def set_wholesale(item_id: int, wholesale_tiers: list[tuple[int, int, int]]) -> 
                 f"update_wholesale {data.get('error')}: {data.get('message')}; "
                 f"add_wholesale {data_add.get('error')}: {data_add.get('message')}"
             )
+
+
+def get_wholesale(item_id: int) -> list[tuple[int, int, int]]:
+    """
+    GET /api/v2/product/get_wholesale → the item's "Harga Grosir" tiers as a
+    list of (min_count, max_count, unit_price), ascending by min_count.
+
+    Best-effort: returns [] on any error or when no wholesale is configured.
+    Same endpoint caveat as set_wholesale (pending live verification).
+    """
+    try:
+        data = _signed_get("/api/v2/product/get_wholesale", {"item_id": item_id})
+    except Exception as e:  # noqa: BLE001 - read-only, never break /stock_get
+        print(f"  [shopee] get_wholesale failed for {item_id}: {e}")
+        return []
+
+    if data.get("error"):
+        return []
+
+    raw = (data.get("response") or {}).get("wholesale_list") or []
+    tiers: list[tuple[int, int, int]] = []
+    for w in raw:
+        try:
+            tiers.append((int(w["min_count"]), int(w["max_count"]), int(w["unit_price"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    tiers.sort(key=lambda t: t[0])
+    return tiers
 
 
 # ============================================================

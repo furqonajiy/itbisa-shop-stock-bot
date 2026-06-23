@@ -213,37 +213,57 @@ def set_wholesale(item_id: int, wholesale_tiers: list[tuple[int, int, int]]) -> 
     of (min_count, max_count, unit_price). An empty list clears any existing
     wholesale (so the base price applies to all quantities).
 
-    Tries update_wholesale first (replaces the tier list); falls back to
-    add_wholesale when the item has none yet.
-
-    NOTE: best-effort against the v2 product wholesale endpoints
-    (`update_wholesale` / `add_wholesale` / `delete_wholesale`, field
-    `wholesale_list` of `{min_count, max_count, unit_price}`). The official
-    docs are login-gated, so the exact endpoint/field names are pending live
-    verification — use `--dry-run` first.
+    Shopee v2 has no confirmed standalone wholesale-write endpoint (`get_wholesale`
+    404s; wholesale is the item-level `wholesales` field). So this tries each
+    candidate write in turn, logging exactly what Shopee returns, and uses the
+    first that succeeds:
+      1. /api/v2/product/update_wholesale  (wholesale_list)
+      2. /api/v2/product/add_wholesale     (wholesale_list)
+      3. /api/v2/product/update_item       (wholesales — partial item update)
+    Each call is wrapped (no premature raise) so one run reveals which endpoint
+    the shop accepts. Raises RuntimeError only if every candidate fails. Verify
+    the actual result with `/stock_get` (reads the live `wholesales` field).
     """
-    if not wholesale_tiers:
-        # No bulk tiers (single-tier price): clear any existing wholesale.
-        data = _signed_post("/api/v2/product/delete_wholesale", {"item_id": item_id})
-        if data.get("error") and "not" not in str(data.get("message", "")).lower():
-            raise RuntimeError(f"{data.get('error')}: {data.get('message')}")
-        return
-
     wholesale_list = [
         {"min_count": mn, "max_count": mx, "unit_price": price}
         for mn, mx, price in wholesale_tiers
     ]
-    body = {"item_id": item_id, "wholesale_list": wholesale_list}
+    candidates = [
+        ("/api/v2/product/update_wholesale", {"item_id": item_id, "wholesale_list": wholesale_list}),
+        ("/api/v2/product/add_wholesale", {"item_id": item_id, "wholesale_list": wholesale_list}),
+        ("/api/v2/product/update_item", {"item_id": item_id, "wholesales": wholesale_list}),
+    ]
 
-    data = _signed_post("/api/v2/product/update_wholesale", body)
-    if data.get("error"):
-        # Likely no wholesale exists yet → create it.
-        data_add = _signed_post("/api/v2/product/add_wholesale", body)
-        if data_add.get("error"):
-            raise RuntimeError(
-                f"update_wholesale {data.get('error')}: {data.get('message')}; "
-                f"add_wholesale {data_add.get('error')}: {data_add.get('message')}"
-            )
+    errors: list[str] = []
+    for path, body in candidates:
+        status, data, text = _post_no_raise(path, body)
+        if status >= 400:
+            msg = f"{path}: HTTP {status} {text[:160]}"
+            print(f"  [shopee] set_wholesale: {msg}")
+            errors.append(msg)
+            continue
+        if data.get("error"):
+            msg = f"{path}: error={data.get('error')!r} message={data.get('message')!r}"
+            print(f"  [shopee] set_wholesale: {msg}")
+            errors.append(msg)
+            continue
+        print(f"  [shopee] set_wholesale: OK via {path} → {str(data.get('response'))[:160]}")
+        return
+
+    raise RuntimeError("no wholesale write endpoint accepted the request | " + " | ".join(errors))
+
+
+def _post_no_raise(path: str, body: dict) -> tuple[int, dict, str]:
+    """Signed POST that never raises: returns (status_code, parsed_json_or_empty, text)."""
+    try:
+        resp = requests.post(_build_signed_url(path), json=body, timeout=30)
+    except Exception as e:  # noqa: BLE001 - report transport errors to the caller
+        return 0, {}, f"request error: {e}"
+    try:
+        data = resp.json()
+    except ValueError:
+        data = {}
+    return resp.status_code, data, resp.text
 
 
 def get_wholesale(item_id: int) -> list[tuple[int, int, int]]:

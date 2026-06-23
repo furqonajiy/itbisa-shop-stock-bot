@@ -39,6 +39,11 @@ Public functions:
       Absolute stock set. Path says inventory/update but it's a set, not
       a delta. All SKUs in one call must belong to product_id.
 
+  update_price_batch(product_id, sku_prices) -> None
+      Absolute price set via the 202309 Update Price API. sku_prices is a
+      list of (sku_id, price_idr); each price is sent as
+      {amount: "<int>", currency: "IDR"}. All SKUs must belong to product_id.
+
   describe() -> str
       Identifier for log/Telegram headers.
 """
@@ -58,6 +63,8 @@ from src.stock_allocator import parse_sku
 _SEARCH_API_VERSION = "202502"
 _INVENTORY_API_VERSION = "202309"
 _DETAIL_API_VERSION = "202309"
+_PRICE_API_VERSION = "202309"
+_PRICE_CURRENCY = "IDR"
 
 _SEARCH_PAGE_SIZE = 100
 
@@ -262,6 +269,46 @@ def update_stock_batch(
     failures = data.get("errors") or data.get("failed_skus") or []
     if failures:
         raise RuntimeError(f"per-sku failures: {failures}")
+
+
+def update_price_batch(
+        product_id: str,
+        sku_prices: list[tuple[str, int]],
+) -> None:
+    """
+    POST /product/202309/products/{product_id}/prices/update.
+    Absolute price set; sku_prices = list of (sku_id, price_idr).
+
+    Each price is sent as {amount: "<int>", currency: "IDR"} per the 202309
+    schema (IDR has no minor units, so the amount is the whole-rupiah value as
+    a string). All SKUs in one call must belong to product_id.
+    """
+    path = f"/product/{_PRICE_API_VERSION}/products/{product_id}/prices/update"
+    body = {
+        "skus": [
+            {
+                "id": sku_id,
+                "price": {
+                    "amount": str(int(price_idr)),
+                    "currency": _PRICE_CURRENCY,
+                },
+            }
+            for sku_id, price_idr in sku_prices
+        ],
+    }
+
+    response = _call_signed(
+        "POST",
+        path,
+        extra_query={"version": _PRICE_API_VERSION},
+        body=body,
+    )
+    _check_ok(response, context=f"price update product={product_id}")
+
+    data = response.json().get("data") or {}
+    failures = data.get("errors") or data.get("failed_skus") or []
+    if failures:
+        raise RuntimeError(f"per-sku price failures: {failures}")
 
 
 # ============================================================

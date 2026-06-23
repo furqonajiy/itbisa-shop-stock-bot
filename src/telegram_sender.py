@@ -373,6 +373,51 @@ def send_low_stock_skipped(last_run_iso: str | None) -> None:
     )
 
 
+def send_harga_set_summary(report: dict) -> None:
+    """Single-SKU tiered price set (from /harga_set). TikTok Shop only for now."""
+    dry_run = bool(report.get("dry_run"))
+    base_sku = report["base_sku"]
+    status = report.get("status", "")
+    suffix = " — DRY RUN" if dry_run else " — Selesai"
+
+    tier_str = ", ".join(
+        f"{qty}=Rp{_fmt_int(price)}" for qty, price in report.get("tiers", [])
+    )
+
+    lines = [
+        f"💰 *Set Harga*{suffix}",
+        "",
+        f"✅ `{base_sku}`",
+        f"Tier: {tier_str}",
+        "",
+        f"{TIKTOKSHOP_LABEL} — {status}",
+    ]
+
+    priced = report.get("priced") or []
+    if priced:
+        for p in priced:
+            lines.append(
+                f"• `{p['raw_sku']}` (×{p['multiplier']}): "
+                f"Rp{_fmt_int(p['variant_price'])} (Rp{_fmt_int(p['unit_price'])}/pcs)"
+            )
+    else:
+        lines.append("_(tidak ada varian)_")
+
+    skipped = report.get("skipped") or []
+    if skipped:
+        names = ", ".join(f"`{v['raw_sku']}`" for v in skipped)
+        lines.append(f"⏭️ {len(skipped)} varian dilewati (di bawah tier terendah): {names}")
+
+    lines.append("")
+    lines.append(f"{SHOPEE_LABEL} — _Harga Grosir belum diaktifkan (menyusul)_")
+
+    if dry_run:
+        lines.append("")
+        lines.append("_Dry run — tidak ada write API yang dipanggil._")
+
+    _send(_join(lines))
+
+
 def send_alert(text: str, mode: str = "Set Stock") -> None:
     decorated = _decorate_platforms(text)
     _send(f"🚨 *{mode}* — Error\n\n{decorated}")

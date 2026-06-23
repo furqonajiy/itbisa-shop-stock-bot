@@ -29,6 +29,17 @@ Three public functions, all platform-specific:
       Sets absolute stock for one (item_id, model_id) target. Raises
       RuntimeError on platform-level failure or per-item fail_error.
 
+  update_price(item_id, model_id, price_idr) -> None
+      Sets the absolute base/normal price for one (item_id, model_id) via
+      /api/v2/product/update_price. Used by /harga_set.
+
+  set_wholesale(item_id, wholesale_tiers) -> None
+      Replaces the item's "Harga Grosir" wholesale tiers (each
+      {min_count, max_count, unit_price}); an empty list clears them.
+      Used by /harga_set. NOTE: the exact v2 wholesale endpoint/field
+      names are best-effort and pending live verification (the official
+      Shopee docs are login-gated).
+
   describe() -> str
       One-line "live | sandbox" identifier for log/Telegram headers.
 
@@ -165,6 +176,69 @@ def update_stock(item_id: int, model_id: int | None, new_stock: int) -> None:
         if r.get("fail_error"):
             raise RuntimeError(
                 f"{r.get('fail_error')}: {r.get('fail_message')}"
+            )
+
+
+def update_price(item_id: int, model_id: int | None, price_idr: int) -> None:
+    """
+    POST /api/v2/product/update_price — set the absolute base price for one
+    (item_id, model_id). For an item without variations, model_id is None and
+    the price applies to the item.
+
+    Raises RuntimeError on platform-level error or per-model failure.
+    """
+    path = "/api/v2/product/update_price"
+
+    entry: dict = {"original_price": price_idr}
+    if model_id is not None:
+        entry["model_id"] = model_id
+
+    body = {"item_id": item_id, "price_list": [entry]}
+    data = _signed_post(path, body)
+
+    if data.get("error"):
+        raise RuntimeError(f"{data.get('error')}: {data.get('message')}")
+    failures = (data.get("response") or {}).get("failure_list") or []
+    if failures:
+        raise RuntimeError(f"price update failures: {failures}")
+
+
+def set_wholesale(item_id: int, wholesale_tiers: list[tuple[int, int, int]]) -> None:
+    """
+    Set the item's "Harga Grosir" wholesale tiers. `wholesale_tiers` is a list
+    of (min_count, max_count, unit_price). An empty list clears any existing
+    wholesale (so the base price applies to all quantities).
+
+    Tries update_wholesale first (replaces the tier list); falls back to
+    add_wholesale when the item has none yet.
+
+    NOTE: best-effort against the v2 product wholesale endpoints
+    (`update_wholesale` / `add_wholesale` / `delete_wholesale`, field
+    `wholesale_list` of `{min_count, max_count, unit_price}`). The official
+    docs are login-gated, so the exact endpoint/field names are pending live
+    verification — use `--dry-run` first.
+    """
+    if not wholesale_tiers:
+        # No bulk tiers (single-tier price): clear any existing wholesale.
+        data = _signed_post("/api/v2/product/delete_wholesale", {"item_id": item_id})
+        if data.get("error") and "not" not in str(data.get("message", "")).lower():
+            raise RuntimeError(f"{data.get('error')}: {data.get('message')}")
+        return
+
+    wholesale_list = [
+        {"min_count": mn, "max_count": mx, "unit_price": price}
+        for mn, mx, price in wholesale_tiers
+    ]
+    body = {"item_id": item_id, "wholesale_list": wholesale_list}
+
+    data = _signed_post("/api/v2/product/update_wholesale", body)
+    if data.get("error"):
+        # Likely no wholesale exists yet → create it.
+        data_add = _signed_post("/api/v2/product/add_wholesale", body)
+        if data_add.get("error"):
+            raise RuntimeError(
+                f"update_wholesale {data.get('error')}: {data.get('message')}; "
+                f"add_wholesale {data_add.get('error')}: {data_add.get('message')}"
             )
 
 

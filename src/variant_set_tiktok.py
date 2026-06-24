@@ -206,6 +206,17 @@ def run_variant_set(base_sku: str, pack_sizes: list[int], dry_run: bool) -> int:
     product_id = variants[0]["product_id"]
     try:
         detail = tiktokshop_client.fetch_product_detail_raw(product_id)
+        # TEMP category discovery: Edit Product requires a V2 category
+        # (error 12052217). Dump what the product currently stores so we can
+        # see whether category_chains is V1/V2 and how to resolve it.
+        print(f"  [variant] detail keys = {sorted(detail.keys())}")
+        print(f"  [variant] category_chains = {json.dumps(detail.get('category_chains'), ensure_ascii=False)}")
+        for k in ("category_id", "category_version", "brand", "is_cod_allowed",
+                  "listing_quality_tier", "product_status"):
+            if k in detail:
+                print(f"  [variant] detail[{k!r}] = {json.dumps(detail.get(k), ensure_ascii=False)}")
+        rec = tiktokshop_client.recommend_category_raw(detail.get("title") or base_sku)
+        print(f"  [variant] recommend_category raw = {json.dumps(rec, ensure_ascii=False)[:1500]}")
         payload = build_edit_payload(detail, base_sku, pack_sizes)
     except Exception as e:  # noqa: BLE001
         msg = f"Gagal menyusun payload Edit Product untuk `{base_sku}`: {e}"

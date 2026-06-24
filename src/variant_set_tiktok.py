@@ -78,6 +78,31 @@ def _leaf_category_id(detail: dict) -> str | None:
     return chains[-1].get("id") if chains else None
 
 
+def _v1_leaf_name(detail: dict) -> str | None:
+    """The local_name of the product's current (V1) leaf category."""
+    chains = detail.get("category_chains") or []
+    for c in chains:
+        if c.get("is_leaf") and c.get("local_name"):
+            return c["local_name"]
+    return chains[-1].get("local_name") if chains else None
+
+
+def _match_v2_category_by_name(categories: list[dict], leaf_name: str | None) -> str | None:
+    """Find the V2 leaf category whose local_name equals the V1 leaf name.
+
+    Edit Product requires a V2 category and this product has no recommendation,
+    so we map by name — TikTok kept the same leaf names across the V1→V2
+    migration (e.g. "Unit Catu Daya"). Returns the matched V2 leaf id, or None.
+    """
+    if not leaf_name:
+        return None
+    target = leaf_name.strip().casefold()
+    for c in categories:
+        if c.get("is_leaf") and (c.get("local_name") or "").strip().casefold() == target:
+            return c.get("id")
+    return None
+
+
 def _v2_category_id(detail: dict) -> str | None:
     """Return a V2 leaf category id if the product detail offers one, else None.
 
@@ -235,8 +260,19 @@ def run_variant_set(base_sku: str, pack_sizes: list[int], dry_run: bool) -> int:
     try:
         detail = tiktokshop_client.fetch_product_detail_raw(product_id)
         payload = build_edit_payload(detail, base_sku, pack_sizes)
-        print(f"  [variant] V2 category resolved = {_v2_category_id(detail)} "
-              f"(category_id {'sent' if 'category_id' in payload else 'OMITTED — keep current'})")
+        # Edit Product requires a V2 category_id. If the detail offered no V2
+        # recommendation, map the product's current V1 leaf name to the
+        # same-named V2 leaf from the category tree (names carried over the
+        # V1→V2 migration).
+        if "category_id" not in payload:
+            v1_name = _v1_leaf_name(detail)
+            categories = tiktokshop_client.fetch_categories()
+            matched = _match_v2_category_by_name(categories, v1_name)
+            print(f"  [variant] V1 leaf name = {v1_name!r}; V2 tree size = {len(categories)}; "
+                  f"matched V2 category_id = {matched}")
+            if matched:
+                payload["category_id"] = matched
+        print(f"  [variant] category_id in payload = {payload.get('category_id')}")
     except Exception as e:  # noqa: BLE001
         msg = f"Gagal menyusun payload Edit Product untuk `{base_sku}`: {e}"
         print(f"✗ {msg}")

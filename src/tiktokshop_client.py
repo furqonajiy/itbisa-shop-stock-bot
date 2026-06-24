@@ -327,6 +327,33 @@ def fetch_product_detail_raw(product_id: str) -> dict:
     return response.json().get("data") or {}
 
 
+def fetch_categories() -> list[dict]:
+    """GET /product/202309/categories → the flat list of V2 category nodes.
+
+    Each node: {id, parent_id, local_name, is_leaf, permission_statuses}.
+    Used by /variant_set to map a product's legacy V1 category to a V2 leaf
+    (Edit Product requires a V2 category). Best-effort: returns [] with the
+    HTTP/code logged on failure.
+    """
+    try:
+        response = _call_signed(
+            "GET",
+            f"/product/{_PRODUCT_API_VERSION}/categories",
+            extra_query={"version": _PRODUCT_API_VERSION},
+        )
+        payload = response.json()
+        if response.status_code >= 400 or payload.get("code") != 0:
+            print(
+                f"  [tiktokshop] fetch_categories: HTTP {response.status_code} "
+                f"code={payload.get('code')} message={payload.get('message')!r}"
+            )
+            return []
+        return (payload.get("data") or {}).get("categories") or []
+    except Exception as e:  # noqa: BLE001
+        print(f"  [tiktokshop] fetch_categories failed: {e}")
+        return []
+
+
 def edit_product(product_id: str, payload: dict) -> dict:
     """PUT /product/202309/products/{product_id} — Edit Product (full replace).
 

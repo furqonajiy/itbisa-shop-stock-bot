@@ -78,6 +78,25 @@ def _leaf_category_id(detail: dict) -> str | None:
     return chains[-1].get("id") if chains else None
 
 
+def _clean_title_for_recommend(title: str | None, base_sku: str) -> str:
+    """Derive a short product name for Recommend Category.
+
+    The full marketing title (pipes, hashtags, store prefix) makes the endpoint
+    return "no matching categories". Keep the first segment before `|`, drop a
+    leading store prefix and any hashtag tail.
+    """
+    if not title:
+        return base_sku
+    head = title.split("|", 1)[0]
+    head = head.split("#", 1)[0]
+    for prefix in ("ITBisa - ", "ITBISA - ", "ITBisa-", "ITBISA-"):
+        if head.startswith(prefix):
+            head = head[len(prefix):]
+            break
+    head = head.strip()
+    return head or base_sku
+
+
 def _category_id_for_edit(detail: dict) -> str | None:
     """Pick the category_id to send on Edit Product.
 
@@ -227,11 +246,17 @@ def run_variant_set(base_sku: str, pack_sizes: list[int], dry_run: bool) -> int:
     try:
         detail = tiktokshop_client.fetch_product_detail_raw(product_id)
         # TEMP category discovery: Edit Product requires a V2 category
-        # (error 12052217). recommended_categories carries the V2 nodes —
-        # log it + the resolved category_id so we can confirm the choice
-        # before a live write.
+        # (error 12052217); this product's recommended_categories is empty and
+        # its stored chain leaf is V1. Recommend Category (read-only) resolves a
+        # V2 leaf from a CLEAN product name (the full marketing title makes it
+        # return "no matching categories"). Log it so a dry-run confirms the
+        # V2 id before any live write.
+        clean = _clean_title_for_recommend(detail.get("title"), base_sku)
         print(f"  [variant] category_chains (current/V1) = {json.dumps(detail.get('category_chains'), ensure_ascii=False)}")
         print(f"  [variant] recommended_categories = {json.dumps(detail.get('recommended_categories'), ensure_ascii=False)}")
+        print(f"  [variant] clean title for recommend = {clean!r}")
+        rec = tiktokshop_client.recommend_category_raw(clean)
+        print(f"  [variant] recommend(clean) raw = {json.dumps(rec, ensure_ascii=False)[:1500]}")
         print(f"  [variant] resolved category_id for edit = {_category_id_for_edit(detail)}")
         payload = build_edit_payload(detail, base_sku, pack_sizes)
     except Exception as e:  # noqa: BLE001

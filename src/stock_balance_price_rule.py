@@ -417,6 +417,12 @@ def _fetch_tiktokshop_sku_details_for_version(
         f"  [tiktokshop] product detail {version} product={product_id}: "
         f"data_keys={sorted(data.keys())}"
     )
+    # TEMP discovery dump (for /variant_set design): full product structure
+    # minus the long description, so the Actions log reveals the exact Edit
+    # Product shape (sales_attributes, main_images, dimensions). Remove once
+    # the variant-creation payload is built.
+    _dump = {k: v for k, v in data.items() if k != "description"}
+    print(f"  [tiktokshop] PRODUCT DUMP {product_id}: {_dump!r}"[:6500])
     product_weight_grams = _extract_weight_grams(data.get("package_weight"))
     print(
         f"  [tiktokshop] product detail {version} product={product_id}: "

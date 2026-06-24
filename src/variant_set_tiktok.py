@@ -78,6 +78,26 @@ def _leaf_category_id(detail: dict) -> str | None:
     return chains[-1].get("id") if chains else None
 
 
+def _category_id_for_edit(detail: dict) -> str | None:
+    """Pick the category_id to send on Edit Product.
+
+    Edit Product rejects the product's legacy V1 `category_chains` leaf
+    (error 12052217 "must use V2 categories"). The product detail carries a
+    `recommended_categories` list of V2 nodes — prefer its leaf. Fall back to
+    the existing chain leaf only if no recommendation is available.
+    """
+    recs = detail.get("recommended_categories") or []
+    leaf = None
+    for c in recs:
+        if c.get("is_leaf"):
+            leaf = c.get("id")
+    if leaf:
+        return leaf
+    if recs and recs[-1].get("id"):
+        return recs[-1]["id"]
+    return _leaf_category_id(detail)
+
+
 def _edit_attributes(product_attributes) -> list[dict]:
     out = []
     for a in product_attributes or []:
@@ -159,7 +179,7 @@ def build_edit_payload(detail: dict, base_sku: str, pack_sizes: list[int]) -> di
     return {
         "title": detail.get("title"),
         "description": detail.get("description"),
-        "category_id": _leaf_category_id(detail),
+        "category_id": _category_id_for_edit(detail),
         "main_images": [
             {"uri": img["uri"]}
             for img in (detail.get("main_images") or []) if img.get("uri")
@@ -207,16 +227,12 @@ def run_variant_set(base_sku: str, pack_sizes: list[int], dry_run: bool) -> int:
     try:
         detail = tiktokshop_client.fetch_product_detail_raw(product_id)
         # TEMP category discovery: Edit Product requires a V2 category
-        # (error 12052217). Dump what the product currently stores so we can
-        # see whether category_chains is V1/V2 and how to resolve it.
-        print(f"  [variant] detail keys = {sorted(detail.keys())}")
-        print(f"  [variant] category_chains = {json.dumps(detail.get('category_chains'), ensure_ascii=False)}")
-        for k in ("category_id", "category_version", "brand", "is_cod_allowed",
-                  "listing_quality_tier", "product_status"):
-            if k in detail:
-                print(f"  [variant] detail[{k!r}] = {json.dumps(detail.get(k), ensure_ascii=False)}")
-        rec = tiktokshop_client.recommend_category_raw(detail.get("title") or base_sku)
-        print(f"  [variant] recommend_category raw = {json.dumps(rec, ensure_ascii=False)[:1500]}")
+        # (error 12052217). recommended_categories carries the V2 nodes —
+        # log it + the resolved category_id so we can confirm the choice
+        # before a live write.
+        print(f"  [variant] category_chains (current/V1) = {json.dumps(detail.get('category_chains'), ensure_ascii=False)}")
+        print(f"  [variant] recommended_categories = {json.dumps(detail.get('recommended_categories'), ensure_ascii=False)}")
+        print(f"  [variant] resolved category_id for edit = {_category_id_for_edit(detail)}")
         payload = build_edit_payload(detail, base_sku, pack_sizes)
     except Exception as e:  # noqa: BLE001
         msg = f"Gagal menyusun payload Edit Product untuk `{base_sku}`: {e}"

@@ -339,7 +339,9 @@ def fetch_categories() -> list[dict]:
         response = _call_signed(
             "GET",
             f"/product/{_PRODUCT_API_VERSION}/categories",
-            extra_query={"version": _PRODUCT_API_VERSION},
+            # category_version=v2 is required — the default tree is V1 and Edit
+            # Product rejects V1 category ids (error 12052217).
+            extra_query={"version": _PRODUCT_API_VERSION, "category_version": "v2"},
         )
         payload = response.json()
         if response.status_code >= 400 or payload.get("code") != 0:

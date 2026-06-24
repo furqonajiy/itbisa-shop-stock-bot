@@ -327,6 +327,30 @@ def fetch_product_detail_raw(product_id: str) -> dict:
     return response.json().get("data") or {}
 
 
+def recommend_category_raw(product_title: str, description: str = "") -> dict:
+    """POST /product/202309/categories/recommend — recommend a V2 leaf category
+    for a product title/description. Returns the raw payload (best-effort; used
+    by /variant_set to satisfy the "must use V2 categories" rule). Never raises —
+    returns {} with the HTTP/code logged so discovery runs don't abort.
+    """
+    try:
+        response = _call_signed(
+            "POST",
+            f"/product/{_PRODUCT_API_VERSION}/categories/recommend",
+            extra_query={"version": _PRODUCT_API_VERSION},
+            body={"product_title": product_title, "description": description},
+        )
+        payload = response.json()
+        print(
+            f"  [tiktokshop] recommend_category: HTTP {response.status_code} "
+            f"code={payload.get('code')} message={payload.get('message')!r}"
+        )
+        return payload
+    except Exception as e:  # noqa: BLE001
+        print(f"  [tiktokshop] recommend_category failed: {e}")
+        return {}
+
+
 def edit_product(product_id: str, payload: dict) -> dict:
     """PUT /product/202309/products/{product_id} — Edit Product (full replace).
 

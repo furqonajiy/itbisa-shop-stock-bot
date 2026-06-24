@@ -204,13 +204,6 @@ def fetch_product_detail(product_id: str) -> dict[str, int]:
         return {}
 
     data = payload.get("data") or {}
-    # TEMP discovery dump (for /variant_set design): full product structure
-    # minus the long description. Remove once the Edit Product payload is built.
-    _dump = {k: v for k, v in data.items() if k != "description"}
-    print(
-        f"  [tiktokshop] PRODUCT DUMP {product_id} (no description): "
-        f"{_json.dumps(_dump, ensure_ascii=False)[:6000]}"
-    )
     print(
         f"  [tiktokshop] fetch_product_detail({product_id}): "
         f"top-level data keys = {sorted(data.keys())}"

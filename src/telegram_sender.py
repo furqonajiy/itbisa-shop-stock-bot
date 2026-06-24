@@ -424,6 +424,27 @@ def send_harga_set_summary(report: dict) -> None:
     _send(_join(lines))
 
 
+def send_variant_set_summary(report: dict) -> None:
+    """Single-SKU TikTok variant rebuild (from /variant_set)."""
+    dry_run = bool(report.get("dry_run"))
+    suffix = " — DRY RUN" if dry_run else " — Selesai"
+    lines = [
+        f"🧩 *Set Variant*{suffix}",
+        "",
+        f"✅ `{report['base_sku']}`",
+        f"{TIKTOKSHOP_LABEL} — {report.get('status', '')}",
+    ]
+    for vn in report.get("value_names") or []:
+        lines.append(f"• {vn}")
+    if not dry_run and "✅" in report.get("status", ""):
+        lines.append("")
+        lines.append("_Stok di-set 0; jalankan `/stock_set` untuk mengisi ulang total._")
+    if dry_run:
+        lines.append("")
+        lines.append("_Dry run — tidak ada write API yang dipanggil._")
+    _send(_join(lines))
+
+
 def send_alert(text: str, mode: str = "Set Stock") -> None:
     decorated = _decorate_platforms(text)
     _send(f"🚨 *{mode}* — Error\n\n{decorated}")

@@ -64,6 +64,7 @@ _SEARCH_API_VERSION = "202502"
 _INVENTORY_API_VERSION = "202309"
 _DETAIL_API_VERSION = "202309"
 _PRICE_API_VERSION = "202309"
+_PRODUCT_API_VERSION = "202309"
 _PRICE_CURRENCY = "IDR"
 
 _SEARCH_PAGE_SIZE = 100
@@ -309,6 +310,39 @@ def update_price_batch(
     failures = data.get("errors") or data.get("failed_skus") or []
     if failures:
         raise RuntimeError(f"per-sku price failures: {failures}")
+
+
+def fetch_product_detail_raw(product_id: str) -> dict:
+    """GET /product/202309/products/{product_id} → the full `data` dict.
+
+    Used by /variant_set to read a product's current structure before building
+    an Edit Product payload. Raises RuntimeError on API error.
+    """
+    response = _call_signed(
+        "GET",
+        f"/product/{_PRODUCT_API_VERSION}/products/{product_id}",
+        extra_query={"version": _PRODUCT_API_VERSION},
+    )
+    _check_ok(response, context=f"product detail {product_id}")
+    return response.json().get("data") or {}
+
+
+def edit_product(product_id: str, payload: dict) -> dict:
+    """POST /product/202309/products/{product_id} — Edit Product (full replace).
+
+    Used by /variant_set to rebuild the variation set. The Edit Product request
+    schema is best-effort and pending live verification (the official docs are
+    login-gated) — always exercise via the runner's dry-run first. Raises
+    RuntimeError on API error.
+    """
+    response = _call_signed(
+        "POST",
+        f"/product/{_PRODUCT_API_VERSION}/products/{product_id}",
+        extra_query={"version": _PRODUCT_API_VERSION},
+        body=payload,
+    )
+    _check_ok(response, context=f"edit product {product_id}")
+    return response.json().get("data") or {}
 
 
 # ============================================================

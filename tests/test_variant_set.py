@@ -103,7 +103,19 @@ def test_all_new_variants_created_at_zero_stock():
 
 def test_product_level_fields_preserved():
     payload = build_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", [1, 20])
+    # No recommended_categories on this fixture → falls back to the chain leaf.
     assert payload["category_id"] == "825992"  # leaf
     assert payload["main_images"] == [{"uri": "tos-img/abc.jpg"}]
     assert payload["title"] == "IC PC817"
     assert payload["product_attributes"] == [{"id": "100107", "values": [{"id": "1000057"}]}]
+
+
+def test_recommended_v2_category_overrides_legacy_chain():
+    detail = dict(_DETAIL)
+    # Edit Product rejects the V1 chain leaf; prefer the recommended V2 leaf.
+    detail["recommended_categories"] = [
+        {"id": "900001", "is_leaf": False, "local_name": "Elektronik"},
+        {"id": "900042", "is_leaf": True, "local_name": "Komponen Elektronik"},
+    ]
+    payload = build_edit_payload(detail, "ITBISA-IC-PC817-DIP4", [1, 20])
+    assert payload["category_id"] == "900042"

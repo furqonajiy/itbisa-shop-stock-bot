@@ -328,15 +328,16 @@ def fetch_product_detail_raw(product_id: str) -> dict:
 
 
 def edit_product(product_id: str, payload: dict) -> dict:
-    """POST /product/202309/products/{product_id} — Edit Product (full replace).
+    """PUT /product/202309/products/{product_id} — Edit Product (full replace).
 
-    Used by /variant_set to rebuild the variation set. The Edit Product request
-    schema is best-effort and pending live verification (the official docs are
-    login-gated) — always exercise via the runner's dry-run first. Raises
-    RuntimeError on API error.
+    Used by /variant_set to rebuild the variation set. Edit Product is a PUT
+    (POST on this path is Create Product and returns HTTP 405 "Invalid method").
+    The request schema is best-effort and pending live verification (the
+    official docs are login-gated) — always exercise via the runner's dry-run
+    first. Raises RuntimeError on API error.
     """
     response = _call_signed(
-        "POST",
+        "PUT",
         f"/product/{_PRODUCT_API_VERSION}/products/{product_id}",
         extra_query={"version": _PRODUCT_API_VERSION},
         body=payload,

@@ -379,19 +379,14 @@ def send_harga_set_summary(report: dict) -> None:
     base_sku = report["base_sku"]
     suffix = " — DRY RUN" if dry_run else " — Selesai"
 
-    tier_str = ", ".join(
-        f"{qty}=Rp{_fmt_int(price)}" for qty, price in report.get("tiers", [])
-    )
-
     lines = [
         f"💰 *Set Harga*{suffix}",
         "",
         f"✅ `{base_sku}`",
-        f"Tier: {tier_str}",
         "",
     ]
 
-    # TikTok Shop section.
+    # TikTok Shop section — one line per pack-size variant.
     tiktok = report.get("tiktok")
     if tiktok is None:
         lines.append(f"{TIKTOKSHOP_LABEL} — _(tidak ada)_")
@@ -399,29 +394,28 @@ def send_harga_set_summary(report: dict) -> None:
         lines.append(f"{TIKTOKSHOP_LABEL} — {tiktok['status']}")
         for p in tiktok.get("priced") or []:
             lines.append(
-                f"• `{p['raw_sku']}` (×{p['multiplier']}): "
-                f"Rp{_fmt_int(p['variant_price'])} (Rp{_fmt_int(p['unit_price'])}/pcs)"
+                f"• {p['multiplier']}PCS = Rp{_fmt_int(p['variant_price'])} "
+                f"(Rp{_fmt_int(p['unit_price'])}/pcs)"
             )
         skipped = tiktok.get("skipped") or []
         if skipped:
-            names = ", ".join(f"`{v['raw_sku']}`" for v in skipped)
-            lines.append(f"⏭️ {len(skipped)} varian dilewati (di bawah tier terendah): {names}")
+            lines.append(f"⏭️ {len(skipped)} varian dilewati (di bawah tier terendah)")
 
     lines.append("")
 
-    # Shopee section (Harga Grosir on the 1PCS listing).
+    # Shopee section — base + Harga Grosir as quantity bands.
     shopee = report.get("shopee")
     if shopee is None:
         lines.append(f"{SHOPEE_LABEL} — _(tidak ada)_")
     else:
         lines.append(f"{SHOPEE_LABEL} — {shopee['status']}")
-        lines.append(f"Harga dasar: Rp{_fmt_int(shopee['base_price'])}")
+        lines.append(f"- 1: Rp{_fmt_int(shopee['base_price'])}")
         for mn, mx, price in shopee.get("wholesale_tiers") or []:
             hi = "∞" if mx >= 999999 else str(mx)
-            lines.append(f"Grosir {mn}–{hi}: Rp{_fmt_int(price)}")
+            lines.append(f"- {mn}–{hi}: Rp{_fmt_int(price)}")
         packs = shopee.get("skipped_packs") or []
         if packs:
-            lines.append(f"⏭️ {len(packs)} produk pack-size Shopee dilewati (Harga Grosir di listing 1PCS).")
+            lines.append(f"⏭️ {len(packs)} produk pack-size dilewati")
 
     if dry_run:
         lines.append("")

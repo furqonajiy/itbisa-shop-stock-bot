@@ -103,16 +103,18 @@ def test_all_new_variants_created_at_zero_stock():
 
 def test_product_level_fields_preserved():
     payload = build_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", [1, 20])
-    # No recommended_categories on this fixture → falls back to the chain leaf.
-    assert payload["category_id"] == "825992"  # leaf
+    # No recommended_categories on this fixture → no V2 leaf → category_id is
+    # omitted so TikTok keeps the product's current category (the V1 chain leaf
+    # would be rejected with error 12052217).
+    assert "category_id" not in payload
     assert payload["main_images"] == [{"uri": "tos-img/abc.jpg"}]
     assert payload["title"] == "IC PC817"
     assert payload["product_attributes"] == [{"id": "100107", "values": [{"id": "1000057"}]}]
 
 
-def test_recommended_v2_category_overrides_legacy_chain():
+def test_recommended_v2_category_is_sent_when_available():
     detail = dict(_DETAIL)
-    # Edit Product rejects the V1 chain leaf; prefer the recommended V2 leaf.
+    # When the detail offers a V2 recommendation, send its leaf.
     detail["recommended_categories"] = [
         {"id": "900001", "is_leaf": False, "local_name": "Elektronik"},
         {"id": "900042", "is_leaf": True, "local_name": "Komponen Elektronik"},

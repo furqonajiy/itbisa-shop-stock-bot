@@ -78,32 +78,15 @@ def _leaf_category_id(detail: dict) -> str | None:
     return chains[-1].get("id") if chains else None
 
 
-def _clean_title_for_recommend(title: str | None, base_sku: str) -> str:
-    """Derive a short product name for Recommend Category.
-
-    The full marketing title (pipes, hashtags, store prefix) makes the endpoint
-    return "no matching categories". Keep the first segment before `|`, drop a
-    leading store prefix and any hashtag tail.
-    """
-    if not title:
-        return base_sku
-    head = title.split("|", 1)[0]
-    head = head.split("#", 1)[0]
-    for prefix in ("ITBisa - ", "ITBISA - ", "ITBisa-", "ITBISA-"):
-        if head.startswith(prefix):
-            head = head[len(prefix):]
-            break
-    head = head.strip()
-    return head or base_sku
-
-
-def _category_id_for_edit(detail: dict) -> str | None:
-    """Pick the category_id to send on Edit Product.
+def _v2_category_id(detail: dict) -> str | None:
+    """Return a V2 leaf category id if the product detail offers one, else None.
 
     Edit Product rejects the product's legacy V1 `category_chains` leaf
-    (error 12052217 "must use V2 categories"). The product detail carries a
-    `recommended_categories` list of V2 nodes — prefer its leaf. Fall back to
-    the existing chain leaf only if no recommendation is available.
+    (error 12052217 "must use V2 categories"). Only `recommended_categories`
+    (when non-empty) carries V2 nodes — prefer its leaf. We deliberately do NOT
+    fall back to the V1 chain leaf (that triggers the rejection); when no V2 id
+    is available we omit category_id entirely so TikTok keeps the product's
+    current category and skips re-validation.
     """
     recs = detail.get("recommended_categories") or []
     leaf = None
@@ -114,7 +97,7 @@ def _category_id_for_edit(detail: dict) -> str | None:
         return leaf
     if recs and recs[-1].get("id"):
         return recs[-1]["id"]
-    return _leaf_category_id(detail)
+    return None
 
 
 def _edit_attributes(product_attributes) -> list[dict]:
@@ -195,10 +178,9 @@ def build_edit_payload(detail: dict, base_sku: str, pack_sizes: list[int]) -> di
         warehouse_id, qty=0,
     ))
 
-    return {
+    payload = {
         "title": detail.get("title"),
         "description": detail.get("description"),
-        "category_id": _category_id_for_edit(detail),
         "main_images": [
             {"uri": img["uri"]}
             for img in (detail.get("main_images") or []) if img.get("uri")
@@ -208,6 +190,13 @@ def build_edit_payload(detail: dict, base_sku: str, pack_sizes: list[int]) -> di
         "product_attributes": _edit_attributes(detail.get("product_attributes")),
         "skus": target,
     }
+    # Only send category_id when a V2 leaf is available; otherwise omit it so
+    # TikTok keeps the product's current category (Edit Product rejects the
+    # legacy V1 leaf with error 12052217).
+    v2_category = _v2_category_id(detail)
+    if v2_category:
+        payload["category_id"] = v2_category
+    return payload
 
 
 # ----------------------------------------------------------------------
@@ -245,20 +234,9 @@ def run_variant_set(base_sku: str, pack_sizes: list[int], dry_run: bool) -> int:
     product_id = variants[0]["product_id"]
     try:
         detail = tiktokshop_client.fetch_product_detail_raw(product_id)
-        # TEMP category discovery: Edit Product requires a V2 category
-        # (error 12052217); this product's recommended_categories is empty and
-        # its stored chain leaf is V1. Recommend Category (read-only) resolves a
-        # V2 leaf from a CLEAN product name (the full marketing title makes it
-        # return "no matching categories"). Log it so a dry-run confirms the
-        # V2 id before any live write.
-        clean = _clean_title_for_recommend(detail.get("title"), base_sku)
-        print(f"  [variant] category_chains (current/V1) = {json.dumps(detail.get('category_chains'), ensure_ascii=False)}")
-        print(f"  [variant] recommended_categories = {json.dumps(detail.get('recommended_categories'), ensure_ascii=False)}")
-        print(f"  [variant] clean title for recommend = {clean!r}")
-        rec = tiktokshop_client.recommend_category_raw(clean)
-        print(f"  [variant] recommend(clean) raw = {json.dumps(rec, ensure_ascii=False)[:1500]}")
-        print(f"  [variant] resolved category_id for edit = {_category_id_for_edit(detail)}")
         payload = build_edit_payload(detail, base_sku, pack_sizes)
+        print(f"  [variant] V2 category resolved = {_v2_category_id(detail)} "
+              f"(category_id {'sent' if 'category_id' in payload else 'OMITTED — keep current'})")
     except Exception as e:  # noqa: BLE001
         msg = f"Gagal menyusun payload Edit Product untuk `{base_sku}`: {e}"
         print(f"✗ {msg}")

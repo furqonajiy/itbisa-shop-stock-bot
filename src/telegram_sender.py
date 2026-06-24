@@ -409,10 +409,10 @@ def send_harga_set_summary(report: dict) -> None:
         lines.append(f"{SHOPEE_LABEL} — _(tidak ada)_")
     else:
         lines.append(f"{SHOPEE_LABEL} — {shopee['status']}")
-        lines.append(f"- 1: Rp{_fmt_int(shopee['base_price'])}")
+        lines.append(f"• 1 = Rp{_fmt_int(shopee['base_price'])}")
         for mn, mx, price in shopee.get("wholesale_tiers") or []:
             hi = "∞" if mx >= 999999 else str(mx)
-            lines.append(f"- {mn}–{hi}: Rp{_fmt_int(price)}")
+            lines.append(f"• {mn}–{hi} = Rp{_fmt_int(price)}")
         packs = shopee.get("skipped_packs") or []
         if packs:
             lines.append(f"⏭️ {len(packs)} produk pack-size dilewati")

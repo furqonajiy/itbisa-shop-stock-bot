@@ -206,6 +206,10 @@ def build_edit_payload(detail: dict, base_sku: str, pack_sizes: list[int]) -> di
     payload = {
         "title": detail.get("title"),
         "description": detail.get("description"),
+        # Declare V2 categories — Edit Product otherwise validates category_id
+        # against the V1 taxonomy and rejects it (error 12052217), even when the
+        # id is a valid V2 leaf.
+        "category_version": "v2",
         "main_images": [
             {"uri": img["uri"]}
             for img in (detail.get("main_images") or []) if img.get("uri")
@@ -215,9 +219,8 @@ def build_edit_payload(detail: dict, base_sku: str, pack_sizes: list[int]) -> di
         "product_attributes": _edit_attributes(detail.get("product_attributes")),
         "skus": target,
     }
-    # Only send category_id when a V2 leaf is available; otherwise omit it so
-    # TikTok keeps the product's current category (Edit Product rejects the
-    # legacy V1 leaf with error 12052217).
+    # Send the product's recommended V2 leaf when available; otherwise the
+    # runner resolves one by name from the V2 category tree.
     v2_category = _v2_category_id(detail)
     if v2_category:
         payload["category_id"] = v2_category

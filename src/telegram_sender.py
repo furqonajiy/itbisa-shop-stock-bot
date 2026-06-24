@@ -445,6 +445,26 @@ def send_variant_set_summary(report: dict) -> None:
     _send(_join(lines))
 
 
+def send_weight_set_summary(report: dict) -> None:
+    """Single-SKU TikTok per-piece weight set (from /weight_set)."""
+    dry_run = bool(report.get("dry_run"))
+    suffix = " — DRY RUN" if dry_run else " — Selesai"
+    per_pcs = report.get("per_pcs_g")
+    lines = [
+        f"⚖️ *Set Weight*{suffix}",
+        "",
+        f"✅ `{report['base_sku']}`",
+        f"{TIKTOKSHOP_LABEL} — {report.get('status', '')}",
+    ]
+    if isinstance(per_pcs, (int, float)):
+        lines.append(f"Berat per pcs: {per_pcs:g} g")
+    lines.extend(report.get("weight_lines") or [])
+    if dry_run:
+        lines.append("")
+        lines.append("_Dry run — tidak ada write API yang dipanggil._")
+    _send(_join(lines))
+
+
 def send_alert(text: str, mode: str = "Set Stock") -> None:
     decorated = _decorate_platforms(text)
     _send(f"🚨 *{mode}* — Error\n\n{decorated}")

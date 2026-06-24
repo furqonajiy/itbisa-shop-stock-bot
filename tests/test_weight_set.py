@@ -1,0 +1,87 @@
+"""Unit tests for the /weight_set Edit-Product payload builder (pure logic)."""
+
+import pytest
+
+from src.weight_set_tiktok import build_weight_edit_payload
+
+# Synthetic detail mirroring a re-weight target: existing variants + Bubble Wrap.
+_DETAIL = {
+    "id": "P1",
+    "title": "IC PC817",
+    "description": "<p>desc</p>",
+    "category_chains": [{"id": "825992", "is_leaf": True, "local_name": "Unit Catu Daya"}],
+    "main_images": [{"uri": "tos-img/abc.jpg"}],
+    "package_weight": {"unit": "KILOGRAM", "value": "0.21"},
+    "package_dimensions": {"height": "0", "length": "0", "width": "0", "unit": "CENTIMETER"},
+    "product_attributes": [
+        {"id": "100107", "name": "Garansi", "values": [{"id": "1000057", "name": "Tanpa"}]},
+    ],
+    "skus": [
+        {
+            "id": "s1", "seller_sku": "ITBISA-IC-PC817-DIP4",
+            "inventory": [{"warehouse_id": "WH1", "quantity": 12}],
+            "price": {"currency": "IDR", "sale_price": "599"},
+            "sku_weight": {"unit": "KILOGRAM", "value": "0.5"},
+            "sales_attributes": [{"id": "ATTR", "name": "Packing", "value_id": "V1", "value_name": "1PCS"}],
+        },
+        {
+            "id": "s20", "seller_sku": "20PCS-ITBISA-IC-PC817-DIP4",
+            "inventory": [{"warehouse_id": "WH1", "quantity": 7}],
+            "price": {"currency": "IDR", "sale_price": "11860"},
+            "sku_weight": {"unit": "KILOGRAM", "value": "9"},
+            "sales_attributes": [{"id": "ATTR", "name": "Packing", "value_id": "V20", "value_name": "20PCS"}],
+        },
+        {
+            "id": "sbw", "seller_sku": "ITBISA-BUBBLE-WRAP",
+            "inventory": [{"warehouse_id": "WH1", "quantity": 0}],
+            "price": {"currency": "IDR", "sale_price": "100"},
+            "sku_weight": {"unit": "KILOGRAM", "value": "0.001"},
+            "sales_attributes": [{"id": "ATTR", "name": "Packing", "value_id": "VBW", "value_name": "Bubble Wrap"}],
+        },
+    ],
+}
+
+
+def _by_value(payload):
+    return {s["sales_attributes"][0]["value_name"]: s for s in payload["skus"]}
+
+
+def test_per_piece_weight_scales_by_multiplier():
+    # 1700 g / 1000 = 1.7 g/pcs -> 1PCS=0.0017kg, 20PCS=0.034kg
+    payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 1700)
+    by = _by_value(payload)
+    assert by["1PCS"]["package_weight"]["value"] == "0.0017"
+    assert by["20PCS"]["package_weight"]["value"] == "0.034"
+
+
+def test_bubble_wrap_keeps_its_own_weight():
+    payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 1700)
+    bw = _by_value(payload)["Bubble Wrap"]
+    assert bw["package_weight"]["value"] == "0.001"
+
+
+def test_stock_and_price_preserved():
+    payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 1700)
+    by = _by_value(payload)
+    assert by["1PCS"]["inventory"] == [{"warehouse_id": "WH1", "quantity": 12}]
+    assert by["20PCS"]["inventory"] == [{"warehouse_id": "WH1", "quantity": 7}]
+    assert by["1PCS"]["price"]["amount"] == "599"
+    assert by["20PCS"]["price"]["amount"] == "11860"
+
+
+def test_variation_set_is_unchanged():
+    payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 1700)
+    names = [s["sales_attributes"][0]["value_name"] for s in payload["skus"]]
+    assert names == ["1PCS", "20PCS", "Bubble Wrap"]
+
+
+def test_declares_v2_category_version():
+    payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 1700)
+    assert payload["category_version"] == "v2"
+
+
+def test_invalid_reference_rejected():
+    with pytest.raises(ValueError):
+        build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 0, 1700)
+    with pytest.raises(ValueError):
+        build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 0)

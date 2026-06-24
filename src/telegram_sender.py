@@ -469,7 +469,17 @@ def _send(text: str) -> None:
         response = requests.post(url, json=body, timeout=15)
         response.raise_for_status()
     except Exception as e:
-        print(f"  [telegram] Failed to send summary: {e}")
+        # A 400 here is almost always a legacy-Markdown parse error (an
+        # unbalanced `_`/`*`/`` ` `` slipped in from a raw API error string).
+        # Retry once as plain text so the message — often an error report we
+        # don't want to lose — still reaches the operator.
+        print(f"  [telegram] Markdown send failed ({e}); retrying as plain text")
+        try:
+            plain = dict(body)
+            plain.pop("parse_mode", None)
+            requests.post(url, json=plain, timeout=15).raise_for_status()
+        except Exception as e2:
+            print(f"  [telegram] Failed to send summary: {e2}")
 
 
 def _join(lines: list[str]) -> str:

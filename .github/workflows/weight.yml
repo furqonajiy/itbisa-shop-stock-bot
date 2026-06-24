@@ -1,0 +1,103 @@
+name: Set Weight
+
+on:
+  workflow_dispatch:
+    inputs:
+      sku:
+        description: "Base SKU (exact, e.g. ITBISA-IC-PC817-DIP4)"
+        required: true
+        type: string
+      ref_pcs:
+        description: "Reference pack size in pieces (e.g. 1000)"
+        required: true
+        type: string
+      grams:
+        description: "Total weight in grams of the reference pack (e.g. 1700)"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run (build + log Edit Product payload only; no write). Defaults true."
+        required: false
+        default: "true"
+        type: string
+
+concurrency:
+  group: stock-weight
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  weight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Overlay data/ from bot-state
+        run: |
+          git fetch origin bot-state || true
+          if git show-ref --verify --quiet refs/remotes/origin/bot-state; then
+            mkdir -p data
+            git --work-tree=. checkout origin/bot-state -- data/ 2>/dev/null || true
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run weight set
+        env:
+          SKU_ARG: ${{ inputs.sku }}
+          REF_PCS_ARG: ${{ inputs.ref_pcs }}
+          GRAMS_ARG: ${{ inputs.grams }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SHOPEE_PARTNER_ID: ${{ secrets.SHOPEE_PARTNER_ID }}
+          SHOPEE_PARTNER_KEY: ${{ secrets.SHOPEE_PARTNER_KEY }}
+          SHOPEE_SHOP_ID: ${{ secrets.SHOPEE_SHOP_ID }}
+          TIKTOKSHOP_APP_KEY: ${{ secrets.TIKTOKSHOP_APP_KEY }}
+          TIKTOKSHOP_APP_SECRET: ${{ secrets.TIKTOKSHOP_APP_SECRET }}
+          TIKTOKSHOP_SHOP_ID: ${{ secrets.TIKTOKSHOP_SHOP_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ "$DRY_RUN" = "false" ]; then
+            python scripts/weight_set.py --sku "$SKU_ARG" --ref-pcs "$REF_PCS_ARG" --grams "$GRAMS_ARG"
+          else
+            python scripts/weight_set.py --dry-run --sku "$SKU_ARG" --ref-pcs "$REF_PCS_ARG" --grams "$GRAMS_ARG"
+          fi
+
+      - name: Commit token state to bot-state
+        if: always()
+        run: |
+          if [ ! -d data ]; then
+            echo "No data/ directory to commit"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin bot-state || true
+          if git show-ref --verify --quiet refs/remotes/origin/bot-state; then
+            git checkout -B bot-state origin/bot-state
+          else
+            git checkout --orphan bot-state
+            git rm -rf . 2>/dev/null || true
+          fi
+          mkdir -p data
+          git add -f data/*.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No token/state changes to commit"
+          else
+            git commit -m "weight-set: update tokens"
+            git push origin bot-state
+          fi

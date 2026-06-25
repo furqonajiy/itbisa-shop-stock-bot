@@ -438,7 +438,10 @@ def send_variant_set_summary(report: dict) -> None:
         lines.append(f"• {vn}")
     if not dry_run and "✅" in report.get("status", ""):
         lines.append("")
-        lines.append("_Stok di-set 0; jalankan `/stock_set` untuk mengisi ulang total._")
+        # No italic here: legacy Markdown can't nest the `/stock_set` code span
+        # inside an _italic_ span (the message would fail to parse and fall back
+        # to plain text). Keep the code span; drop the italic.
+        lines.append("Stok di-set 0 — jalankan `/stock_set` untuk mengisi ulang total.")
     if dry_run:
         lines.append("")
         lines.append("_Dry run — tidak ada write API yang dipanggil._")

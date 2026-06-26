@@ -213,16 +213,16 @@ def set_wholesale(item_id: int, wholesale_tiers: list[tuple[int, int, int]]) -> 
     of (min_count, max_count, unit_price). An empty list clears any existing
     wholesale (so the base price applies to all quantities).
 
-    Shopee v2 has no confirmed standalone wholesale-write endpoint (`get_wholesale`
-    404s; wholesale is the item-level `wholesales` field). So this tries each
-    candidate write in turn, logging exactly what Shopee returns, and uses the
-    first that succeeds:
+    Shopee v2 exposes NO working wholesale-write endpoint (confirmed live):
+    `update_wholesale`/`add_wholesale` return HTTP 404 `error_not_found`, and
+    `update_item` returns HTTP 200 but silently ignores the `wholesales` field
+    (a FALSE success). So this tries each candidate and — crucially — VERIFIES
+    each apparent success by re-reading the live `wholesales` field; a candidate
+    only counts if the tiers actually changed. Raises RuntimeError if none
+    apply (caller treats it as "set Harga Grosir manually in Seller Center").
       1. /api/v2/product/update_wholesale  (wholesale_list)
       2. /api/v2/product/add_wholesale     (wholesale_list)
       3. /api/v2/product/update_item       (wholesales — partial item update)
-    Each call is wrapped (no premature raise) so one run reveals which endpoint
-    the shop accepts. Raises RuntimeError only if every candidate fails. Verify
-    the actual result with `/stock_get` (reads the live `wholesales` field).
     """
     wholesale_list = [
         {"min_count": mn, "max_count": mx, "unit_price": price}
@@ -247,10 +247,34 @@ def set_wholesale(item_id: int, wholesale_tiers: list[tuple[int, int, int]]) -> 
             print(f"  [shopee] set_wholesale: {msg}")
             errors.append(msg)
             continue
-        print(f"  [shopee] set_wholesale: OK via {path} → {str(data.get('response'))[:160]}")
-        return
+        # HTTP 200 + no error is NOT proof: update_item echoes the item back
+        # without applying `wholesales`. Re-read the live tiers and confirm.
+        if _wholesale_satisfied(wholesale_tiers, get_wholesale(item_id)):
+            print(f"  [shopee] set_wholesale: applied + verified via {path}")
+            return
+        msg = f"{path}: accepted (HTTP 200) but tiers unchanged (ignored)"
+        print(f"  [shopee] set_wholesale: {msg}")
+        errors.append(msg)
 
-    raise RuntimeError("no wholesale write endpoint accepted the request | " + " | ".join(errors))
+    raise RuntimeError(
+        "Shopee Open API tidak punya endpoint Harga Grosir yang berfungsi — "
+        "set manual di Seller Center | " + " | ".join(errors)
+    )
+
+
+def _wholesale_satisfied(
+        want_tiers: list[tuple[int, int, int]],
+        live_tiers: list[tuple[int, int, int]],
+) -> bool:
+    """True if every requested wholesale tier is present in the live tiers.
+
+    Pure. Compares on (min_count, unit_price) and ignores max_count, since
+    Shopee may normalise an open-ended top band's max. An empty request is
+    trivially satisfied.
+    """
+    want = {(int(mn), int(price)) for mn, _mx, price in want_tiers}
+    have = {(int(mn), int(price)) for mn, _mx, price in live_tiers}
+    return want.issubset(have)
 
 
 def _post_no_raise(path: str, body: dict) -> tuple[int, dict, str]:

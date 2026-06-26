@@ -47,37 +47,49 @@ def _by_value(payload):
 
 
 def test_per_piece_weight_scales_by_multiplier():
-    # 1700 g / 1000 = 1.7 g/pcs -> 1PCS=1.7 g, 20PCS=34 g, sent in GRAM.
+    # 1700 g / 1000 = 1.7 g/pcs -> 1PCS rounds up to 2 g, 20PCS = 34 g, in GRAM.
     payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 1700)
     by = _by_value(payload)
-    assert by["1PCS"]["sku_weight"] == {"value": "1.7", "unit": "GRAM"}
+    assert by["1PCS"]["sku_weight"] == {"value": "2", "unit": "GRAM"}
     assert by["20PCS"]["sku_weight"] == {"value": "34", "unit": "GRAM"}
 
 
-def test_reference_100pcs_850g_gives_relay_values():
-    # /weight_set ... 100 850 -> 8.5 g/pcs (the operator's relay case).
+def test_reference_100pcs_850g_rounds_up_to_integer_grams():
+    # /weight_set ... 100 850 -> 8.5 g/pcs (the operator's relay case). TikTok
+    # rejects decimal grams (error 12019011), so 8.5 g rounds UP to 9 g.
     payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 100, 850)
     by = _by_value(payload)
-    assert by["1PCS"]["sku_weight"] == {"value": "8.5", "unit": "GRAM"}
+    assert by["1PCS"]["sku_weight"] == {"value": "9", "unit": "GRAM"}    # 8.5 -> 9
     assert by["20PCS"]["sku_weight"] == {"value": "170", "unit": "GRAM"}
 
 
-def test_weight_sent_in_grams_with_one_gram_floor():
-    # A sub-gram per-piece weight must still send >= 1 g in GRAM, never 0 / kg —
-    # else TikTok rejects it (error 12052181 "weight cannot be zero").
-    # 100 g / 1000 = 0.1 g/pcs -> 1PCS floors to 1 g, 20PCS = 2 g (above floor).
+def test_all_weights_are_integer_grams_at_or_above_floor():
+    # Every per-SKU weight is a whole number of grams, never 0 / kg / decimal.
     payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 100)
     by = _by_value(payload)
+    # 100 g / 1000 = 0.1 g/pcs -> 1PCS floors to 1 g, 20PCS rounds up 2 -> 2 g.
     assert by["1PCS"]["sku_weight"] == {"value": "1", "unit": "GRAM"}
     assert by["20PCS"]["sku_weight"] == {"value": "2", "unit": "GRAM"}
     for s in payload["skus"]:
-        assert s["sku_weight"]["unit"] == "GRAM"
-        assert float(s["sku_weight"]["value"]) >= 1
+        w = s["sku_weight"]
+        assert w["unit"] == "GRAM"
+        assert "." not in w["value"]          # integer only
+        assert int(w["value"]) >= 1           # at/above the 1 g floor
+
+
+def test_product_package_weight_is_integer_grams():
+    # The product-level package_weight is also normalised to integer grams
+    # (error 12019011 "product package weight is invalid" otherwise).
+    payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 100, 850)
+    pkg = payload["package_weight"]
+    assert pkg["unit"] == "GRAM"
+    assert "." not in pkg["value"]
+    assert pkg["value"] == "210"              # 0.21 kg -> 210 g
 
 
 def test_bubble_wrap_keeps_its_own_weight():
     # Bubble Wrap is preserved (existing 0.001 kg = 1 g), not recomputed from the
-    # per-piece reference (which would give 1.7 g for the 1000/1700 case).
+    # per-piece reference (which would give 2 g for the 1000/1700 case).
     payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 1700)
     bw = _by_value(payload)["Bubble Wrap"]
     assert bw["sku_weight"] == {"value": "1", "unit": "GRAM"}

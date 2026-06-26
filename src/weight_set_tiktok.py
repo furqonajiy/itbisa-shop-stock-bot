@@ -9,9 +9,10 @@ standalone update endpoint, so this rides the same full-replace Edit Product
 PUT as `/variant_set` (and reuses its category-resolution helpers). NOTE: the
 per-SKU field is `sku_weight`; sending it as `package_weight` (a product-level
 field) is silently ignored and every variant collapses to the product weight.
-`sku_weight` is sent in GRAM (not KILOGRAM — a small per-piece weight like 8.5 g
-becomes 0.0085 kg and TikTok rounds it to zero → error 12052181) with a 1 g
-minimum floor.
+`sku_weight` is sent as an INTEGER number of GRAM (rounded up, 1 g floor): in
+KILOGRAM a small per-piece weight like 8.5 g becomes 0.0085 kg and TikTok rounds
+it to zero (error 12052181), and a decimal gram value is rejected as invalid
+(error 12019011). The product-level `package_weight` is normalised the same way.
 
 Input is a reference pack + its total weight, e.g. `/weight_set <BASE_SKU>
 1000PCS 1700g` → per-piece weight = 1700 g / 1000 = 1.7 g/pcs. Each variant's
@@ -31,9 +32,10 @@ from src.variant_set_tiktok import (
     BUBBLE_WRAP_SELLER_SKU,
     BUBBLE_WRAP_VALUE_NAME,
     BUBBLE_WRAP_WEIGHT_G,
-    MIN_SKU_WEIGHT_G,
     _edit_attributes,
+    _grams_int,
     _match_v2_category_by_name,
+    _package_weight_grams_payload,
     _sku_price_idr,
     _sku_weight_grams,
     _v1_leaf_name,
@@ -55,9 +57,9 @@ def build_weight_edit_payload(
     """Build the Edit Product payload that re-weights every existing variant.
 
     per_pcs = ref_weight_grams / ref_multiplier (grams); each pack variant's
-    weight is `per_pcs × its multiplier`, sent in GRAM with a 1 g floor. Stock
-    (inventory) and price are carried over unchanged; Bubble Wrap keeps its
-    existing weight. Pure given `detail`.
+    weight is `per_pcs × its multiplier`, sent as integer GRAM (rounded up, 1 g
+    floor). Stock (inventory) and price are carried over unchanged; Bubble Wrap
+    keeps its existing weight. Pure given `detail`.
     """
     skus_in = detail.get("skus") or []
     if not skus_in:
@@ -80,7 +82,7 @@ def build_weight_edit_payload(
         else:
             _, mult = parse_sku(seller_sku)
             weight_g = per_pcs_g * mult
-        weight_g = max(float(MIN_SKU_WEIGHT_G), round(weight_g, 2))
+        weight_g = _grams_int(weight_g)
 
         sales_attr = {"id": attr.get("id"), "name": attr.get("name"), "value_name": value_name}
         if attr.get("value_id"):
@@ -94,11 +96,12 @@ def build_weight_edit_payload(
                 for inv in (s.get("inventory") or []) if inv.get("warehouse_id")
             ],
             # Per-variant weight is `sku_weight` (matches the product detail),
-            # sent in GRAM and floored at MIN_SKU_WEIGHT_G — TikTok rejects a
-            # weight that rounds to zero (error 12052181) and 8.5 g sent as
-            # 0.0085 kg rounds to 0. `package_weight` per SKU is ignored by Edit
-            # Product (every variant would collapse to the product-level weight).
-            "sku_weight": {"value": f"{weight_g:g}", "unit": "GRAM"},
+            # sent as an INTEGER number of GRAM (rounded up, 1 g floor) — TikTok
+            # rejects a weight that rounds to zero (error 12052181) or carries a
+            # decimal (error 12019011); 8.5 g sent as 0.0085 kg rounds to 0.
+            # `package_weight` per SKU is ignored by Edit Product (every variant
+            # would collapse to the product-level weight).
+            "sku_weight": {"value": str(weight_g), "unit": "GRAM"},
         }
         price = _sku_price_idr(s)
         if price is not None:
@@ -113,7 +116,7 @@ def build_weight_edit_payload(
             {"uri": img["uri"]}
             for img in (detail.get("main_images") or []) if img.get("uri")
         ],
-        "package_weight": detail.get("package_weight"),
+        "package_weight": _package_weight_grams_payload(detail) or detail.get("package_weight"),
         "package_dimensions": detail.get("package_dimensions"),
         "product_attributes": _edit_attributes(detail.get("product_attributes")),
         "skus": target,

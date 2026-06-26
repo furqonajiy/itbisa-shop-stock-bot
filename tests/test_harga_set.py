@@ -3,10 +3,31 @@
 import pytest
 
 from src.harga_set_price import (
+    charm_round_up_to_nines,
     compute_shopee_pricing,
     parse_tiers,
     unit_price_for_quantity,
 )
+
+
+# ----------------------------------------------------------------------
+# charm_round_up_to_nines (TikTok listing prices end in 99/999/9999)
+# ----------------------------------------------------------------------
+def test_charm_round_keeps_top_two_digits_and_nine_fills():
+    assert charm_round_up_to_nines(1599) == 1599      # already ends 99
+    assert charm_round_up_to_nines(7995) == 7999      # 4-digit → …99
+    assert charm_round_up_to_nines(31980) == 31999    # 5-digit → …999
+    assert charm_round_up_to_nines(77450) == 77999    # 5-digit → …999
+    assert charm_round_up_to_nines(154900) == 159999  # 6-digit → …9999
+    assert charm_round_up_to_nines(749500) == 749999  # 6-digit → …9999
+
+
+def test_charm_round_never_undercharges_and_small_prices_untouched():
+    for p in (100, 101, 250, 999, 1000, 12345, 999999):
+        assert charm_round_up_to_nines(p) >= p
+    assert charm_round_up_to_nines(99) == 99    # < 100 left alone
+    assert charm_round_up_to_nines(50) == 50
+    assert charm_round_up_to_nines(100) == 109  # 3-digit → keep "10", end in 9
 
 
 # ----------------------------------------------------------------------

@@ -291,15 +291,20 @@ def _run_shopee_harga(
             "ones": [],
             "skipped_packs": packs,
             "status": "⏭️ tidak ada listing 1PCS di Shopee",
+            "wholesale_applied": None,
         }
 
-    status = "🔍 dry-run" if dry_run else _push_shopee_prices(ones, base_price, wholesale_tiers)
+    if dry_run:
+        status, wholesale_applied = "🔍 dry-run", None
+    else:
+        status, wholesale_applied = _push_shopee_prices(ones, base_price, wholesale_tiers)
     return {
         "base_price": base_price,
         "wholesale_tiers": wholesale_tiers,
         "ones": [{"raw_sku": v["raw_sku"]} for v in ones],
         "skipped_packs": packs,
         "status": status,
+        "wholesale_applied": wholesale_applied,
     }
 
 
@@ -307,13 +312,28 @@ def _push_shopee_prices(
         ones: list[dict],
         base_price: int,
         wholesale_tiers: list[tuple[int, int, int]],
-) -> str:
-    """Set base price + Harga Grosir wholesale tiers on each 1PCS listing."""
+) -> tuple[str, bool | None]:
+    """Set base price (API) + best-effort Harga Grosir on each 1PCS listing.
+
+    Returns `(status, wholesale_applied)`. The base price write is required (a
+    failure → ❌). The Harga Grosir write is best-effort and verified: Shopee's
+    Open API has no working wholesale endpoint, so if it doesn't apply we keep
+    the (successful) base price and report that Harga Grosir must be set manually
+    — not a hard failure. `wholesale_applied` is None when there are no tiers.
+    """
+    wholesale_applied: bool | None = True if wholesale_tiers else None
     for v in ones:
         try:
             shopee_client.update_price(v["item_id"], v["model_id"], base_price)
-            shopee_client.set_wholesale(v["item_id"], wholesale_tiers)
-        except Exception as e:  # noqa: BLE001 - report platform write failure
-            return f"❌ gagal: {v['raw_sku']}: {e}"
+        except Exception as e:  # noqa: BLE001 - base price failure is fatal for Shopee
+            return f"❌ gagal set harga dasar: {v['raw_sku']}: {e}", False
+        if wholesale_tiers:
+            try:
+                shopee_client.set_wholesale(v["item_id"], wholesale_tiers)
+            except Exception as e:  # noqa: BLE001 - wholesale write is best-effort
+                wholesale_applied = False
+                print(f"  [shopee] Harga Grosir tidak diterapkan ({v['raw_sku']}): {e}")
         time.sleep(config.DELAY_BETWEEN_CALLS_SECONDS)
-    return "✅ berhasil"
+    if wholesale_tiers and not wholesale_applied:
+        return "✅ harga dasar di-set — ⚠️ Harga Grosir set manual di Seller Center", False
+    return "✅ berhasil", wholesale_applied

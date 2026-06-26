@@ -417,6 +417,11 @@ def send_harga_set_summary(report: dict) -> None:
         for mn, mx, price in shopee.get("wholesale_tiers") or []:
             hi = "∞" if mx >= 999999 else str(mx)
             lines.append(f"• {mn}–{hi} = Rp{_fmt_int(price)}")
+        # The Shopee Open API can't write Harga Grosir (no working endpoint), so
+        # when the verified wholesale write didn't apply, tell the operator to
+        # enter the tiers above manually in Seller Center.
+        if shopee.get("wholesale_applied") is False and shopee.get("wholesale_tiers"):
+            lines.append("⚠️ Harga Grosir di atas set manual di Seller Center (API Shopee belum mendukung).")
         packs = shopee.get("skipped_packs") or []
         if packs:
             lines.append(f"⏭️ {len(packs)} produk pack-size dilewati")

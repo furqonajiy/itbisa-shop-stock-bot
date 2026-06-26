@@ -86,6 +86,26 @@ def test_existing_values_keep_value_id_and_price_new_ones_scale():
     assert by["1000PCS"]["price"]["amount"] == str(599 * 1000)
 
 
+def test_extra_value_ids_attach_to_packs_not_on_this_product():
+    # 50PCS / 1000PCS are not on _DETAIL but exist shop-globally → their ids
+    # must attach (else TikTok silently drops them). 20PCS keeps its own id;
+    # a name absent everywhere (no extra id) is still created fresh.
+    payload = build_edit_payload(
+        _DETAIL, "ITBISA-IC-PC817-DIP4", [1, 20, 50, 1000],
+        extra_value_ids={"50PCS": "GV50", "1000PCS": "GV1000"},
+    )
+    by = _by_value(payload)
+    assert by["20PCS"]["sales_attributes"][0].get("value_id") == "V20"   # own
+    assert by["50PCS"]["sales_attributes"][0].get("value_id") == "GV50"  # global
+    assert by["1000PCS"]["sales_attributes"][0].get("value_id") == "GV1000"
+    # product's own value_id wins over any global entry for the same name
+    payload2 = build_edit_payload(
+        _DETAIL, "ITBISA-IC-PC817-DIP4", [1, 20],
+        extra_value_ids={"20PCS": "SHOULD_NOT_WIN"},
+    )
+    assert _by_value(payload2)["20PCS"]["sales_attributes"][0]["value_id"] == "V20"
+
+
 def test_bubble_wrap_is_price_100_and_stock_zero():
     payload = build_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", [1, 20])
     bw = _by_value(payload)["Bubble Wrap"]

@@ -125,6 +125,56 @@ def _v2_category_id(detail: dict) -> str | None:
     return None
 
 
+def _variant_value_name(variant: dict) -> str:
+    """The Packing value_name a catalog variant represents."""
+    if variant.get("raw_sku") == BUBBLE_WRAP_SELLER_SKU:
+        return BUBBLE_WRAP_VALUE_NAME
+    return _value_name(variant.get("multiplier", 1))
+
+
+def _resolve_global_value_ids(needed_names: set[str], catalog: dict) -> dict[str, str]:
+    """Resolve the shop-global Packing value_id for each needed value name.
+
+    "Packing" values are shared shop-wide, so a value already in use by ANY
+    product carries an id we must reuse (sending it by name without the id makes
+    Edit Product silently drop the variant). For each needed name we find a donor
+    product that uses it and read the id from that product's detail. Names used
+    by no current product can't be resolved here and are left for TikTok to
+    create fresh. Best-effort: a donor detail failure just skips that name.
+    """
+    if not needed_names:
+        return {}
+    donor: dict[str, tuple[str, str]] = {}  # value_name -> (product_id, sku_id)
+    for variants in catalog.values():
+        for v in variants:
+            name = _variant_value_name(v)
+            if name in needed_names and name not in donor and v.get("sku_id") and v.get("product_id"):
+                donor[name] = (v["product_id"], v["sku_id"])
+        if len(donor) == len(needed_names):
+            break
+
+    by_product: dict[str, list[tuple[str, str]]] = {}
+    for name, (pid, sid) in donor.items():
+        by_product.setdefault(pid, []).append((name, sid))
+
+    resolved: dict[str, str] = {}
+    for pid, items in by_product.items():
+        try:
+            detail = tiktokshop_client.fetch_product_detail_raw(pid)
+        except Exception as e:  # noqa: BLE001 - best-effort per donor
+            print(f"  [variant] donor detail {pid} failed: {e}")
+            continue
+        sid_to_vid = {
+            s.get("id"): ((s.get("sales_attributes") or [{}])[0]).get("value_id")
+            for s in (detail.get("skus") or [])
+        }
+        for name, sid in items:
+            vid = sid_to_vid.get(sid)
+            if vid:
+                resolved[name] = vid
+    return resolved
+
+
 def _edit_attributes(product_attributes) -> list[dict]:
     out = []
     for a in product_attributes or []:
@@ -135,14 +185,22 @@ def _edit_attributes(product_attributes) -> list[dict]:
 
 
 def _build_sku(attr_id, attr_name, existing, value_name, seller_sku,
-               price_idr, weight_kg, warehouse_id, qty):
+               price_idr, weight_kg, warehouse_id, qty, extra_value_ids=None):
     sales_attr = {"id": attr_id, "name": attr_name, "value_name": value_name}
-    # Reuse the existing value_id when the value already exists, so TikTok keeps
-    # it; omit value_id for brand-new values (TikTok creates them by name).
+    # Attach the value_id so TikTok references the EXISTING shop-global "Packing"
+    # value instead of trying to re-create it. "Packing" values (1PCS, 20PCS, …)
+    # are shared shop-wide: a value sent by name WITHOUT its id is silently
+    # dropped on Edit Product (the variant never gets created, yet the call
+    # returns success). Prefer the id from this product's own variant; else fall
+    # back to the shop-global id resolved from a donor product. Only a value name
+    # that exists nowhere is sent without an id (TikTok then creates it fresh).
+    value_id = None
     if existing:
-        ex_attr = (existing.get("sales_attributes") or [{}])[0]
-        if ex_attr.get("value_id"):
-            sales_attr["value_id"] = ex_attr["value_id"]
+        value_id = ((existing.get("sales_attributes") or [{}])[0]).get("value_id")
+    if not value_id and extra_value_ids:
+        value_id = extra_value_ids.get(value_name)
+    if value_id:
+        sales_attr["value_id"] = value_id
     sku = {
         "seller_sku": seller_sku,
         "sales_attributes": [sales_attr],
@@ -153,13 +211,16 @@ def _build_sku(attr_id, attr_name, existing, value_name, seller_sku,
     return sku
 
 
-def build_edit_payload(detail: dict, base_sku: str, pack_sizes: list[int]) -> dict:
+def build_edit_payload(detail: dict, base_sku: str, pack_sizes: list[int],
+                       extra_value_ids: dict | None = None) -> dict:
     """Construct the Edit Product payload that sets `Packing` to exactly the
-    given pack sizes (+ Bubble Wrap). Pure given `detail`.
+    given pack sizes (+ Bubble Wrap). Pure given `detail` + `extra_value_ids`.
 
     New pack variants get stock 0 and a placeholder price/weight scaled from the
     1PCS variant (refined later by /harga_set and /weight_set); existing values
-    keep their value_id, price, and weight.
+    keep their value_id, price, and weight. `extra_value_ids` ({value_name:
+    value_id}) supplies the shop-global value_id for pack sizes not on this
+    product but already in use elsewhere — without it TikTok drops them.
     """
     skus_in = detail.get("skus") or []
     if not skus_in:
@@ -193,14 +254,14 @@ def build_edit_payload(detail: dict, base_sku: str, pack_sizes: list[int]) -> di
         weight = _sku_weight_kg(ex) if ex else round(ref_unit_weight * m, 4)
         target.append(_build_sku(
             attr_id, attr_name, ex, vn, _seller_sku(base_sku, m),
-            price, weight, warehouse_id, qty=0,
+            price, weight, warehouse_id, qty=0, extra_value_ids=extra_value_ids,
         ))
 
     bw = existing.get(BUBBLE_WRAP_VALUE_NAME)
     target.append(_build_sku(
         attr_id, attr_name, bw, BUBBLE_WRAP_VALUE_NAME, BUBBLE_WRAP_SELLER_SKU,
         BUBBLE_WRAP_PRICE_IDR, _sku_weight_kg(bw) or BUBBLE_WRAP_WEIGHT_KG,
-        warehouse_id, qty=0,
+        warehouse_id, qty=0, extra_value_ids=extra_value_ids,
     ))
 
     payload = {
@@ -262,7 +323,26 @@ def run_variant_set(base_sku: str, pack_sizes: list[int], dry_run: bool) -> int:
     product_id = variants[0]["product_id"]
     try:
         detail = tiktokshop_client.fetch_product_detail_raw(product_id)
-        payload = build_edit_payload(detail, base_sku, pack_sizes)
+        # Resolve shop-global value_ids for the requested pack sizes that are NOT
+        # already on this product, so existing "Packing" values attach instead of
+        # being dropped (the silent-drop bug). Names on this product carry their
+        # own id; names used by no product are created fresh by TikTok.
+        target_names = (
+            [_value_name(int(m)) for m in sorted(set(int(p) for p in pack_sizes))]
+            + [BUBBLE_WRAP_VALUE_NAME]
+        )
+        on_product = {
+            ((s.get("sales_attributes") or [{}])[0]).get("value_name")
+            for s in (detail.get("skus") or [])
+        }
+        needed = {n for n in target_names if n not in on_product}
+        extra_value_ids = _resolve_global_value_ids(needed, catalog)
+        print(f"  [variant] on product: {sorted(n for n in target_names if n in on_product)}")
+        print(f"  [variant] resolved global value_ids: {extra_value_ids}")
+        brand_new = sorted(needed - set(extra_value_ids))
+        if brand_new:
+            print(f"  [variant] created fresh (no existing value_id): {brand_new}")
+        payload = build_edit_payload(detail, base_sku, pack_sizes, extra_value_ids=extra_value_ids)
         # Edit Product requires a V2 category_id. If the detail offered no V2
         # recommendation, map the product's current V1 leaf name to the
         # same-named V2 leaf from the category tree (names carried over the
@@ -307,8 +387,43 @@ def run_variant_set(base_sku: str, pack_sizes: list[int], dry_run: bool) -> int:
         })
         return 1
 
+    # Verify: Edit Product can return success while silently dropping variants
+    # (e.g. a Packing value sent without its shop-global id). Re-read the product
+    # and confirm every requested value actually exists; report honestly if not.
+    missing = _verify_variants_created(product_id, value_names)
+    if missing is None:
+        status = "✅ berhasil (verifikasi dilewati)"
+    elif missing:
+        status = f"⚠️ sebagian gagal dibuat: {', '.join(missing)} — coba ulang"
+        print(f"  [variant] MISSING after edit: {missing}")
+        telegram_sender.send_variant_set_summary({
+            "base_sku": base_sku, "value_names": value_names,
+            "status": status, "dry_run": False,
+        })
+        return 1
+    else:
+        status = "✅ berhasil"
+
     telegram_sender.send_variant_set_summary({
         "base_sku": base_sku, "value_names": value_names,
-        "status": "✅ berhasil", "dry_run": False,
+        "status": status, "dry_run": False,
     })
     return 0
+
+
+def _verify_variants_created(product_id: str, expected_value_names: list[str]) -> list[str] | None:
+    """Re-read the product and return the requested value names that are missing.
+
+    Returns [] when all present, a non-empty list of missing names, or None if
+    the verification read itself failed (don't punish a successful write for a
+    transient read hiccup)."""
+    try:
+        after = tiktokshop_client.fetch_product_detail_raw(product_id)
+    except Exception as e:  # noqa: BLE001 - verification is best-effort
+        print(f"  [variant] post-edit verify read failed: {e}")
+        return None
+    present = {
+        ((s.get("sales_attributes") or [{}])[0]).get("value_name")
+        for s in (after.get("skus") or [])
+    }
+    return [n for n in expected_value_names if n not in present]

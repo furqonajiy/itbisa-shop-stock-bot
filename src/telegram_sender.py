@@ -254,7 +254,7 @@ def send_stock_balance_summary(report: dict) -> None:
         header,
         "",
         f"SKU: `{report['base_sku']}`",
-        f"Σ Total: {_fmt_int(report['total_pieces'])} pcs (dipertahankan)",
+        f"🧮 Total: {_fmt_int(report['total_pieces'])} pcs (dipertahankan)",
         "",
         "*Sebelum → Sesudah:*",
         f"{SHOPEE_LABEL}: {_fmt_int(report['shopee_before_pieces'])} → "
@@ -304,7 +304,7 @@ def send_stock_balance_multi_summary(report: dict) -> None:
             lines.append(f"{SHOPEE_LABEL} {sh_b} → {sh_a}")
             lines.append(f"{TIKTOKSHOP_LABEL} {tt_b} → {tt_a}")
             lines.append(
-                f"Σ Total: "
+                f"🧮 Total: "
                 f"{_fmt_int(int(r['shopee_after_pieces']) + int(r['tiktokshop_after_pieces']))} pcs"
             )
         elif status == "skipped":

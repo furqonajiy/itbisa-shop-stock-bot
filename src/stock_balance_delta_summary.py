@@ -60,7 +60,7 @@ def _send_stock_balance_summary_compact(report: dict) -> None:
         header,
         "",
         f"✅ `{sku}`",
-        f"Total tetap: {_fmt_int(report['total_pieces'])} pcs",
+        f"Σ Total: {_fmt_int(report['total_pieces'])} pcs",
         "",
         "📊 *Ringkas*",
         _platform_change_line(
@@ -124,6 +124,10 @@ def _send_stock_balance_multi_summary_with_delta(report: dict) -> None:
             lines.append(_platform_change_line(
                 telegram_sender.TIKTOKSHOP_LABEL,
                 result["tiktokshop_before_pieces"],
+                result["tiktokshop_after_pieces"],
+            ))
+            lines.append(_total_line(
+                result["shopee_after_pieces"],
                 result["tiktokshop_after_pieces"],
             ))
         elif status == "skipped":
@@ -208,6 +212,11 @@ def _pack_label(raw_sku: str, base_sku: str) -> str:
 def _platform_change_line(label: str, before: int, after: int) -> str:
     suffix = _delta_suffix(after - before)
     return f"{label} {_fmt_int(before)} → {_fmt_int(after)}{suffix}"
+
+
+def _total_line(shopee_after: int, tiktokshop_after: int) -> str:
+    """Combined physical stock across both platforms (Σ)."""
+    return f"Σ Total: {_fmt_int(int(shopee_after) + int(tiktokshop_after))} pcs"
 
 
 def _delta_suffix(delta: int) -> str:

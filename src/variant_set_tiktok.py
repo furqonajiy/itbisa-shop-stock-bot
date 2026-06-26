@@ -25,6 +25,7 @@ payload before a live submit.
 from __future__ import annotations
 
 import json
+import math
 import time
 
 from src import shopee_auth, telegram_sender, tiktokshop_client
@@ -84,6 +85,24 @@ def _sku_weight_grams(sku: dict | None) -> float | None:
         return None
     unit = (w.get("unit") or "KILOGRAM").upper()
     return value * _GRAMS_PER_WEIGHT_UNIT.get(unit, 1000.0)
+
+
+def _grams_int(value: float) -> int:
+    """Round a gram weight UP to a whole number, floored at MIN_SKU_WEIGHT_G.
+
+    TikTok rejects a per-SKU/product weight that is zero (error 12052181) or
+    carries a decimal part (error 12019011), so every weight is sent as an
+    integer number of grams, rounded up so it is never understated.
+    """
+    return max(MIN_SKU_WEIGHT_G, math.ceil(round(float(value), 4)))
+
+
+def _package_weight_grams_payload(detail: dict) -> dict | None:
+    """Product-level package_weight as an integer-gram payload (or None)."""
+    grams = _sku_weight_grams({"package_weight": detail.get("package_weight")})
+    if grams is None:
+        return None
+    return {"value": str(_grams_int(grams)), "unit": "GRAM"}
 
 
 def _leaf_category_id(detail: dict) -> str | None:
@@ -223,12 +242,13 @@ def _build_sku(attr_id, attr_name, existing, value_name, seller_sku,
         "price": {"amount": str(int(price_idr)), "currency": _CURRENCY},
         "inventory": [{"warehouse_id": warehouse_id, "quantity": int(qty)}],
         # Per-variant weight is `sku_weight` (what the product detail returns),
-        # sent in GRAM and floored at MIN_SKU_WEIGHT_G: TikTok rejects a weight
-        # that rounds to zero (error 12052181), and a small per-piece weight in
-        # KILOGRAM (8.5 g → 0.0085 kg) rounds to 0. Sending it as `package_weight`
-        # is silently ignored and every variant falls back to the product-level
-        # weight (the old 850 g collapse). `package_weight` stays PRODUCT-level.
-        "sku_weight": {"value": f"{max(MIN_SKU_WEIGHT_G, weight_g):g}", "unit": "GRAM"},
+        # sent as an INTEGER number of GRAM, rounded up and floored at
+        # MIN_SKU_WEIGHT_G: TikTok rejects a weight that rounds to zero (error
+        # 12052181) or carries a decimal (error 12019011), and a small per-piece
+        # weight in KILOGRAM (8.5 g → 0.0085 kg) rounds to 0. Sending it as
+        # `package_weight` is silently ignored and every variant falls back to the
+        # product-level weight (the old 850 g collapse) — that stays PRODUCT-level.
+        "sku_weight": {"value": str(_grams_int(weight_g)), "unit": "GRAM"},
     }
     return sku
 
@@ -297,7 +317,7 @@ def build_edit_payload(detail: dict, base_sku: str, pack_sizes: list[int],
             {"uri": img["uri"]}
             for img in (detail.get("main_images") or []) if img.get("uri")
         ],
-        "package_weight": detail.get("package_weight"),
+        "package_weight": _package_weight_grams_payload(detail) or detail.get("package_weight"),
         "package_dimensions": detail.get("package_dimensions"),
         "product_attributes": _edit_attributes(detail.get("product_attributes")),
         "skus": target,

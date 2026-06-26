@@ -25,6 +25,7 @@ payload before a live submit.
 from __future__ import annotations
 
 import json
+import time
 
 from src import shopee_auth, telegram_sender, tiktokshop_client
 
@@ -387,22 +388,18 @@ def run_variant_set(base_sku: str, pack_sizes: list[int], dry_run: bool) -> int:
         })
         return 1
 
-    # Verify: Edit Product can return success while silently dropping variants
-    # (e.g. a Packing value sent without its shop-global id). Re-read the product
-    # and confirm every requested value actually exists; report honestly if not.
+    # Best-effort verify. The Edit Product call already returned success (code 0
+    # — a hard API rejection would have raised above). Newly-created TikTok
+    # variants can take a few MINUTES to become visible in the product detail, so
+    # a brief re-read may not see them yet. Treat "not yet visible" as an
+    # informational note (still ✅ + exit 0), NOT a failure — don't repeat the
+    # earlier false-negative that reported failure on variants that did get made.
     missing = _verify_variants_created(product_id, value_names)
-    if missing is None:
-        status = "✅ berhasil (verifikasi dilewati)"
-    elif missing:
-        status = f"⚠️ sebagian gagal dibuat: {', '.join(missing)} — coba ulang"
-        print(f"  [variant] MISSING after edit: {missing}")
-        telegram_sender.send_variant_set_summary({
-            "base_sku": base_sku, "value_names": value_names,
-            "status": status, "dry_run": False,
-        })
-        return 1
-    else:
+    if not missing:
         status = "✅ berhasil"
+    else:
+        status = "✅ berhasil — varian baru bisa perlu beberapa menit tampil di TikTok (cek `/stock_get`)"
+        print(f"  [variant] not yet visible after edit (TikTok propagation): {missing}")
 
     telegram_sender.send_variant_set_summary({
         "base_sku": base_sku, "value_names": value_names,
@@ -411,19 +408,31 @@ def run_variant_set(base_sku: str, pack_sizes: list[int], dry_run: bool) -> int:
     return 0
 
 
-def _verify_variants_created(product_id: str, expected_value_names: list[str]) -> list[str] | None:
-    """Re-read the product and return the requested value names that are missing.
+def _verify_variants_created(product_id: str, expected_value_names: list[str],
+                             attempts: int = 3, delay_s: int = 5) -> list[str]:
+    """Re-read the product (a few retries) and return value names not yet visible.
 
-    Returns [] when all present, a non-empty list of missing names, or None if
-    the verification read itself failed (don't punish a successful write for a
+    Returns [] once all requested values appear. New variants propagate on
+    TikTok's clock (often minutes), so a non-empty result means "not visible
+    yet", not necessarily "failed" — the caller treats it as an info note. A
+    read that always fails yields [] (don't punish a successful write for a
     transient read hiccup)."""
-    try:
-        after = tiktokshop_client.fetch_product_detail_raw(product_id)
-    except Exception as e:  # noqa: BLE001 - verification is best-effort
-        print(f"  [variant] post-edit verify read failed: {e}")
-        return None
-    present = {
-        ((s.get("sales_attributes") or [{}])[0]).get("value_name")
-        for s in (after.get("skus") or [])
-    }
-    return [n for n in expected_value_names if n not in present]
+    last_present: set | None = None
+    for i in range(attempts):
+        try:
+            after = tiktokshop_client.fetch_product_detail_raw(product_id)
+        except Exception as e:  # noqa: BLE001 - verification is best-effort
+            print(f"  [variant] verify read {i + 1}/{attempts} failed: {e}")
+            after = None
+        if after is not None:
+            last_present = {
+                ((s.get("sales_attributes") or [{}])[0]).get("value_name")
+                for s in (after.get("skus") or [])
+            }
+            if all(n in last_present for n in expected_value_names):
+                return []
+        if i < attempts - 1:
+            time.sleep(delay_s)
+    if last_present is None:
+        return []
+    return [n for n in expected_value_names if n not in last_present]

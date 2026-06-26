@@ -66,8 +66,46 @@ def test_weight_summary_is_valid_markdown(monkeypatch):
     text = _capture(monkeypatch, telegram_sender.send_weight_set_summary, {
         "base_sku": "ITBISA-IC-CD4094BM-SMD-SOP16",
         "per_pcs_g": 1.7,
-        "weight_lines": ["• 1PCS = 0.0017 kg", "• 1000PCS = 1.7 kg"],
+        "weight_lines": ["• 1PCS = 2 g", "• 1000PCS = 1700 g"],
         "status": "✅ berhasil",
         "dry_run": False,
     })
+    _assert_legacy_markdown_ok(text)
+
+
+def test_balance_multi_summary_shows_combined_total(monkeypatch):
+    from src import stock_balance_delta_summary as bds
+
+    captured = {}
+    monkeypatch.setattr(telegram_sender, "_send", lambda text: captured.update(text=text))
+    bds._send_stock_balance_multi_summary_with_delta({
+        "results": [{
+            "base_sku": "ITBISA-7SEGMENT-ANODE-RED-1.20-1BIT",
+            "status": "ok",
+            "shopee_before_pieces": 100, "shopee_after_pieces": 120,
+            "tiktokshop_before_pieces": 120, "tiktokshop_after_pieces": 100,
+        }],
+        "dry_run": False,
+    })
+    text = captured["text"]
+    assert "Σ Total: 220 pcs" in text       # 120 Shopee + 100 TikTok Shop
+    _assert_legacy_markdown_ok(text)
+
+
+def test_balance_single_compact_shows_combined_total(monkeypatch):
+    from src import stock_balance_delta_summary as bds
+
+    captured = {}
+    monkeypatch.setattr(telegram_sender, "_send", lambda text: captured.update(text=text))
+    bds._send_stock_balance_summary_compact({
+        "base_sku": "ITBISA-7SEGMENT-ANODE-RED-1.20-1BIT",
+        "dry_run": False, "total_pieces": 220,
+        "shopee_before_pieces": 100, "shopee_after_pieces": 120,
+        "tiktokshop_before_pieces": 120, "tiktokshop_after_pieces": 100,
+        "shopee_status": "✅ berhasil", "tiktokshop_status": "✅ berhasil",
+        "shopee_lines": [], "tiktokshop_lines": [],
+        "shopee_detail_variants": None, "tiktokshop_detail_variants": None,
+    })
+    text = captured["text"]
+    assert "Σ Total: 220 pcs" in text
     _assert_legacy_markdown_ok(text)

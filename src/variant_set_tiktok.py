@@ -32,9 +32,21 @@ from src import shopee_auth, telegram_sender, tiktokshop_client
 BUBBLE_WRAP_SELLER_SKU = "ITBISA-BUBBLE-WRAP"
 BUBBLE_WRAP_VALUE_NAME = "Bubble Wrap"
 BUBBLE_WRAP_PRICE_IDR = 100
-BUBBLE_WRAP_WEIGHT_KG = 0.001
+BUBBLE_WRAP_WEIGHT_G = 1  # 1 gram — TikTok's minimum per-SKU weight
 PACKING_ATTR_NAME = "Packing"
 _CURRENCY = "IDR"
+
+# Per-SKU weight is always sent in GRAM, floored at MIN_SKU_WEIGHT_G. TikTok
+# rejects a weight that rounds to zero (error 12052181 "weight cannot be zero"),
+# and a small per-piece weight sent in KILOGRAM (e.g. 8.5 g as 0.0085 kg) rounds
+# to 0. Reads normalise the detail's tagged unit back to grams.
+MIN_SKU_WEIGHT_G = 1
+_GRAMS_PER_WEIGHT_UNIT = {
+    "GRAM": 1.0,
+    "KILOGRAM": 1000.0,
+    "POUND": 453.59237,
+    "OUNCE": 28.349523125,
+}
 
 
 # ----------------------------------------------------------------------
@@ -61,14 +73,17 @@ def _sku_price_idr(sku: dict | None) -> int | None:
     return None
 
 
-def _sku_weight_kg(sku: dict | None) -> float | None:
+def _sku_weight_grams(sku: dict | None) -> float | None:
+    """Per-SKU weight normalised to grams (the detail tags its own unit)."""
     if not sku:
         return None
     w = sku.get("sku_weight") or sku.get("package_weight") or {}
     try:
-        return float(w.get("value"))
+        value = float(w.get("value"))
     except (TypeError, ValueError):
         return None
+    unit = (w.get("unit") or "KILOGRAM").upper()
+    return value * _GRAMS_PER_WEIGHT_UNIT.get(unit, 1000.0)
 
 
 def _leaf_category_id(detail: dict) -> str | None:
@@ -186,7 +201,7 @@ def _edit_attributes(product_attributes) -> list[dict]:
 
 
 def _build_sku(attr_id, attr_name, existing, value_name, seller_sku,
-               price_idr, weight_kg, warehouse_id, qty, extra_value_ids=None):
+               price_idr, weight_g, warehouse_id, qty, extra_value_ids=None):
     sales_attr = {"id": attr_id, "name": attr_name, "value_name": value_name}
     # Attach the value_id so TikTok references the EXISTING shop-global "Packing"
     # value instead of trying to re-create it. "Packing" values (1PCS, 20PCS, …)
@@ -207,11 +222,13 @@ def _build_sku(attr_id, attr_name, existing, value_name, seller_sku,
         "sales_attributes": [sales_attr],
         "price": {"amount": str(int(price_idr)), "currency": _CURRENCY},
         "inventory": [{"warehouse_id": warehouse_id, "quantity": int(qty)}],
-        # Per-variant weight is `sku_weight` (what the product detail returns).
-        # Sending it as `package_weight` is silently ignored and every variant
-        # falls back to the product-level weight — so all variants ended up at
-        # the same 850 g. `package_weight` stays a PRODUCT-level field only.
-        "sku_weight": {"value": f"{weight_kg:g}", "unit": "KILOGRAM"},
+        # Per-variant weight is `sku_weight` (what the product detail returns),
+        # sent in GRAM and floored at MIN_SKU_WEIGHT_G: TikTok rejects a weight
+        # that rounds to zero (error 12052181), and a small per-piece weight in
+        # KILOGRAM (8.5 g → 0.0085 kg) rounds to 0. Sending it as `package_weight`
+        # is silently ignored and every variant falls back to the product-level
+        # weight (the old 850 g collapse). `package_weight` stays PRODUCT-level.
+        "sku_weight": {"value": f"{max(MIN_SKU_WEIGHT_G, weight_g):g}", "unit": "GRAM"},
     }
     return sku
 
@@ -238,34 +255,34 @@ def build_edit_payload(detail: dict, base_sku: str, pack_sizes: list[int],
 
     existing: dict[str, dict] = {}
     ref_unit_price = None
-    ref_unit_weight = None
+    ref_unit_weight_g = None
     for s in skus_in:
         vn = ((s.get("sales_attributes") or [{}])[0]).get("value_name")
         if vn:
             existing[vn] = s
         if vn == _value_name(1):
             ref_unit_price = _sku_price_idr(s)
-            ref_unit_weight = _sku_weight_kg(s)
+            ref_unit_weight_g = _sku_weight_grams(s)
     if ref_unit_price is None:
         ref_unit_price = _sku_price_idr(skus_in[0]) or 1
-    if ref_unit_weight is None:
-        ref_unit_weight = _sku_weight_kg(skus_in[0]) or 0.001
+    if ref_unit_weight_g is None:
+        ref_unit_weight_g = _sku_weight_grams(skus_in[0]) or float(MIN_SKU_WEIGHT_G)
 
     target: list[dict] = []
     for m in sorted(set(int(p) for p in pack_sizes)):
         vn = _value_name(m)
         ex = existing.get(vn)
         price = _sku_price_idr(ex) if ex else ref_unit_price * m
-        weight = _sku_weight_kg(ex) if ex else round(ref_unit_weight * m, 4)
+        weight_g = _sku_weight_grams(ex) if ex else round(ref_unit_weight_g * m, 2)
         target.append(_build_sku(
             attr_id, attr_name, ex, vn, _seller_sku(base_sku, m),
-            price, weight, warehouse_id, qty=0, extra_value_ids=extra_value_ids,
+            price, weight_g, warehouse_id, qty=0, extra_value_ids=extra_value_ids,
         ))
 
     bw = existing.get(BUBBLE_WRAP_VALUE_NAME)
     target.append(_build_sku(
         attr_id, attr_name, bw, BUBBLE_WRAP_VALUE_NAME, BUBBLE_WRAP_SELLER_SKU,
-        BUBBLE_WRAP_PRICE_IDR, _sku_weight_kg(bw) or BUBBLE_WRAP_WEIGHT_KG,
+        BUBBLE_WRAP_PRICE_IDR, _sku_weight_grams(bw) or float(BUBBLE_WRAP_WEIGHT_G),
         warehouse_id, qty=0, extra_value_ids=extra_value_ids,
     ))
 

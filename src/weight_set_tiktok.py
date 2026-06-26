@@ -9,6 +9,9 @@ standalone update endpoint, so this rides the same full-replace Edit Product
 PUT as `/variant_set` (and reuses its category-resolution helpers). NOTE: the
 per-SKU field is `sku_weight`; sending it as `package_weight` (a product-level
 field) is silently ignored and every variant collapses to the product weight.
+`sku_weight` is sent in GRAM (not KILOGRAM — a small per-piece weight like 8.5 g
+becomes 0.0085 kg and TikTok rounds it to zero → error 12052181) with a 1 g
+minimum floor.
 
 Input is a reference pack + its total weight, e.g. `/weight_set <BASE_SKU>
 1000PCS 1700g` → per-piece weight = 1700 g / 1000 = 1.7 g/pcs. Each variant's
@@ -27,10 +30,12 @@ from src.stock_allocator import parse_sku
 from src.variant_set_tiktok import (
     BUBBLE_WRAP_SELLER_SKU,
     BUBBLE_WRAP_VALUE_NAME,
+    BUBBLE_WRAP_WEIGHT_G,
+    MIN_SKU_WEIGHT_G,
     _edit_attributes,
     _match_v2_category_by_name,
     _sku_price_idr,
-    _sku_weight_kg,
+    _sku_weight_grams,
     _v1_leaf_name,
     _v2_category_id,
 )
@@ -49,9 +54,10 @@ def build_weight_edit_payload(
 ) -> dict:
     """Build the Edit Product payload that re-weights every existing variant.
 
-    per_pcs = ref_weight_grams / ref_multiplier; each pack variant's weight is
-    `per_pcs × its multiplier`. Stock (inventory) and price are carried over
-    unchanged; Bubble Wrap keeps its existing weight. Pure given `detail`.
+    per_pcs = ref_weight_grams / ref_multiplier (grams); each pack variant's
+    weight is `per_pcs × its multiplier`, sent in GRAM with a 1 g floor. Stock
+    (inventory) and price are carried over unchanged; Bubble Wrap keeps its
+    existing weight. Pure given `detail`.
     """
     skus_in = detail.get("skus") or []
     if not skus_in:
@@ -61,7 +67,7 @@ def build_weight_edit_payload(
     if ref_weight_grams <= 0:
         raise ValueError("reference weight must be > 0 grams")
 
-    per_pcs_kg = (ref_weight_grams / 1000.0) / ref_multiplier
+    per_pcs_g = ref_weight_grams / ref_multiplier
 
     target: list[dict] = []
     for s in skus_in:
@@ -70,10 +76,11 @@ def build_weight_edit_payload(
         seller_sku = s.get("seller_sku") or ""
 
         if seller_sku == BUBBLE_WRAP_SELLER_SKU or value_name == BUBBLE_WRAP_VALUE_NAME:
-            weight_kg = _sku_weight_kg(s) or 0.001
+            weight_g = _sku_weight_grams(s) or float(BUBBLE_WRAP_WEIGHT_G)
         else:
             _, mult = parse_sku(seller_sku)
-            weight_kg = round(per_pcs_kg * mult, 4)
+            weight_g = per_pcs_g * mult
+        weight_g = max(float(MIN_SKU_WEIGHT_G), round(weight_g, 2))
 
         sales_attr = {"id": attr.get("id"), "name": attr.get("name"), "value_name": value_name}
         if attr.get("value_id"):
@@ -86,10 +93,12 @@ def build_weight_edit_payload(
                 {"warehouse_id": inv.get("warehouse_id"), "quantity": int(inv.get("quantity") or 0)}
                 for inv in (s.get("inventory") or []) if inv.get("warehouse_id")
             ],
-            # Per-variant weight is `sku_weight` (matches the product detail).
-            # `package_weight` per SKU is ignored by Edit Product and every
-            # variant collapses to the product-level weight.
-            "sku_weight": {"value": f"{weight_kg:g}", "unit": "KILOGRAM"},
+            # Per-variant weight is `sku_weight` (matches the product detail),
+            # sent in GRAM and floored at MIN_SKU_WEIGHT_G — TikTok rejects a
+            # weight that rounds to zero (error 12052181) and 8.5 g sent as
+            # 0.0085 kg rounds to 0. `package_weight` per SKU is ignored by Edit
+            # Product (every variant would collapse to the product-level weight).
+            "sku_weight": {"value": f"{weight_g:g}", "unit": "GRAM"},
         }
         price = _sku_price_idr(s)
         if price is not None:
@@ -120,7 +129,7 @@ def _variant_weight_lines(payload: dict) -> list[str]:
     for s in payload["skus"]:
         vn = (s.get("sales_attributes") or [{}])[0].get("value_name")
         w = (s.get("sku_weight") or {}).get("value")
-        out.append(f"• {vn} = {w} kg")
+        out.append(f"• {vn} = {w} g")
     return out
 
 

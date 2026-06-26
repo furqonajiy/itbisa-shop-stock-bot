@@ -47,17 +47,40 @@ def _by_value(payload):
 
 
 def test_per_piece_weight_scales_by_multiplier():
-    # 1700 g / 1000 = 1.7 g/pcs -> 1PCS=0.0017kg, 20PCS=0.034kg
+    # 1700 g / 1000 = 1.7 g/pcs -> 1PCS=1.7 g, 20PCS=34 g, sent in GRAM.
     payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 1700)
     by = _by_value(payload)
-    assert by["1PCS"]["sku_weight"]["value"] == "0.0017"
-    assert by["20PCS"]["sku_weight"]["value"] == "0.034"
+    assert by["1PCS"]["sku_weight"] == {"value": "1.7", "unit": "GRAM"}
+    assert by["20PCS"]["sku_weight"] == {"value": "34", "unit": "GRAM"}
+
+
+def test_reference_100pcs_850g_gives_relay_values():
+    # /weight_set ... 100 850 -> 8.5 g/pcs (the operator's relay case).
+    payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 100, 850)
+    by = _by_value(payload)
+    assert by["1PCS"]["sku_weight"] == {"value": "8.5", "unit": "GRAM"}
+    assert by["20PCS"]["sku_weight"] == {"value": "170", "unit": "GRAM"}
+
+
+def test_weight_sent_in_grams_with_one_gram_floor():
+    # A sub-gram per-piece weight must still send >= 1 g in GRAM, never 0 / kg —
+    # else TikTok rejects it (error 12052181 "weight cannot be zero").
+    # 100 g / 1000 = 0.1 g/pcs -> 1PCS floors to 1 g, 20PCS = 2 g (above floor).
+    payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 100)
+    by = _by_value(payload)
+    assert by["1PCS"]["sku_weight"] == {"value": "1", "unit": "GRAM"}
+    assert by["20PCS"]["sku_weight"] == {"value": "2", "unit": "GRAM"}
+    for s in payload["skus"]:
+        assert s["sku_weight"]["unit"] == "GRAM"
+        assert float(s["sku_weight"]["value"]) >= 1
 
 
 def test_bubble_wrap_keeps_its_own_weight():
+    # Bubble Wrap is preserved (existing 0.001 kg = 1 g), not recomputed from the
+    # per-piece reference (which would give 1.7 g for the 1000/1700 case).
     payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 1700)
     bw = _by_value(payload)["Bubble Wrap"]
-    assert bw["sku_weight"]["value"] == "0.001"
+    assert bw["sku_weight"] == {"value": "1", "unit": "GRAM"}
 
 
 def test_stock_and_price_preserved():

@@ -207,7 +207,11 @@ def _build_sku(attr_id, attr_name, existing, value_name, seller_sku,
         "sales_attributes": [sales_attr],
         "price": {"amount": str(int(price_idr)), "currency": _CURRENCY},
         "inventory": [{"warehouse_id": warehouse_id, "quantity": int(qty)}],
-        "package_weight": {"value": f"{weight_kg:g}", "unit": "KILOGRAM"},
+        # Per-variant weight is `sku_weight` (what the product detail returns).
+        # Sending it as `package_weight` is silently ignored and every variant
+        # falls back to the product-level weight — so all variants ended up at
+        # the same 850 g. `package_weight` stays a PRODUCT-level field only.
+        "sku_weight": {"value": f"{weight_kg:g}", "unit": "KILOGRAM"},
     }
     return sku
 

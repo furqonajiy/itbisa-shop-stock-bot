@@ -50,14 +50,14 @@ def test_per_piece_weight_scales_by_multiplier():
     # 1700 g / 1000 = 1.7 g/pcs -> 1PCS=0.0017kg, 20PCS=0.034kg
     payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 1700)
     by = _by_value(payload)
-    assert by["1PCS"]["package_weight"]["value"] == "0.0017"
-    assert by["20PCS"]["package_weight"]["value"] == "0.034"
+    assert by["1PCS"]["sku_weight"]["value"] == "0.0017"
+    assert by["20PCS"]["sku_weight"]["value"] == "0.034"
 
 
 def test_bubble_wrap_keeps_its_own_weight():
     payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 1700)
     bw = _by_value(payload)["Bubble Wrap"]
-    assert bw["package_weight"]["value"] == "0.001"
+    assert bw["sku_weight"]["value"] == "0.001"
 
 
 def test_stock_and_price_preserved():
@@ -67,6 +67,15 @@ def test_stock_and_price_preserved():
     assert by["20PCS"]["inventory"] == [{"warehouse_id": "WH1", "quantity": 7}]
     assert by["1PCS"]["price"]["amount"] == "599"
     assert by["20PCS"]["price"]["amount"] == "11860"
+
+
+def test_per_sku_weight_uses_sku_weight_field_not_package_weight():
+    # Per-variant weight must go in `sku_weight`; a per-SKU `package_weight` is
+    # ignored by Edit Product and collapses every variant to the product weight.
+    payload = build_weight_edit_payload(_DETAIL, "ITBISA-IC-PC817-DIP4", 1000, 1700)
+    for s in payload["skus"]:
+        assert "sku_weight" in s
+        assert "package_weight" not in s
 
 
 def test_variation_set_is_unchanged():

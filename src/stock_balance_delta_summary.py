@@ -60,7 +60,7 @@ def _send_stock_balance_summary_compact(report: dict) -> None:
         header,
         "",
         f"✅ `{sku}`",
-        f"Σ Total: {_fmt_int(report['total_pieces'])} pcs",
+        f"🧮 Total: {_fmt_int(report['total_pieces'])} pcs",
         "",
         "📊 *Ringkas*",
         _platform_change_line(
@@ -216,7 +216,7 @@ def _platform_change_line(label: str, before: int, after: int) -> str:
 
 def _total_line(shopee_after: int, tiktokshop_after: int) -> str:
     """Combined physical stock across both platforms (Σ)."""
-    return f"Σ Total: {_fmt_int(int(shopee_after) + int(tiktokshop_after))} pcs"
+    return f"🧮 Total: {_fmt_int(int(shopee_after) + int(tiktokshop_after))} pcs"
 
 
 def _delta_suffix(delta: int) -> str:

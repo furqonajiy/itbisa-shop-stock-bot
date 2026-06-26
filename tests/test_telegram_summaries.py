@@ -88,7 +88,7 @@ def test_balance_multi_summary_shows_combined_total(monkeypatch):
         "dry_run": False,
     })
     text = captured["text"]
-    assert "Σ Total: 220 pcs" in text       # 120 Shopee + 100 TikTok Shop
+    assert "🧮 Total: 220 pcs" in text       # 120 Shopee + 100 TikTok Shop
     _assert_legacy_markdown_ok(text)
 
 
@@ -107,5 +107,5 @@ def test_balance_single_compact_shows_combined_total(monkeypatch):
         "shopee_detail_variants": None, "tiktokshop_detail_variants": None,
     })
     text = captured["text"]
-    assert "Σ Total: 220 pcs" in text
+    assert "🧮 Total: 220 pcs" in text
     _assert_legacy_markdown_ok(text)

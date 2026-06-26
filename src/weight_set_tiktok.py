@@ -4,9 +4,11 @@ weight_set_tiktok.py
 /weight_set — set the per-piece weight across a TikTok Shop product's existing
 pack-size variants via the Edit Product (202309) API.
 
-**TikTok Shop only.** Weight is a per-SKU `package_weight` attribute with no
+**TikTok Shop only.** Weight is a per-SKU `sku_weight` attribute with no
 standalone update endpoint, so this rides the same full-replace Edit Product
-PUT as `/variant_set` (and reuses its category-resolution helpers).
+PUT as `/variant_set` (and reuses its category-resolution helpers). NOTE: the
+per-SKU field is `sku_weight`; sending it as `package_weight` (a product-level
+field) is silently ignored and every variant collapses to the product weight.
 
 Input is a reference pack + its total weight, e.g. `/weight_set <BASE_SKU>
 1000PCS 1700g` → per-piece weight = 1700 g / 1000 = 1.7 g/pcs. Each variant's
@@ -84,7 +86,10 @@ def build_weight_edit_payload(
                 {"warehouse_id": inv.get("warehouse_id"), "quantity": int(inv.get("quantity") or 0)}
                 for inv in (s.get("inventory") or []) if inv.get("warehouse_id")
             ],
-            "package_weight": {"value": f"{weight_kg:g}", "unit": "KILOGRAM"},
+            # Per-variant weight is `sku_weight` (matches the product detail).
+            # `package_weight` per SKU is ignored by Edit Product and every
+            # variant collapses to the product-level weight.
+            "sku_weight": {"value": f"{weight_kg:g}", "unit": "KILOGRAM"},
         }
         price = _sku_price_idr(s)
         if price is not None:
@@ -114,7 +119,7 @@ def _variant_weight_lines(payload: dict) -> list[str]:
     out = []
     for s in payload["skus"]:
         vn = (s.get("sales_attributes") or [{}])[0].get("value_name")
-        w = (s.get("package_weight") or {}).get("value")
+        w = (s.get("sku_weight") or {}).get("value")
         out.append(f"• {vn} = {w} kg")
     return out
 

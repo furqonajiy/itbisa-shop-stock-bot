@@ -666,13 +666,7 @@ def _variant_table_cells(*, pack: str, units: int, pieces: int, weight: str, pri
 
 
 def _format_variant_table_row(cells: list[str], widths: list[int]) -> str:
-    aligned = []
-    for idx, cell in enumerate(cells):
-        if idx in (1, 2):
-            aligned.append(cell.rjust(widths[idx]))
-        else:
-            aligned.append(cell.ljust(widths[idx]))
-    return " | ".join(aligned)
+    return " | ".join(cell.rjust(widths[idx]) for idx, cell in enumerate(cells))
 
 
 def _format_variant_table_separator(widths: list[int]) -> str:

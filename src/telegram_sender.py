@@ -354,8 +354,15 @@ def send_harga_set_summary(report: dict) -> None:
         lines.append(f"{TIKTOKSHOP_LABEL} — _(tidak ada)_")
     else:
         lines.append(f"{TIKTOKSHOP_LABEL} — {tiktok['status']}")
+        tiktok_rows = []
         for p in tiktok.get("priced") or []:
-            lines.append(f"• {p['multiplier']}PCS = Rp{_fmt_int(p['variant_price'])} (Rp{_fmt_int(p['unit_price'])}/pcs)")
+            tiktok_rows.append([
+                f"{p['multiplier']}PCS",
+                _fmt_price(p.get("variant_price")) or "—",
+                f"{_fmt_price(p.get('unit_price')) or '—'}/pcs",
+            ])
+        if tiktok_rows:
+            lines.extend(_render_table(["Pack", "Harga", "Per pcs"], tiktok_rows))
         skipped = tiktok.get("skipped") or []
         if skipped:
             lines.append(f"⏭️ {len(skipped)} varian dilewati (di bawah tier terendah)")
@@ -367,10 +374,12 @@ def send_harga_set_summary(report: dict) -> None:
         lines.append(f"{SHOPEE_LABEL} — _(tidak ada)_")
     else:
         lines.append(f"{SHOPEE_LABEL} — {shopee['status']}")
-        lines.append(f"• 1 = Rp{_fmt_int(shopee['base_price'])}")
-        for mn, mx, price in shopee.get("wholesale_tiers") or []:
-            hi = "∞" if mx >= 999999 else str(mx)
-            lines.append(f"• {mn}–{hi} = Rp{_fmt_int(price)}")
+        shopee_rows = _harga_set_shopee_table_rows(
+            shopee.get("base_price"),
+            shopee.get("wholesale_tiers") or [],
+        )
+        if shopee_rows:
+            lines.extend(_render_table(["Qty", "Harga"], shopee_rows))
         if shopee.get("wholesale_applied") is False and shopee.get("wholesale_tiers"):
             lines.append("⚠️ Harga Grosir di atas set manual di Seller Center (API Shopee belum mendukung).")
         packs = shopee.get("skipped_packs") or []
@@ -620,6 +629,13 @@ def _wholesale_table_rows(wholesale_tiers, base_price_idr: int | None) -> list[l
         hi = "∞" if int(mx) >= 999999 else _fmt_int(int(mx))
         rows.append([f"{_fmt_int(int(mn))}-{hi}", _fmt_int(int(price))])
     return rows
+
+
+def _harga_set_shopee_table_rows(base_price_idr: int | None, wholesale_tiers) -> list[list[str]]:
+    if not wholesale_tiers:
+        return [["1", _fmt_int(int(base_price_idr))]] if base_price_idr is not None else []
+
+    return _wholesale_table_rows(wholesale_tiers, base_price_idr)
 
 
 def _detail_variant_line(variant: dict, base_sku: str) -> str:

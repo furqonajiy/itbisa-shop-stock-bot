@@ -567,14 +567,21 @@ def _variant_detail_table_lines(
         fallback_lines: list[str],
         base_sku: str,
 ) -> list[str]:
+    headers = ["Pack", "Unit", "Pcs", "Berat", "Harga"]
     rows = _variant_table_rows(detail_variants, fallback_lines, base_sku)
     if not rows:
         return ["_(tidak ada varian)_"]
+
+    widths = [
+        max(len(row[i]) for row in [headers, *rows])
+        for i in range(len(headers))
+    ]
+
     return [
         "```",
-        "Pack | Unit | Pcs | Berat | Harga",
-        "-----|------|-----|-------|------",
-        *rows,
+        _format_variant_table_row(headers, widths),
+        _format_variant_table_separator(widths),
+        *[_format_variant_table_row(row, widths) for row in rows],
         "```",
     ]
 
@@ -583,7 +590,7 @@ def _variant_table_rows(
         detail_variants: list[dict] | None,
         fallback_lines: list[str],
         base_sku: str,
-) -> list[str]:
+) -> list[list[str]]:
     if detail_variants:
         return [_detail_variant_table_row(variant, base_sku) for variant in detail_variants]
     rows = []
@@ -607,8 +614,8 @@ def _detail_variant_line(variant: dict, base_sku: str) -> str:
     )
 
 
-def _detail_variant_table_row(variant: dict, base_sku: str) -> str:
-    return _variant_table_row(
+def _detail_variant_table_row(variant: dict, base_sku: str) -> list[str]:
+    return _variant_table_cells(
         pack=_pack_label(variant["raw_sku"], base_sku),
         units=int(variant["units"]),
         pieces=int(variant["pieces"]),
@@ -636,16 +643,16 @@ def _compact_set_variant_line(line: str, base_sku: str) -> str:
     )
 
 
-def _compact_set_variant_table_row(line: str, base_sku: str) -> str:
+def _compact_set_variant_table_row(line: str, base_sku: str) -> list[str]:
     match = _RAW_VARIANT_LINE_RE.match(line)
     if not match:
-        return ""
+        return []
 
     raw_sku = match.group("raw")
     units = int(str(match.group("units")).replace(".", ""))
     pcs = int(str(match.group("pcs")).replace(".", ""))
     suffix = match.group("suffix").strip()
-    return _variant_table_row(
+    return _variant_table_cells(
         pack=_pack_label(raw_sku, base_sku),
         units=units,
         pieces=pcs,
@@ -654,8 +661,22 @@ def _compact_set_variant_table_row(line: str, base_sku: str) -> str:
     )
 
 
-def _variant_table_row(*, pack: str, units: int, pieces: int, weight: str, price: str) -> str:
-    return f"{pack} | {_fmt_int(units)} | {_fmt_int(pieces)} | {weight} | {price}"
+def _variant_table_cells(*, pack: str, units: int, pieces: int, weight: str, price: str) -> list[str]:
+    return [pack, _fmt_int(units), _fmt_int(pieces), weight, price]
+
+
+def _format_variant_table_row(cells: list[str], widths: list[int]) -> str:
+    aligned = []
+    for idx, cell in enumerate(cells):
+        if idx in (1, 2):
+            aligned.append(cell.rjust(widths[idx]))
+        else:
+            aligned.append(cell.ljust(widths[idx]))
+    return " | ".join(aligned)
+
+
+def _format_variant_table_separator(widths: list[int]) -> str:
+    return "-+-".join("-" * width for width in widths)
 
 
 def _stock_get_variant_lines(variants: list[dict], base_sku: str) -> list[str]:

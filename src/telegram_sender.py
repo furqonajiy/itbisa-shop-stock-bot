@@ -572,7 +572,8 @@ def _variant_detail_table_lines(
         return ["_(tidak ada varian)_"]
     return [
         "```",
-        "Pack     Unit     Pcs Berat   Harga",
+        "Pack | Unit | Pcs | Berat | Harga",
+        "-----|------|-----|-------|------",
         *rows,
         "```",
     ]
@@ -654,13 +655,7 @@ def _compact_set_variant_table_row(line: str, base_sku: str) -> str:
 
 
 def _variant_table_row(*, pack: str, units: int, pieces: int, weight: str, price: str) -> str:
-    return (
-        f"{pack:<7} "
-        f"{_fmt_int(units):>6} "
-        f"{_fmt_int(pieces):>7} "
-        f"{weight:<7} "
-        f"{price}"
-    )
+    return f"{pack} | {_fmt_int(units)} | {_fmt_int(pieces)} | {weight} | {price}"
 
 
 def _stock_get_variant_lines(variants: list[dict], base_sku: str) -> list[str]:

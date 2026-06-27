@@ -105,7 +105,6 @@ def send_single_sku_summary(report: dict) -> None:
         report.get("shopee_lines") or [],
         sku,
     ))
-    lines.append("")
     lines.append(f"*{TIKTOKSHOP_LABEL}*")
     lines.extend(_variant_detail_table_lines(
         report.get("tiktokshop_detail_variants"),
@@ -193,7 +192,6 @@ def send_stock_get_summary(report: dict) -> None:
         f"*{SHOPEE_LABEL}*",
     ]
     lines.extend(_stock_get_table_lines(shopee, base_sku))
-    lines.append("")
     lines.append(f"*{TIKTOKSHOP_LABEL}*")
     lines.extend(_stock_get_table_lines(tiktokshop, base_sku))
 
@@ -500,7 +498,7 @@ def _render_stock_and_wholesale_tables(rows: list[dict[str, Any]]) -> list[str]:
 
     wholesale_rows = _collect_wholesale_rows(rows)
     if wholesale_rows:
-        out.extend(["", "*Harga Grosir*"])
+        out.append("*Harga Grosir*")
         out.extend(_render_table(["Qty", "Harga"], wholesale_rows))
     return out
 

@@ -125,6 +125,7 @@ def _set_one_sku(
         enrich_shopee_prices(shopee_variants)
     except Exception as e:  # noqa: BLE001 - best-effort enrichment
         print(f"  [shopee] price enrichment failed; skipping min-purchase reserve: {e}")
+    _enrich_shopee_wholesale_display(shopee_variants)
     _enrich_tiktokshop_details(tiktokshop_variants)
 
     # Same balancing logic as /stock_balance: reserve enough units to Shopee to
@@ -194,7 +195,7 @@ def _set_one_sku(
         "tiktokshop_pieces": tiktokshop_pieces,
         "shopee_lines": shopee_lines,
         "tiktokshop_lines": tiktokshop_lines,
-        "shopee_detail_variants": _build_shopee_detail_variants(
+        "shopee_detail_variants": _build_shopee_display_variants(
             shopee_pieces,
             shopee_variants,
         ),
@@ -221,6 +222,7 @@ def _set_shopee_only(
         enrich_shopee_prices(shopee_variants)
     except Exception as e:  # noqa: BLE001 - best-effort enrichment (display only)
         print(f"  [shopee] price enrichment failed: {e}")
+    _enrich_shopee_wholesale_display(shopee_variants)
 
     shopee_lines, shopee_status = _format_and_push_shopee(
         base_sku, total_pieces, shopee_variants, dry_run
@@ -242,7 +244,7 @@ def _set_shopee_only(
         "tiktokshop_pieces": 0,
         "shopee_lines": shopee_lines,
         "tiktokshop_lines": [],
-        "shopee_detail_variants": _build_shopee_detail_variants(
+        "shopee_detail_variants": _build_shopee_display_variants(
             total_pieces, shopee_variants
         ),
         "tiktokshop_detail_variants": [],
@@ -300,6 +302,36 @@ def _set_tiktokshop_only(
         "shopee_status": "tidak ada di Shopee",
         "tiktokshop_status": tiktokshop_status,
     }
+
+
+def _build_shopee_display_variants(target_pieces: int, variants: list[dict]) -> list[dict]:
+    detail_variants = _build_shopee_detail_variants(target_pieces, variants)
+    wholesale_by_raw_sku = {
+        variant["raw_sku"]: variant.get("wholesale_tiers")
+        for variant in variants
+        if variant.get("wholesale_tiers")
+    }
+    for detail_variant in detail_variants:
+        wholesale_tiers = wholesale_by_raw_sku.get(detail_variant.get("raw_sku"))
+        if wholesale_tiers:
+            detail_variant["wholesale_tiers"] = wholesale_tiers
+    return detail_variants
+
+
+def _enrich_shopee_wholesale_display(variants: list[dict]) -> None:
+    """Best-effort: attach Shopee Harga Grosir tiers for Telegram display only."""
+    by_item: dict[int, list[tuple[int, int, int]]] = {}
+    for variant in variants:
+        item_id = variant.get("item_id")
+        if item_id is None:
+            continue
+        try:
+            numeric_item_id = int(item_id)
+            if numeric_item_id not in by_item:
+                by_item[numeric_item_id] = shopee_client.get_wholesale(numeric_item_id)
+            variant["wholesale_tiers"] = by_item[numeric_item_id]
+        except Exception as e:  # noqa: BLE001 - display-only enrichment
+            print(f"  [shopee] wholesale enrichment failed for item {item_id}: {e}")
 
 
 def _send_single_set_telegram(result: dict, dry_run: bool) -> None:

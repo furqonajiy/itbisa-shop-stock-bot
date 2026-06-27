@@ -100,14 +100,14 @@ def send_single_sku_summary(report: dict) -> None:
         "📦 *Detail*",
         f"*{SHOPEE_LABEL}*",
     ]
-    lines.extend(_variant_detail_lines(
+    lines.extend(_variant_detail_table_lines(
         report.get("shopee_detail_variants"),
         report.get("shopee_lines") or [],
         sku,
     ))
     lines.append("")
     lines.append(f"*{TIKTOKSHOP_LABEL}*")
-    lines.extend(_variant_detail_lines(
+    lines.extend(_variant_detail_table_lines(
         report.get("tiktokshop_detail_variants"),
         report.get("tiktokshop_lines") or [],
         sku,
@@ -562,6 +562,37 @@ def _variant_detail_lines(
     return [_compact_set_variant_line(line, base_sku) for line in fallback_lines]
 
 
+def _variant_detail_table_lines(
+        detail_variants: list[dict] | None,
+        fallback_lines: list[str],
+        base_sku: str,
+) -> list[str]:
+    rows = _variant_table_rows(detail_variants, fallback_lines, base_sku)
+    if not rows:
+        return ["_(tidak ada varian)_"]
+    return [
+        "```",
+        "Pack     Unit     Pcs Berat   Harga",
+        *rows,
+        "```",
+    ]
+
+
+def _variant_table_rows(
+        detail_variants: list[dict] | None,
+        fallback_lines: list[str],
+        base_sku: str,
+) -> list[str]:
+    if detail_variants:
+        return [_detail_variant_table_row(variant, base_sku) for variant in detail_variants]
+    rows = []
+    for line in fallback_lines:
+        row = _compact_set_variant_table_row(line, base_sku)
+        if row:
+            rows.append(row)
+    return rows
+
+
 def _detail_variant_line(variant: dict, base_sku: str) -> str:
     units = int(variant["units"])
     pieces = int(variant["pieces"])
@@ -572,6 +603,16 @@ def _detail_variant_line(variant: dict, base_sku: str) -> str:
         pieces=pieces,
         weight_grams=variant.get("weight_grams"),
         price_idr=variant.get("price_idr"),
+    )
+
+
+def _detail_variant_table_row(variant: dict, base_sku: str) -> str:
+    return _variant_table_row(
+        pack=_pack_label(variant["raw_sku"], base_sku),
+        units=int(variant["units"]),
+        pieces=int(variant["pieces"]),
+        weight=_fmt_weight(variant.get("weight_grams")),
+        price=_fmt_price(variant.get("price_idr")) or "—",
     )
 
 
@@ -591,6 +632,34 @@ def _compact_set_variant_line(line: str, base_sku: str) -> str:
         pieces=pcs,
         weight_grams=None,
         raw_suffix=suffix,
+    )
+
+
+def _compact_set_variant_table_row(line: str, base_sku: str) -> str:
+    match = _RAW_VARIANT_LINE_RE.match(line)
+    if not match:
+        return ""
+
+    raw_sku = match.group("raw")
+    units = int(str(match.group("units")).replace(".", ""))
+    pcs = int(str(match.group("pcs")).replace(".", ""))
+    suffix = match.group("suffix").strip()
+    return _variant_table_row(
+        pack=_pack_label(raw_sku, base_sku),
+        units=units,
+        pieces=pcs,
+        weight="—",
+        price=suffix.replace("—", "").strip() or "—",
+    )
+
+
+def _variant_table_row(*, pack: str, units: int, pieces: int, weight: str, price: str) -> str:
+    return (
+        f"{pack:<7} "
+        f"{_fmt_int(units):>6} "
+        f"{_fmt_int(pieces):>7} "
+        f"{weight:<7} "
+        f"{price}"
     )
 
 

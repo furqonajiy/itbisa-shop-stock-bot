@@ -193,12 +193,12 @@ def send_stock_get_summary(report: dict) -> None:
         f"Total gabungan: {_fmt_int(shopee_total_pcs + tiktokshop_total_pcs)} pcs",
         "",
         "📦 *Detail*",
-        SHOPEE_LABEL,
+        f"*{SHOPEE_LABEL}*",
     ]
-    lines.extend(_stock_get_variant_lines(shopee, base_sku))
+    lines.extend(_stock_get_table_lines(shopee, base_sku))
     lines.append("")
-    lines.append(TIKTOKSHOP_LABEL)
-    lines.extend(_stock_get_variant_lines(tiktokshop, base_sku))
+    lines.append(f"*{TIKTOKSHOP_LABEL}*")
+    lines.extend(_stock_get_table_lines(tiktokshop, base_sku))
 
     _send(_join(lines))
 
@@ -567,10 +567,19 @@ def _variant_detail_table_lines(
         fallback_lines: list[str],
         base_sku: str,
 ) -> list[str]:
-    headers = ["Pack", "Unit", "Pcs", "Berat", "Harga"]
     rows = _variant_table_rows(detail_variants, fallback_lines, base_sku)
+    return _render_variant_table(rows)
+
+
+def _render_variant_table(rows: list[list[str]]) -> list[str]:
     if not rows:
         return ["_(tidak ada varian)_"]
+
+    headers = ["Pack", "Unit", "Pcs", "Berat", "Harga", "Grosir"]
+    show_grosir = any(len(row) > 5 and row[5] != "—" for row in rows)
+    if not show_grosir:
+        headers = headers[:-1]
+        rows = [row[:5] for row in rows]
 
     widths = [
         max(len(row[i]) for row in [headers, *rows])
@@ -621,6 +630,7 @@ def _detail_variant_table_row(variant: dict, base_sku: str) -> list[str]:
         pieces=int(variant["pieces"]),
         weight=_fmt_weight(variant.get("weight_grams")),
         price=_fmt_price(variant.get("price_idr")) or "—",
+        grosir=_format_wholesale_tiers(variant.get("wholesale_tiers")),
     )
 
 
@@ -658,11 +668,20 @@ def _compact_set_variant_table_row(line: str, base_sku: str) -> list[str]:
         pieces=pcs,
         weight="—",
         price=suffix.replace("—", "").strip() or "—",
+        grosir="—",
     )
 
 
-def _variant_table_cells(*, pack: str, units: int, pieces: int, weight: str, price: str) -> list[str]:
-    return [pack, _fmt_int(units), _fmt_int(pieces), weight, price]
+def _variant_table_cells(
+        *,
+        pack: str,
+        units: int,
+        pieces: int,
+        weight: str,
+        price: str,
+        grosir: str = "—",
+) -> list[str]:
+    return [pack, _fmt_int(units), _fmt_int(pieces), weight, price, grosir]
 
 
 def _format_variant_table_row(cells: list[str], widths: list[int]) -> str:
@@ -671,6 +690,26 @@ def _format_variant_table_row(cells: list[str], widths: list[int]) -> str:
 
 def _format_variant_table_separator(widths: list[int]) -> str:
     return "-+-".join("-" * width for width in widths)
+
+
+def _stock_get_table_lines(variants: list[dict], base_sku: str) -> list[str]:
+    if not variants:
+        return ["_(tidak ada varian)_"]
+    rows = [_stock_get_table_row(variant, base_sku) for variant in variants]
+    return _render_variant_table(rows)
+
+
+def _stock_get_table_row(variant: dict, base_sku: str) -> list[str]:
+    units = int(variant["stock_units"])
+    pieces = units * int(variant["multiplier"])
+    return _variant_table_cells(
+        pack=_pack_label(variant["raw_sku"], base_sku),
+        units=units,
+        pieces=pieces,
+        weight=_fmt_weight(variant.get("weight_grams")),
+        price=_fmt_price(variant.get("price_idr")) or "—",
+        grosir=_format_wholesale_tiers(variant.get("wholesale_tiers")),
+    )
 
 
 def _stock_get_variant_lines(variants: list[dict], base_sku: str) -> list[str]:
@@ -688,13 +727,20 @@ def _stock_get_variant_lines(variants: list[dict], base_sku: str) -> list[str]:
 
 def _wholesale_line(wholesale_tiers) -> str:
     """One indented "Harga Grosir" line, or "" when there are no tiers."""
-    if not wholesale_tiers:
+    tiers = _format_wholesale_tiers(wholesale_tiers)
+    if tiers == "—":
         return ""
+    return "  Harga Grosir: " + tiers
+
+
+def _format_wholesale_tiers(wholesale_tiers) -> str:
+    if not wholesale_tiers:
+        return "—"
     parts = []
     for mn, mx, price in wholesale_tiers:
-        hi = "∞" if int(mx) >= 999999 else _fmt_int(mx)
-        parts.append(f"{_fmt_int(mn)}–{hi}: Rp{_fmt_int(price)}")
-    return "  Harga Grosir: " + ", ".join(parts)
+        hi = "∞" if int(mx) >= 999999 else _fmt_int(int(mx))
+        parts.append(f"{_fmt_int(int(mn))}-{hi}: {_fmt_price(price)}")
+    return ", ".join(parts)
 
 
 def _stock_get_variant_line(variant: dict, base_sku: str) -> str:

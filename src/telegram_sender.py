@@ -88,15 +88,17 @@ def send_single_sku_summary(report: dict) -> None:
     lines = [
         header,
         "",
-        f"✅ `{sku}`",
-        f"Total: {_fmt_int(report['total_pieces'])} pcs",
+        "*SKU*",
+        f"`{sku}`",
+        "",
+        f"🧮 *Total:* {_fmt_int(report['total_pieces'])} pcs",
         "",
         "📊 *Ringkas*",
-        f"{SHOPEE_LABEL} {_fmt_int(report['shopee_pieces'])} pcs — {report['shopee_status']}",
-        f"{TIKTOKSHOP_LABEL} {_fmt_int(report['tiktokshop_pieces'])} pcs — {report['tiktokshop_status']}",
+        f"{SHOPEE_LABEL}: {_fmt_int(report['shopee_pieces'])} pcs — {report['shopee_status']}",
+        f"{TIKTOKSHOP_LABEL}: {_fmt_int(report['tiktokshop_pieces'])} pcs — {report['tiktokshop_status']}",
         "",
         "📦 *Detail*",
-        SHOPEE_LABEL,
+        f"*{SHOPEE_LABEL}*",
     ]
     lines.extend(_variant_detail_lines(
         report.get("shopee_detail_variants"),
@@ -104,7 +106,7 @@ def send_single_sku_summary(report: dict) -> None:
         sku,
     ))
     lines.append("")
-    lines.append(TIKTOKSHOP_LABEL)
+    lines.append(f"*{TIKTOKSHOP_LABEL}*")
     lines.extend(_variant_detail_lines(
         report.get("tiktokshop_detail_variants"),
         report.get("tiktokshop_lines") or [],

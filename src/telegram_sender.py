@@ -471,7 +471,7 @@ def send_weight_set_summary(report: dict) -> None:
         f"{TIKTOKSHOP_LABEL} — {report.get('status', '')}",
     ]
     if isinstance(per_pcs, (int, float)):
-        lines.append(f"Berat per pcs: {per_pcs:g} g")
+        lines.append(f"Berat per pcs: {per_pcs:g}g")
     lines.extend(report.get("weight_lines") or [])
     if dry_run:
         lines.append("")
@@ -737,7 +737,7 @@ def _fmt_int(n: int) -> str:
 def _fmt_weight(grams: int | None) -> str:
     if not grams:
         return "—"
-    return f"{_fmt_int(int(grams))} g"
+    return f"{_fmt_int(int(grams))}g"
 
 
 def _fmt_price(value: int | None) -> str:

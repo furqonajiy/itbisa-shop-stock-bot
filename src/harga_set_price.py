@@ -15,9 +15,8 @@ Example tiers `1=749, 50=739, 100=699` → 1–49=Rp749, 50–99=Rp739, 100+=Rp6
 TikTok Shop — per pack-size variant
 ------------------------------------
 Each pack-size variant (multiplier `M`) is priced by the tier `M` bands into;
-listing price = `unit_price × M`, then **charm-rounded UP to end in 9s**
-(`charm_round_up_to_nines`: …99 / …999 / …9999 by magnitude — e.g. 7.995→7.999,
-77.450→77.999, 154.900→159.999) via `tiktokshop_client.update_price_batch`.
+listing price = `unit_price × M`, then charm-rounded UP to the next nearby
+9-ending price via `tiktokshop_client.update_price_batch`.
 Variants below the lowest tier are skipped + reported (best-effort). Charm
 rounding is TikTok-only — Shopee keeps the exact grosir unit prices.
 
@@ -92,16 +91,18 @@ def unit_price_for_quantity(tiers: list[tuple[int, int]], qty: int) -> int | Non
 
 
 def charm_round_up_to_nines(price: int) -> int:
-    """Round a price UP so it ends in a run of 9s, keeping its top 2 digits.
+    """Round a price UP to a nearby 9-ending price without changing its tier.
 
-    A 4-digit price ends in `99`, a 5-digit in `999`, a 6-digit in `9999`, etc.
-    e.g. 7995→7999, 31980→31999, 77450→77999, 154900→159999. Always ≥ the
-    input (never undercharges); prices below 100 are left unchanged. Pure.
+    The previous implementation kept only the top two digits, so large pack
+    prices could jump too far (for example 1.161.750 -> 1.199.999). Cap the
+    rounding unit at 1.000 so large packs stay close to their tier basis:
+    8.495 -> 8.499, 33.980 -> 33.999, 239.850 -> 239.999,
+    1.161.750 -> 1.161.999. Always >= input; prices below 100 are unchanged.
     """
     price = int(price)
     if price < 100:
         return price
-    unit = 10 ** (len(str(price)) - 2)  # keep the 2 leading digits, 9-fill the rest
+    unit = 10 ** min(len(str(price)) - 2, 3)
     return (price // unit) * unit + (unit - 1)
 
 
@@ -223,8 +224,8 @@ def _run_tiktok_harga(
             print(f"  ⏭️ {v['raw_sku']} (×{mult}): di bawah tier terendah; dilewati.")
             continue
         raw_price = unit_price * mult
-        # Charm-price the TikTok listing so it ends in 9s (…99 / …999 / …9999),
-        # rounding up. The displayed unit_price stays the grosir basis.
+        # Charm-price the TikTok listing so it ends in 9s, but keep it close
+        # to the grosir basis so large packs don't jump into the next tier.
         variant_price = charm_round_up_to_nines(raw_price)
         priced.append({
             "raw_sku": v["raw_sku"],

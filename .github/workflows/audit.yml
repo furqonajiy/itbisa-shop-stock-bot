@@ -1,0 +1,108 @@
+name: Catalog Audit
+
+# Read-only catalog standardization audit. Triggered manually from the Actions
+# tab (workflow_dispatch). Walks the live Shopee + TikTok Shop catalogs and
+# uploads an Excel report of every base SKU that isn't standardized yet.
+# Changes nothing on either platform; only token files may rotate.
+on:
+  workflow_dispatch: {}
+
+# Own group; newer audits cancel older ones (operator only wants the latest).
+concurrency:
+  group: catalog-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    # Read-only; the per-product detail reads can take a few minutes on a large
+    # catalog, so allow generous headroom but stay runaway-safe.
+    timeout-minutes: 30
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Sync data/ from bot-state
+        run: |
+          if git ls-remote --exit-code --heads origin bot-state >/dev/null 2>&1; then
+            echo "bot-state branch exists — overlaying data/"
+            git fetch origin bot-state
+            git checkout origin/bot-state -- data/ || echo "no data/ on bot-state yet"
+          else
+            echo "bot-state branch not found — using data/ from main"
+          fi
+          ls -la data/ || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run catalog audit
+        env:
+          SHOPEE_PARTNER_ID: ${{ secrets.SHOPEE_PARTNER_ID }}
+          SHOPEE_PARTNER_KEY: ${{ secrets.SHOPEE_PARTNER_KEY }}
+          SHOPEE_SHOP_ID: ${{ secrets.SHOPEE_SHOP_ID }}
+          TIKTOKSHOP_APP_KEY: ${{ secrets.TIKTOKSHOP_APP_KEY }}
+          TIKTOKSHOP_APP_SECRET: ${{ secrets.TIKTOKSHOP_APP_SECRET }}
+          TIKTOKSHOP_SHOP_ID: ${{ secrets.TIKTOKSHOP_SHOP_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -e
+          python scripts/catalog_audit.py --output catalog_audit.xlsx
+
+      - name: Upload audit report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-audit
+          path: catalog_audit.xlsx
+          if-no-files-found: error
+
+      # Read-only run, but token refresh may rotate access/refresh tokens.
+      - name: Commit token rotation to bot-state
+        if: always()
+        run: |
+          git config user.name  "itbisa-bot[bot]"
+          git config user.email "itbisa-bot@users.noreply.github.com"
+
+          TMP=$(mktemp -d)
+          cp data/shopee_tokens.json "$TMP/" 2>/dev/null || true
+          cp data/tiktokshop_tokens.json "$TMP/" 2>/dev/null || true
+
+          if [ ! -f "$TMP/shopee_tokens.json" ] && [ ! -f "$TMP/tiktokshop_tokens.json" ]; then
+            echo "No token files to commit."
+            rm -rf "$TMP"
+            exit 0
+          fi
+
+          git fetch origin bot-state || true
+          if git rev-parse --verify origin/bot-state >/dev/null 2>&1; then
+            git checkout -B bot-state origin/bot-state
+          else
+            git checkout --orphan bot-state
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+
+          mkdir -p data
+          cp "$TMP/shopee_tokens.json" data/ 2>/dev/null || true
+          cp "$TMP/tiktokshop_tokens.json" data/ 2>/dev/null || true
+          rm -rf "$TMP"
+
+          [ -f data/shopee_tokens.json ] && git add data/shopee_tokens.json
+          [ -f data/tiktokshop_tokens.json ] && git add data/tiktokshop_tokens.json
+
+          git diff --staged --quiet || git commit -m "chore(state): refresh tokens after catalog-audit run"
+          git push --force-with-lease origin bot-state

@@ -815,7 +815,11 @@ def _fmt_price(value: int | None) -> str:
 def _fmt_unit_price(price_idr: int | None, multiplier: int | None) -> str:
     if price_idr is None or not multiplier:
         return "—"
-    return _fmt_price(int(price_idr) // int(multiplier))
+    multiplier_int = int(multiplier)
+    if multiplier_int <= 0:
+        return "—"
+    rounded_up = (int(price_idr) + multiplier_int - 1) // multiplier_int
+    return _fmt_price(rounded_up)
 
 
 def _signed(n: int) -> str:

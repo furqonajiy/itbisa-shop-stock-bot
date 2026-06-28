@@ -78,7 +78,7 @@ TIKTOKSHOP_TOKEN_REFRESH_BUFFER_MINUTES = 10
 # stock across pack sizes widens the range of single-order quantities a
 # buyer can place. The cap stops any one variant from hoarding stock so
 # every pack size carries something whenever total stock allows.
-TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 400
+TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 50
 
 # ============================================================
 # Telegram

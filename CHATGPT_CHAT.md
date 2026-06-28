@@ -30,7 +30,7 @@ Reserve `ceil(SHOPEE_RESERVE_IDR / Shopee 1PCS price)` to Shopee first (Rp200.00
 Operator provides base SKU only. Pack-size variants: `<digits>PCS-<base_sku>` (e.g. `20PCS-ITBISA-LED-5MM`). `XPCS-` variant SKUs are rejected by the CLIs (warn + skip); the allocator parses `XPCS-` from platform catalogs itself.
 
 ## Constants — `src/config.py` (never env vars or Secrets)
-Shopee/TikTok base URLs; `TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 400`; `MAX_SKUS_PER_RUN = 500`; `DELAY_BETWEEN_CALLS_SECONDS = 1.0`.
+Shopee/TikTok base URLs; `TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 50`; `MAX_SKUS_PER_RUN = 500`; `DELAY_BETWEEN_CALLS_SECONDS = 1.0`.
 
 ## main.py entry points
 - `run_stock_set_multi(desired={base_sku: pieces}, dry_run)` — walks both catalogs ONCE, loops per SKU, enforces `MAX_SKUS_PER_RUN`. `run_single_sku_mode(...)` is the wrapper.

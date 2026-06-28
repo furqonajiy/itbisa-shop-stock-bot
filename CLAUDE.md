@@ -62,6 +62,7 @@ Walks the live Shopee + TikTok Shop catalogs and writes an **Excel report** of e
 - `DELAY_BETWEEN_CALLS_SECONDS = 1.0`
 - `SHOPEE_RESERVE_IDR = 200000` (IDR value of stock reserved to Shopee first in `/stock_balance` + `/stock_set`; 0 disables)
 - `SHOPEE_SPLIT_PERCENT = 70` (Shopee's share of the post-reserve remainder → 70:30)
+- `SHOPEE_MIN_BUY_IDR = 20000` (Shopee minimum-purchase target = `ceil(SHOPEE_MIN_BUY_IDR / base unit price)` units, e.g. Rp20.000 ÷ Rp2.199 = 10; **reported** in `/stock_set` + `/harga_set` summaries — Shopee's Open API can't set min purchase, so it's set manually in Seller Center. Pure `shopee_min_buy_units` in `stock_allocator.py`)
 - `LOW_STOCK_THRESHOLD = 50` (`/stock_low` flags combined on-hand pieces below this)
 - `LOW_STOCK_MIN_INTERVAL_HOURS = 24` (`/stock_low` report throttle window)
 

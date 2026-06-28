@@ -36,7 +36,7 @@ from src.variant_set_tiktok import BUBBLE_WRAP_SELLER_SKU, _sku_price_idr
 
 # Tunables (standardization targets).
 GROSIR_MIN_LAYERS = 3
-SHOPEE_MIN_BUY_IDR = 20000
+SHOPEE_MIN_BUY_IDR = config.SHOPEE_MIN_BUY_IDR  # single source of truth (config)
 TIKTOK_LOW_PRICE_THRESHOLD = 5000
 TIKTOK_MIN_BUY_LOW = 2
 

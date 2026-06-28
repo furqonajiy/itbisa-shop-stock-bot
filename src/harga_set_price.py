@@ -37,6 +37,7 @@ from __future__ import annotations
 import time
 
 from src import config, shopee_auth, shopee_client, telegram_sender, tiktokshop_client
+from src.stock_allocator import shopee_min_buy_units
 
 # Upper bound for Shopee's open-ended top wholesale band (e.g. "100+").
 _WHOLESALE_TOP_MAX = 999999
@@ -272,6 +273,7 @@ def _run_shopee_harga(
 ) -> dict:
     print("-- Shopee (Harga Grosir) --")
     base_price, wholesale_tiers = compute_shopee_pricing(tiers)
+    min_buy_units = shopee_min_buy_units(base_price, config.SHOPEE_MIN_BUY_IDR)
 
     ones = [v for v in variants if int(v["multiplier"]) == 1]
     packs = [v for v in variants if int(v["multiplier"]) != 1]
@@ -292,6 +294,7 @@ def _run_shopee_harga(
             "skipped_packs": packs,
             "status": "⏭️ tidak ada listing 1PCS di Shopee",
             "wholesale_applied": None,
+            "min_buy_units": min_buy_units,
         }
 
     if dry_run:
@@ -305,6 +308,7 @@ def _run_shopee_harga(
         "skipped_packs": packs,
         "status": status,
         "wholesale_applied": wholesale_applied,
+        "min_buy_units": min_buy_units,
     }
 
 

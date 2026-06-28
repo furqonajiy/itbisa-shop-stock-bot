@@ -6,7 +6,9 @@ from src.harga_set_price import (
     charm_round_up_to_nines,
     compute_shopee_pricing,
     parse_tiers,
+    tiktokshop_tier_start_qty,
     unit_price_for_quantity,
+    unit_price_for_tiktokshop_pack,
 )
 
 
@@ -18,8 +20,8 @@ def test_charm_round_keeps_top_two_digits_and_nine_fills():
     assert charm_round_up_to_nines(7995) == 7999      # 4-digit → …99
     assert charm_round_up_to_nines(31980) == 31999    # 5-digit → …999
     assert charm_round_up_to_nines(77450) == 77999    # 5-digit → …999
-    assert charm_round_up_to_nines(154900) == 159999  # 6-digit → …9999
-    assert charm_round_up_to_nines(749500) == 749999  # 6-digit → …9999
+    assert charm_round_up_to_nines(154900) == 154999  # 6-digit → nearby …999
+    assert charm_round_up_to_nines(749500) == 749999  # 6-digit → nearby …999
 
 
 def test_charm_round_never_undercharges_and_small_prices_untouched():
@@ -100,7 +102,6 @@ def test_band_documented_examples():
 
 
 def test_band_below_lowest_tier_is_none():
-    # Lowest tier starts at 5: quantities 1-4 cannot be banded.
     tiers = [(5, 100), (50, 90)]
     assert unit_price_for_quantity(tiers, 1) is None
     assert unit_price_for_quantity(tiers, 4) is None
@@ -110,9 +111,36 @@ def test_band_below_lowest_tier_is_none():
 
 
 def test_band_variant_listing_price_is_unit_times_pack():
-    # 50PCS variant at the 50-tier: listing price = 739 * 50.
     unit = unit_price_for_quantity(TIERS, 50)
     assert unit * 50 == 36950
+
+
+# ----------------------------------------------------------------------
+# TikTok Shop scaled tier banding
+# ----------------------------------------------------------------------
+def test_tiktokshop_tier_start_qty_scales_shopee_grosir_thresholds():
+    assert tiktokshop_tier_start_qty(1) == 1
+    assert tiktokshop_tier_start_qty(50) == 20
+    assert tiktokshop_tier_start_qty(150) == 60
+    assert tiktokshop_tier_start_qty(750) == 300
+
+
+def test_tiktokshop_pack_uses_scaled_tiers():
+    tiers = [(1, 2199), (50, 2149), (150, 2099), (750, 2049)]
+    assert unit_price_for_tiktokshop_pack(tiers, 1) == 2199
+    assert unit_price_for_tiktokshop_pack(tiers, 5) == 2199
+    assert unit_price_for_tiktokshop_pack(tiers, 19) == 2199
+    assert unit_price_for_tiktokshop_pack(tiers, 20) == 2149
+    assert unit_price_for_tiktokshop_pack(tiers, 59) == 2149
+    assert unit_price_for_tiktokshop_pack(tiers, 60) == 2099
+    assert unit_price_for_tiktokshop_pack(tiers, 299) == 2099
+    assert unit_price_for_tiktokshop_pack(tiers, 300) == 2049
+    assert unit_price_for_tiktokshop_pack(tiers, 750) == 2049
+
+
+def test_tiktokshop_pack_below_scaled_lowest_tier_is_none():
+    assert unit_price_for_tiktokshop_pack([(50, 2149)], 19) is None
+    assert unit_price_for_tiktokshop_pack([(50, 2149)], 20) == 2149
 
 
 # ----------------------------------------------------------------------
@@ -137,7 +165,6 @@ def test_shopee_pricing_three_bulk_bands_are_contiguous():
 
 
 def test_shopee_pricing_falls_back_to_lowest_tier_when_no_qty1():
-    # No tier starts at 1: base falls back to the lowest tier's price.
     base, wholesale = compute_shopee_pricing([(50, 739), (100, 699)])
     assert base == 739
     assert wholesale == [(50, 99, 739), (100, 999999, 699)]

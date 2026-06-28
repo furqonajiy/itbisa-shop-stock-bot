@@ -57,7 +57,7 @@ Walks the live Shopee + TikTok Shop catalogs and writes an **Excel report** of e
 - `SHOPEE_API_BASE_URL = https://partner.shopeemobile.com`
 - `TIKTOKSHOP_AUTH_BASE_URL = https://auth.tiktok-shops.com`
 - `TIKTOKSHOP_OPEN_API_BASE_URL = https://open-api.tiktokglobalshop.com`
-- `TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 400` (active TikTok Shop per-variant unit cap)
+- `TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 50` (active TikTok Shop per-variant unit cap — smallest-first fill to 50 units, then flow to the next pack size; overflow beyond all caps stacks on the largest variant so nothing drops)
 - `MAX_SKUS_PER_RUN = 500`
 - `DELAY_BETWEEN_CALLS_SECONDS = 1.0`
 - `SHOPEE_RESERVE_IDR = 200000` (IDR value of stock reserved to Shopee first in `/stock_balance` + `/stock_set`; 0 disables)

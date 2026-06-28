@@ -140,6 +140,21 @@ def test_allocate_zero_pieces_sets_everything_to_zero():
     assert _units_by_multiplier(allocate_pack_sizes(0, variants, 400)) == {1: 0, 10: 0}
 
 
+def test_allocate_caps_each_pack_at_50_then_flows_to_next_variant():
+    # Production cap is 50 units/variant: fill smallest-first to 50, then the
+    # leftover flows to the next pack size (not all stacked on the 2nd variant).
+    variants = [
+        {"multiplier": 5},
+        {"multiplier": 20},
+        {"multiplier": 50},
+        {"multiplier": 100},
+    ]
+    result = allocate_pack_sizes(350, variants, tiktokshop_unit_cap=50)
+    # 5PCS hits the 50-unit cap (250 pcs); the remaining 100 pcs flow to 20PCS.
+    assert _units_by_multiplier(result) == {5: 50, 20: 5, 50: 0, 100: 0}
+    assert verify_allocation(350, result) == 0
+
+
 # ----------------------------------------------------------------------
 # TikTok Shop 1PCS-reserve exception
 # ----------------------------------------------------------------------

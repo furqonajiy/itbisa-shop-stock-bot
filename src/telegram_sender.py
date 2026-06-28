@@ -27,6 +27,7 @@ _SKU_PREFIX_RE = re.compile(r"^SKU `[^`]+`\s+")
 _RAW_VARIANT_LINE_RE = re.compile(
     r"^• `(?P<raw>[^`]+)`: (?P<units>[\d.]+) unit \(= (?P<pcs>[\d.]+) pcs\)(?P<suffix>.*)$"
 )
+_PACK_LABEL_RE = re.compile(r"^(?P<multiplier>\d+)PCS$")
 
 
 # ============================================================
@@ -113,6 +114,7 @@ def send_single_sku_summary(report: dict) -> None:
         report.get("tiktokshop_detail_variants"),
         report.get("tiktokshop_lines") or [],
         sku,
+        show_unit_price=True,
     ))
 
     if report["dry_run"]:
@@ -196,7 +198,7 @@ def send_stock_get_summary(report: dict) -> None:
     ]
     lines.extend(_stock_get_table_lines(shopee, base_sku))
     lines.append(f"*{TIKTOKSHOP_LABEL}*")
-    lines.extend(_stock_get_table_lines(tiktokshop, base_sku))
+    lines.extend(_stock_get_table_lines(tiktokshop, base_sku, show_unit_price=True))
 
     _send(_join(lines))
 
@@ -508,15 +510,20 @@ def _variant_detail_table_lines(
         detail_variants: list[dict] | None,
         fallback_lines: list[str],
         base_sku: str,
+        show_unit_price: bool = False,
 ) -> list[str]:
-    rows = _variant_table_rows(detail_variants, fallback_lines, base_sku)
+    rows = _variant_table_rows(detail_variants, fallback_lines, base_sku, show_unit_price)
     return _render_stock_and_wholesale_tables(rows)
 
 
-def _stock_get_table_lines(variants: list[dict], base_sku: str) -> list[str]:
+def _stock_get_table_lines(
+        variants: list[dict],
+        base_sku: str,
+        show_unit_price: bool = False,
+) -> list[str]:
     if not variants:
         return ["_(tidak ada varian)_"]
-    rows = [_stock_get_table_row(variant, base_sku) for variant in variants]
+    rows = [_stock_get_table_row(variant, base_sku, show_unit_price) for variant in variants]
     return _render_stock_and_wholesale_tables(rows)
 
 
@@ -525,7 +532,10 @@ def _render_stock_and_wholesale_tables(rows: list[dict[str, Any]]) -> list[str]:
         return ["_(tidak ada varian)_"]
 
     stock_rows = [row["stock"] for row in rows]
-    out = _render_table(["Pack", "Unit", "Pcs", "Berat", "Harga"], stock_rows)
+    headers = ["Pack", "Unit", "Pcs", "Berat", "Harga"]
+    if any(len(row) > len(headers) for row in stock_rows):
+        headers.append("Harga/PCS")
+    out = _render_table(headers, stock_rows)
 
     wholesale_rows = _collect_wholesale_rows(rows)
     if wholesale_rows:
@@ -557,33 +567,46 @@ def _variant_table_rows(
         detail_variants: list[dict] | None,
         fallback_lines: list[str],
         base_sku: str,
+        show_unit_price: bool,
 ) -> list[dict[str, Any]]:
     if detail_variants:
-        return [_detail_variant_table_row(variant, base_sku) for variant in detail_variants]
+        return [_detail_variant_table_row(variant, base_sku, show_unit_price) for variant in detail_variants]
 
     rows = []
     for line in fallback_lines:
-        row = _compact_set_variant_table_row(line, base_sku)
+        row = _compact_set_variant_table_row(line, base_sku, show_unit_price)
         if row:
             rows.append(row)
     return rows
 
 
-def _detail_variant_table_row(variant: dict, base_sku: str) -> dict[str, Any]:
-    price = _fmt_price(variant.get("price_idr")) or "—"
+def _detail_variant_table_row(
+        variant: dict,
+        base_sku: str,
+        show_unit_price: bool = False,
+) -> dict[str, Any]:
+    price_idr = variant.get("price_idr")
+    raw_sku = variant["raw_sku"]
+    stock = _variant_table_cells(
+        pack=_pack_label(raw_sku, base_sku),
+        units=int(variant["units"]),
+        pieces=int(variant["pieces"]),
+        weight=_fmt_weight(variant.get("weight_grams")),
+        price=_fmt_price(price_idr) or "—",
+    )
+    if show_unit_price:
+        stock.append(_fmt_unit_price(price_idr, _pack_multiplier(raw_sku, base_sku)))
     return {
-        "stock": _variant_table_cells(
-            pack=_pack_label(variant["raw_sku"], base_sku),
-            units=int(variant["units"]),
-            pieces=int(variant["pieces"]),
-            weight=_fmt_weight(variant.get("weight_grams")),
-            price=price,
-        ),
-        "wholesale": _wholesale_table_rows(variant.get("wholesale_tiers"), variant.get("price_idr")),
+        "stock": stock,
+        "wholesale": _wholesale_table_rows(variant.get("wholesale_tiers"), price_idr),
     }
 
 
-def _compact_set_variant_table_row(line: str, base_sku: str) -> dict[str, Any] | None:
+def _compact_set_variant_table_row(
+        line: str,
+        base_sku: str,
+        show_unit_price: bool = False,
+) -> dict[str, Any] | None:
     match = _RAW_VARIANT_LINE_RE.match(line)
     if not match:
         return None
@@ -592,30 +615,41 @@ def _compact_set_variant_table_row(line: str, base_sku: str) -> dict[str, Any] |
     units = int(str(match.group("units")).replace(".", ""))
     pcs = int(str(match.group("pcs")).replace(".", ""))
     suffix = match.group("suffix").strip()
+    stock = _variant_table_cells(
+        pack=_pack_label(raw_sku, base_sku),
+        units=units,
+        pieces=pcs,
+        weight="—",
+        price=suffix.replace("—", "").strip() or "—",
+    )
+    if show_unit_price:
+        stock.append("—")
     return {
-        "stock": _variant_table_cells(
-            pack=_pack_label(raw_sku, base_sku),
-            units=units,
-            pieces=pcs,
-            weight="—",
-            price=suffix.replace("—", "").strip() or "—",
-        ),
+        "stock": stock,
         "wholesale": [],
     }
 
 
-def _stock_get_table_row(variant: dict, base_sku: str) -> dict[str, Any]:
+def _stock_get_table_row(
+        variant: dict,
+        base_sku: str,
+        show_unit_price: bool = False,
+) -> dict[str, Any]:
     units = int(variant["stock_units"])
-    pieces = units * int(variant["multiplier"])
+    multiplier = int(variant["multiplier"])
+    pieces = units * multiplier
     price_idr = variant.get("price_idr")
+    stock = _variant_table_cells(
+        pack=_pack_label(variant["raw_sku"], base_sku),
+        units=units,
+        pieces=pieces,
+        weight=_fmt_weight(variant.get("weight_grams")),
+        price=_fmt_price(price_idr) or "—",
+    )
+    if show_unit_price:
+        stock.append(_fmt_unit_price(price_idr, multiplier))
     return {
-        "stock": _variant_table_cells(
-            pack=_pack_label(variant["raw_sku"], base_sku),
-            units=units,
-            pieces=pieces,
-            weight=_fmt_weight(variant.get("weight_grams")),
-            price=_fmt_price(price_idr) or "—",
-        ),
+        "stock": stock,
         "wholesale": _wholesale_table_rows(variant.get("wholesale_tiers"), price_idr),
     }
 
@@ -754,6 +788,14 @@ def _pack_label(raw_sku: str, base_sku: str) -> str:
     return raw_sku
 
 
+def _pack_multiplier(raw_sku: str, base_sku: str) -> int:
+    pack_label = _pack_label(raw_sku, base_sku)
+    match = _PACK_LABEL_RE.match(pack_label)
+    if not match:
+        return 1
+    return max(int(match.group("multiplier")), 1)
+
+
 def _fmt_int(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
@@ -768,6 +810,12 @@ def _fmt_price(value: int | None) -> str:
     if value is None:
         return ""
     return f"Rp{_fmt_int(int(value))}"
+
+
+def _fmt_unit_price(price_idr: int | None, multiplier: int | None) -> str:
+    if price_idr is None or not multiplier:
+        return "—"
+    return _fmt_price(int(price_idr) // int(multiplier))
 
 
 def _signed(n: int) -> str:

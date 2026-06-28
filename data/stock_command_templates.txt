@@ -1,1642 +1,1644 @@
 # stock_command_templates — 273 SKUs (ascending), from BisaJual/BisaStok 2026.
-# /stock_set qty = current Sisa Stok (report). FILL: variant packs, harga grosir tiers, weight.
-# Reference comment per SKU: HPP/buah + Harga Sekarang (from 2026 report) to choose tiers.
+# /stock_set qty = live Sisa Stok (2026 report).
+# /weight_set = ASSUMED per-piece weight by component type (verify before relying on shipping cost).
+#   encoded as "100 <g>g" => per-piece = g/100  (e.g. 100 35g = 0.35 g/pcs).
+# /harga_set tiers + /variant_set packs are still yours to set (HPP/price reference shown).
 # Lines starting with # are notes — ignore/delete when sending to Telegram.
 
 /variant_set ITBISA-7SEGMENT-ANODE-RED-0.56-1BIT 1 5 20 150 750
 /harga_set ITBISA-7SEGMENT-ANODE-RED-0.56-1BIT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp676 | Harga Sekarang Rp2.199
-/weight_set ITBISA-7SEGMENT-ANODE-RED-0.56-1BIT 150 <grams>g
+/weight_set ITBISA-7SEGMENT-ANODE-RED-0.56-1BIT 100 300g  # ~3 g/pcs (assumed)
 /stock_set ITBISA-7SEGMENT-ANODE-RED-0.56-1BIT 4242
 /stock_get ITBISA-7SEGMENT-ANODE-RED-0.56-1BIT
 
 /variant_set ITBISA-7SEGMENT-ANODE-RED-1.00-1BIT 1 5 20 150 750
 /harga_set ITBISA-7SEGMENT-ANODE-RED-1.00-1BIT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp2.000 | Harga Sekarang Rp3.999
-/weight_set ITBISA-7SEGMENT-ANODE-RED-1.00-1BIT 150 <grams>g
+/weight_set ITBISA-7SEGMENT-ANODE-RED-1.00-1BIT 100 500g  # ~5 g/pcs (assumed)
 /stock_set ITBISA-7SEGMENT-ANODE-RED-1.00-1BIT 2008
 /stock_get ITBISA-7SEGMENT-ANODE-RED-1.00-1BIT
 
 /variant_set ITBISA-7SEGMENT-ANODE-RED-1.20-1BIT 1 5 20 150 750
 /harga_set ITBISA-7SEGMENT-ANODE-RED-1.20-1BIT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp2.756 | Harga Sekarang Rp4.999
-/weight_set ITBISA-7SEGMENT-ANODE-RED-1.20-1BIT 150 <grams>g
+/weight_set ITBISA-7SEGMENT-ANODE-RED-1.20-1BIT 100 600g  # ~6 g/pcs (assumed)
 /stock_set ITBISA-7SEGMENT-ANODE-RED-1.20-1BIT 609
 /stock_get ITBISA-7SEGMENT-ANODE-RED-1.20-1BIT
 
 /variant_set ITBISA-7SEGMENT-ANODE-RED-2.30-1BIT 1 5 20 150 750
 /harga_set ITBISA-7SEGMENT-ANODE-RED-2.30-1BIT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-7SEGMENT-ANODE-RED-2.30-1BIT 150 <grams>g
+/weight_set ITBISA-7SEGMENT-ANODE-RED-2.30-1BIT 100 1200g  # ~12 g/pcs (assumed)
 /stock_set ITBISA-7SEGMENT-ANODE-RED-2.30-1BIT 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-7SEGMENT-ANODE-RED-2.30-1BIT
 
 /variant_set ITBISA-7SEGMENT-CATHODE-RED-0.56-1BIT 1 5 20 150 750
 /harga_set ITBISA-7SEGMENT-CATHODE-RED-0.56-1BIT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp731 | Harga Sekarang Rp1.499
-/weight_set ITBISA-7SEGMENT-CATHODE-RED-0.56-1BIT 150 <grams>g
+/weight_set ITBISA-7SEGMENT-CATHODE-RED-0.56-1BIT 100 300g  # ~3 g/pcs (assumed)
 /stock_set ITBISA-7SEGMENT-CATHODE-RED-0.56-1BIT 5
 /stock_get ITBISA-7SEGMENT-CATHODE-RED-0.56-1BIT
 
 /variant_set ITBISA-7SEGMENT-CATHODE-RED-1.20-1BIT 1 5 20 150 750
 /harga_set ITBISA-7SEGMENT-CATHODE-RED-1.20-1BIT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp2.756 | Harga Sekarang Rp3.899
-/weight_set ITBISA-7SEGMENT-CATHODE-RED-1.20-1BIT 150 <grams>g
+/weight_set ITBISA-7SEGMENT-CATHODE-RED-1.20-1BIT 100 600g  # ~6 g/pcs (assumed)
 /stock_set ITBISA-7SEGMENT-CATHODE-RED-1.20-1BIT 20
 /stock_get ITBISA-7SEGMENT-CATHODE-RED-1.20-1BIT
 
 /variant_set ITBISA-7SEGMENT-CATHODE-RED-2.30-1BIT 1 5 20 150 750
 /harga_set ITBISA-7SEGMENT-CATHODE-RED-2.30-1BIT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp6.462 | Harga Sekarang Rp11.999
-/weight_set ITBISA-7SEGMENT-CATHODE-RED-2.30-1BIT 150 <grams>g
+/weight_set ITBISA-7SEGMENT-CATHODE-RED-2.30-1BIT 100 1200g  # ~12 g/pcs (assumed)
 /stock_set ITBISA-7SEGMENT-CATHODE-RED-2.30-1BIT 6
 /stock_get ITBISA-7SEGMENT-CATHODE-RED-2.30-1BIT
 
 /variant_set ITBISA-ABC-BATERAI-9V-POWER 1 5 20 150 750
 /harga_set ITBISA-ABC-BATERAI-9V-POWER 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp11.211 | Harga Sekarang Rp14.999
-/weight_set ITBISA-ABC-BATERAI-9V-POWER 150 <grams>g
+/weight_set ITBISA-ABC-BATERAI-9V-POWER 100 4500g  # ~45 g/pcs (assumed)
 /stock_set ITBISA-ABC-BATERAI-9V-POWER 111
 /stock_get ITBISA-ABC-BATERAI-9V-POWER
 
 /variant_set ITBISA-ABC-BATERAI-AA-ALKALINE 1 5 20 150 750
 /harga_set ITBISA-ABC-BATERAI-AA-ALKALINE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp3.685 | Harga Sekarang Rp5.999
-/weight_set ITBISA-ABC-BATERAI-AA-ALKALINE 150 <grams>g
+/weight_set ITBISA-ABC-BATERAI-AA-ALKALINE 100 2300g  # ~23 g/pcs (assumed)
 /stock_set ITBISA-ABC-BATERAI-AA-ALKALINE 323
 /stock_get ITBISA-ABC-BATERAI-AA-ALKALINE
 
 /variant_set ITBISA-ABC-BATERAI-AAA-ALKALINE 1 5 20 150 750
 /harga_set ITBISA-ABC-BATERAI-AAA-ALKALINE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp3.117 | Harga Sekarang Rp5.000
-/weight_set ITBISA-ABC-BATERAI-AAA-ALKALINE 150 <grams>g
+/weight_set ITBISA-ABC-BATERAI-AAA-ALKALINE 100 1100g  # ~11 g/pcs (assumed)
 /stock_set ITBISA-ABC-BATERAI-AAA-ALKALINE 356
 /stock_get ITBISA-ABC-BATERAI-AAA-ALKALINE
 
 /variant_set ITBISA-ABC-BATERAI-D-POWER 1 5 20 150 750
 /harga_set ITBISA-ABC-BATERAI-D-POWER 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-ABC-BATERAI-D-POWER 150 <grams>g
+/weight_set ITBISA-ABC-BATERAI-D-POWER 100 13500g  # ~135 g/pcs (assumed)
 /stock_set ITBISA-ABC-BATERAI-D-POWER 1
 /stock_get ITBISA-ABC-BATERAI-D-POWER
 
 /variant_set ITBISA-ARDUINO-UNO-R3-328P-SMD 1 5 20 150 750
 /harga_set ITBISA-ARDUINO-UNO-R3-328P-SMD 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp36.000 | Harga Sekarang Rp49.999
-/weight_set ITBISA-ARDUINO-UNO-R3-328P-SMD 150 <grams>g
+/weight_set ITBISA-ARDUINO-UNO-R3-328P-SMD 100 2500g  # ~25 g/pcs (assumed)
 /stock_set ITBISA-ARDUINO-UNO-R3-328P-SMD 223
 /stock_get ITBISA-ARDUINO-UNO-R3-328P-SMD
 
 /variant_set ITBISA-ARDUINO-UNO-R3-CLONE-CABLE30CM 1 5 20 150 750
 /harga_set ITBISA-ARDUINO-UNO-R3-CLONE-CABLE30CM 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-ARDUINO-UNO-R3-CLONE-CABLE30CM 150 <grams>g
+/weight_set ITBISA-ARDUINO-UNO-R3-CLONE-CABLE30CM 100 5000g  # ~50 g/pcs (assumed)
 /stock_set ITBISA-ARDUINO-UNO-R3-CLONE-CABLE30CM 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-ARDUINO-UNO-R3-CLONE-CABLE30CM
 
 /variant_set ITBISA-BLUETOOTH-MODULE-HC05 1 5 20 150 750
 /harga_set ITBISA-BLUETOOTH-MODULE-HC05 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp28.714 | Harga Sekarang Rp39.999
-/weight_set ITBISA-BLUETOOTH-MODULE-HC05 150 <grams>g
+/weight_set ITBISA-BLUETOOTH-MODULE-HC05 100 500g  # ~5 g/pcs (assumed)
 /stock_set ITBISA-BLUETOOTH-MODULE-HC05 197
 /stock_get ITBISA-BLUETOOTH-MODULE-HC05
 
 /variant_set ITBISA-BREADBOARD-830HOLE-MB102 1 5 20 150 750
 /harga_set ITBISA-BREADBOARD-830HOLE-MB102 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp6.614 | Harga Sekarang Rp9.699
-/weight_set ITBISA-BREADBOARD-830HOLE-MB102 150 <grams>g
+/weight_set ITBISA-BREADBOARD-830HOLE-MB102 100 6000g  # ~60 g/pcs (assumed)
 /stock_set ITBISA-BREADBOARD-830HOLE-MB102 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-BREADBOARD-830HOLE-MB102
 
 /variant_set ITBISA-BUBBLE-WRAP 1 5 20 150 750
 /harga_set ITBISA-BUBBLE-WRAP 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-BUBBLE-WRAP 150 <grams>g
+/weight_set ITBISA-BUBBLE-WRAP 100 100g  # ~1 g/pcs (assumed)
 /stock_set ITBISA-BUBBLE-WRAP <qty>  # not in 2026 report
 /stock_get ITBISA-BUBBLE-WRAP
 
 /variant_set ITBISA-BUZZER-ACTIVE-5V 1 5 20 150 750
 /harga_set ITBISA-BUZZER-ACTIVE-5V 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp1.251 | Harga Sekarang Rp1.449
-/weight_set ITBISA-BUZZER-ACTIVE-5V 150 <grams>g
+/weight_set ITBISA-BUZZER-ACTIVE-5V 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-BUZZER-ACTIVE-5V 2406
 /stock_get ITBISA-BUZZER-ACTIVE-5V
 
 /variant_set ITBISA-CHIP-ESP32-WROOM 1 5 20 150 750
 /harga_set ITBISA-CHIP-ESP32-WROOM 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp28.695 | Harga Sekarang Rp37.999
-/weight_set ITBISA-CHIP-ESP32-WROOM 150 <grams>g
+/weight_set ITBISA-CHIP-ESP32-WROOM 100 300g  # ~3 g/pcs (assumed)
 /stock_set ITBISA-CHIP-ESP32-WROOM 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-CHIP-ESP32-WROOM
 
 /variant_set ITBISA-CHIP-ESP32-WROOM-ANTENNA 1 5 20 150 750
 /harga_set ITBISA-CHIP-ESP32-WROOM-ANTENNA 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp22.100 | Harga Sekarang Rp49.999
-/weight_set ITBISA-CHIP-ESP32-WROOM-ANTENNA 150 <grams>g
+/weight_set ITBISA-CHIP-ESP32-WROOM-ANTENNA 100 300g  # ~3 g/pcs (assumed)
 /stock_set ITBISA-CHIP-ESP32-WROOM-ANTENNA 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-CHIP-ESP32-WROOM-ANTENNA
 
 /variant_set ITBISA-CHIP-ESP8266-ESP12E 1 5 20 150 750
 /harga_set ITBISA-CHIP-ESP8266-ESP12E 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-CHIP-ESP8266-ESP12E 150 <grams>g
+/weight_set ITBISA-CHIP-ESP8266-ESP12E 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-CHIP-ESP8266-ESP12E <qty>  # not in 2026 report
 /stock_get ITBISA-CHIP-ESP8266-ESP12E
 
 /variant_set ITBISA-CHIP-ESP8266-ESP12F 1 5 20 150 750
 /harga_set ITBISA-CHIP-ESP8266-ESP12F 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp12.784 | Harga Sekarang Rp19.999
-/weight_set ITBISA-CHIP-ESP8266-ESP12F 150 <grams>g
+/weight_set ITBISA-CHIP-ESP8266-ESP12F 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-CHIP-ESP8266-ESP12F 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-CHIP-ESP8266-ESP12F
 
 /variant_set ITBISA-DC-TO-DC-STEPDOWN-LM2596 1 5 20 150 750
 /harga_set ITBISA-DC-TO-DC-STEPDOWN-LM2596 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp5.171 | Harga Sekarang Rp8.499
-/weight_set ITBISA-DC-TO-DC-STEPDOWN-LM2596 150 <grams>g
+/weight_set ITBISA-DC-TO-DC-STEPDOWN-LM2596 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-DC-TO-DC-STEPDOWN-LM2596 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-DC-TO-DC-STEPDOWN-LM2596
 
 /variant_set ITBISA-DC-TO-DC-STEPDOWN-XL4005 1 5 20 150 750
 /harga_set ITBISA-DC-TO-DC-STEPDOWN-XL4005 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp8.465 | Harga Sekarang Rp12.999
-/weight_set ITBISA-DC-TO-DC-STEPDOWN-XL4005 150 <grams>g
+/weight_set ITBISA-DC-TO-DC-STEPDOWN-XL4005 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-DC-TO-DC-STEPDOWN-XL4005 14
 /stock_get ITBISA-DC-TO-DC-STEPDOWN-XL4005
 
 /variant_set ITBISA-DC-TO-DC-STEPDOWN-XL4015 1 5 20 150 750
 /harga_set ITBISA-DC-TO-DC-STEPDOWN-XL4015 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp8.385 | Harga Sekarang Rp10.999
-/weight_set ITBISA-DC-TO-DC-STEPDOWN-XL4015 150 <grams>g
+/weight_set ITBISA-DC-TO-DC-STEPDOWN-XL4015 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-DC-TO-DC-STEPDOWN-XL4015 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-DC-TO-DC-STEPDOWN-XL4015
 
 /variant_set ITBISA-DC-TO-DC-STEPUP-XL6009 1 5 20 150 750
 /harga_set ITBISA-DC-TO-DC-STEPUP-XL6009 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp7.240 | Harga Sekarang Rp10.999
-/weight_set ITBISA-DC-TO-DC-STEPUP-XL6009 150 <grams>g
+/weight_set ITBISA-DC-TO-DC-STEPUP-XL6009 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-DC-TO-DC-STEPUP-XL6009 9
 /stock_get ITBISA-DC-TO-DC-STEPUP-XL6009
 
 /variant_set ITBISA-DIODA-1N4007-DO41 1 5 20 150 750
 /harga_set ITBISA-DIODA-1N4007-DO41 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp79 | Harga Sekarang Rp999
-/weight_set ITBISA-DIODA-1N4007-DO41 150 <grams>g
+/weight_set ITBISA-DIODA-1N4007-DO41 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-DIODA-1N4007-DO41 1960
 /stock_get ITBISA-DIODA-1N4007-DO41
 
 /variant_set ITBISA-I2C-IIC-LCD 1 5 20 150 750
 /harga_set ITBISA-I2C-IIC-LCD 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp5.806 | Harga Sekarang Rp7.499
-/weight_set ITBISA-I2C-IIC-LCD 150 <grams>g
+/weight_set ITBISA-I2C-IIC-LCD 100 500g  # ~5 g/pcs (assumed)
 /stock_set ITBISA-I2C-IIC-LCD 26
 /stock_get ITBISA-I2C-IIC-LCD
 
 /variant_set ITBISA-IC-74HC245N-DIP20 1 5 20 150 750
 /harga_set ITBISA-IC-74HC245N-DIP20 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp1.426 | Harga Sekarang Rp2.999
-/weight_set ITBISA-IC-74HC245N-DIP20 150 <grams>g
+/weight_set ITBISA-IC-74HC245N-DIP20 100 140g  # ~1.4 g/pcs (assumed)
 /stock_set ITBISA-IC-74HC245N-DIP20 2823
 /stock_get ITBISA-IC-74HC245N-DIP20
 
 /variant_set ITBISA-IC-74HC595N-DIP16 1 5 20 150 750
 /harga_set ITBISA-IC-74HC595N-DIP16 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp768 | Harga Sekarang Rp1.299
-/weight_set ITBISA-IC-74HC595N-DIP16 150 <grams>g
+/weight_set ITBISA-IC-74HC595N-DIP16 100 100g  # ~1 g/pcs (assumed)
 /stock_set ITBISA-IC-74HC595N-DIP16 1
 /stock_get ITBISA-IC-74HC595N-DIP16
 
 /variant_set ITBISA-IC-78L05-TO92 1 5 20 150 750
 /harga_set ITBISA-IC-78L05-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-IC-78L05-TO92 150 <grams>g
+/weight_set ITBISA-IC-78L05-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-IC-78L05-TO92 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-IC-78L05-TO92
 
 /variant_set ITBISA-IC-ATMEGA328P-DIP28 1 5 20 150 750
 /harga_set ITBISA-IC-ATMEGA328P-DIP28 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp27.318 | Harga Sekarang Rp49.999
-/weight_set ITBISA-IC-ATMEGA328P-DIP28 150 <grams>g
+/weight_set ITBISA-IC-ATMEGA328P-DIP28 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-IC-ATMEGA328P-DIP28 151
 /stock_get ITBISA-IC-ATMEGA328P-DIP28
 
 /variant_set ITBISA-IC-ATMEGA328P-DIP28-BOOTLOADER 1 5 20 150 750
 /harga_set ITBISA-IC-ATMEGA328P-DIP28-BOOTLOADER 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-IC-ATMEGA328P-DIP28-BOOTLOADER 150 <grams>g
+/weight_set ITBISA-IC-ATMEGA328P-DIP28-BOOTLOADER 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-IC-ATMEGA328P-DIP28-BOOTLOADER <qty>  # not in 2026 report
 /stock_get ITBISA-IC-ATMEGA328P-DIP28-BOOTLOADER
 
 /variant_set ITBISA-IC-CD4017BE-DIP16 1 5 20 150 750
 /harga_set ITBISA-IC-CD4017BE-DIP16 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp685 | Harga Sekarang Rp1.499
-/weight_set ITBISA-IC-CD4017BE-DIP16 150 <grams>g
+/weight_set ITBISA-IC-CD4017BE-DIP16 100 100g  # ~1 g/pcs (assumed)
 /stock_set ITBISA-IC-CD4017BE-DIP16 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-IC-CD4017BE-DIP16
 
 /variant_set ITBISA-IC-CD4094BE-DIP16 1 5 20 150 750
 /harga_set ITBISA-IC-CD4094BE-DIP16 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp780 | Harga Sekarang Rp2.120
-/weight_set ITBISA-IC-CD4094BE-DIP16 150 <grams>g
+/weight_set ITBISA-IC-CD4094BE-DIP16 100 100g  # ~1 g/pcs (assumed)
 /stock_set ITBISA-IC-CD4094BE-DIP16 8450
 /stock_get ITBISA-IC-CD4094BE-DIP16
 
 /variant_set ITBISA-IC-CD4094BM-SMD-SOP16 1 5 20 150 750
 /harga_set ITBISA-IC-CD4094BM-SMD-SOP16 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp586 | Harga Sekarang Rp1.279
-/weight_set ITBISA-IC-CD4094BM-SMD-SOP16 150 <grams>g
+/weight_set ITBISA-IC-CD4094BM-SMD-SOP16 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-IC-CD4094BM-SMD-SOP16 4306
 /stock_get ITBISA-IC-CD4094BM-SMD-SOP16
 
 /variant_set ITBISA-IC-JRC4558D-DIP8 1 5 20 150 750
 /harga_set ITBISA-IC-JRC4558D-DIP8 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp553 | Harga Sekarang Rp1.499
-/weight_set ITBISA-IC-JRC4558D-DIP8 150 <grams>g
+/weight_set ITBISA-IC-JRC4558D-DIP8 100 60g  # ~0.6 g/pcs (assumed)
 /stock_set ITBISA-IC-JRC4558D-DIP8 2483
 /stock_get ITBISA-IC-JRC4558D-DIP8
 
 /variant_set ITBISA-IC-L7805CV-TO220 1 5 20 150 750
 /harga_set ITBISA-IC-L7805CV-TO220 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp860 | Harga Sekarang Rp1.299
-/weight_set ITBISA-IC-L7805CV-TO220 150 <grams>g
+/weight_set ITBISA-IC-L7805CV-TO220 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-IC-L7805CV-TO220 1
 /stock_get ITBISA-IC-L7805CV-TO220
 
 /variant_set ITBISA-IC-L7812CV-TO220 1 5 20 150 750
 /harga_set ITBISA-IC-L7812CV-TO220 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp990 | Harga Sekarang Rp1.399
-/weight_set ITBISA-IC-L7812CV-TO220 150 <grams>g
+/weight_set ITBISA-IC-L7812CV-TO220 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-IC-L7812CV-TO220 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-IC-L7812CV-TO220
 
 /variant_set ITBISA-IC-NE555P-DIP8 1 5 20 150 750
 /harga_set ITBISA-IC-NE555P-DIP8 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp317 | Harga Sekarang Rp739
-/weight_set ITBISA-IC-NE555P-DIP8 150 <grams>g
+/weight_set ITBISA-IC-NE555P-DIP8 100 60g  # ~0.6 g/pcs (assumed)
 /stock_set ITBISA-IC-NE555P-DIP8 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-IC-NE555P-DIP8
 
 /variant_set ITBISA-IC-PC817-DIP4 1 5 20 150 750
 /harga_set ITBISA-IC-PC817-DIP4 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp359 | Harga Sekarang Rp599
-/weight_set ITBISA-IC-PC817-DIP4 150 <grams>g
+/weight_set ITBISA-IC-PC817-DIP4 100 40g  # ~0.4 g/pcs (assumed)
 /stock_set ITBISA-IC-PC817-DIP4 2738
 /stock_get ITBISA-IC-PC817-DIP4
 
 /variant_set ITBISA-IC-UA741CN-DIP8 1 5 20 150 750
 /harga_set ITBISA-IC-UA741CN-DIP8 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp572 | Harga Sekarang Rp1.099
-/weight_set ITBISA-IC-UA741CN-DIP8 150 <grams>g
+/weight_set ITBISA-IC-UA741CN-DIP8 100 60g  # ~0.6 g/pcs (assumed)
 /stock_set ITBISA-IC-UA741CN-DIP8 1337
 /stock_get ITBISA-IC-UA741CN-DIP8
 
 /variant_set ITBISA-IC-ULN2003AN-DIP16 1 5 20 150 750
 /harga_set ITBISA-IC-ULN2003AN-DIP16 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp827 | Harga Sekarang Rp1.149
-/weight_set ITBISA-IC-ULN2003AN-DIP16 150 <grams>g
+/weight_set ITBISA-IC-ULN2003AN-DIP16 100 100g  # ~1 g/pcs (assumed)
 /stock_set ITBISA-IC-ULN2003AN-DIP16 1462
 /stock_get ITBISA-IC-ULN2003AN-DIP16
 
 /variant_set ITBISA-IC-ULN2803APG-DIP18 1 5 20 150 750
 /harga_set ITBISA-IC-ULN2803APG-DIP18 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp1.018 | Harga Sekarang Rp2.199
-/weight_set ITBISA-IC-ULN2803APG-DIP18 150 <grams>g
+/weight_set ITBISA-IC-ULN2803APG-DIP18 100 120g  # ~1.2 g/pcs (assumed)
 /stock_set ITBISA-IC-ULN2803APG-DIP18 1
 /stock_get ITBISA-IC-ULN2803APG-DIP18
 
 /variant_set ITBISA-IDC-2X5-AMPHENOL-FEMALE 1 5 20 150 750
 /harga_set ITBISA-IDC-2X5-AMPHENOL-FEMALE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp370 | Harga Sekarang Rp1.199
-/weight_set ITBISA-IDC-2X5-AMPHENOL-FEMALE 150 <grams>g
+/weight_set ITBISA-IDC-2X5-AMPHENOL-FEMALE 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-IDC-2X5-AMPHENOL-FEMALE 1944
 /stock_get ITBISA-IDC-2X5-AMPHENOL-FEMALE
 
 /variant_set ITBISA-IDC-2X5-AMPHENOL-MALE 1 5 20 150 750
 /harga_set ITBISA-IDC-2X5-AMPHENOL-MALE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp603 | Harga Sekarang Rp999
-/weight_set ITBISA-IDC-2X5-AMPHENOL-MALE 150 <grams>g
+/weight_set ITBISA-IDC-2X5-AMPHENOL-MALE 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-IDC-2X5-AMPHENOL-MALE 752
 /stock_get ITBISA-IDC-2X5-AMPHENOL-MALE
 
 /variant_set ITBISA-INFRARED-1838 1 5 20 150 750
 /harga_set ITBISA-INFRARED-1838 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp615 | Harga Sekarang Rp999
-/weight_set ITBISA-INFRARED-1838 150 <grams>g
+/weight_set ITBISA-INFRARED-1838 100 50g  # ~0.5 g/pcs (assumed)
 /stock_set ITBISA-INFRARED-1838 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-INFRARED-1838
 
 /variant_set ITBISA-JACK-DC-005-FEMALE 1 5 20 150 750
 /harga_set ITBISA-JACK-DC-005-FEMALE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp249 | Harga Sekarang Rp980
-/weight_set ITBISA-JACK-DC-005-FEMALE 150 <grams>g
+/weight_set ITBISA-JACK-DC-005-FEMALE 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-JACK-DC-005-FEMALE 1752
 /stock_get ITBISA-JACK-DC-005-FEMALE
 
 /variant_set ITBISA-JUMPER-FF-10CM 1 5 20 150 750
 /harga_set ITBISA-JUMPER-FF-10CM 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp198 | Harga Sekarang Rp237
-/weight_set ITBISA-JUMPER-FF-10CM 150 <grams>g
+/weight_set ITBISA-JUMPER-FF-10CM 100 50g  # ~0.5 g/pcs (assumed)
 /stock_set ITBISA-JUMPER-FF-10CM 5560
 /stock_get ITBISA-JUMPER-FF-10CM
 
 /variant_set ITBISA-JUMPER-FF-20CM 1 5 20 150 750
 /harga_set ITBISA-JUMPER-FF-20CM 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp202 | Harga Sekarang Rp307
-/weight_set ITBISA-JUMPER-FF-20CM 150 <grams>g
+/weight_set ITBISA-JUMPER-FF-20CM 100 80g  # ~0.8 g/pcs (assumed)
 /stock_set ITBISA-JUMPER-FF-20CM 6200
 /stock_get ITBISA-JUMPER-FF-20CM
 
 /variant_set ITBISA-JUMPER-MF-10CM 1 5 20 150 750
 /harga_set ITBISA-JUMPER-MF-10CM 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp171 | Harga Sekarang Rp237
-/weight_set ITBISA-JUMPER-MF-10CM 150 <grams>g
+/weight_set ITBISA-JUMPER-MF-10CM 100 50g  # ~0.5 g/pcs (assumed)
 /stock_set ITBISA-JUMPER-MF-10CM 6520
 /stock_get ITBISA-JUMPER-MF-10CM
 
 /variant_set ITBISA-JUMPER-MF-20CM 1 5 20 150 750
 /harga_set ITBISA-JUMPER-MF-20CM 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp147 | Harga Sekarang Rp312
-/weight_set ITBISA-JUMPER-MF-20CM 150 <grams>g
+/weight_set ITBISA-JUMPER-MF-20CM 100 80g  # ~0.8 g/pcs (assumed)
 /stock_set ITBISA-JUMPER-MF-20CM 4520
 /stock_get ITBISA-JUMPER-MF-20CM
 
 /variant_set ITBISA-JUMPER-MM-10CM 1 5 20 150 750
 /harga_set ITBISA-JUMPER-MM-10CM 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp194 | Harga Sekarang Rp237
-/weight_set ITBISA-JUMPER-MM-10CM 150 <grams>g
+/weight_set ITBISA-JUMPER-MM-10CM 100 50g  # ~0.5 g/pcs (assumed)
 /stock_set ITBISA-JUMPER-MM-10CM 3320
 /stock_get ITBISA-JUMPER-MM-10CM
 
 /variant_set ITBISA-JUMPER-MM-20CM 1 5 20 150 750
 /harga_set ITBISA-JUMPER-MM-20CM 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp237 | Harga Sekarang Rp307
-/weight_set ITBISA-JUMPER-MM-20CM 150 <grams>g
+/weight_set ITBISA-JUMPER-MM-20CM 100 80g  # ~0.8 g/pcs (assumed)
 /stock_set ITBISA-JUMPER-MM-20CM 3480
 /stock_get ITBISA-JUMPER-MM-20CM
 
 /variant_set ITBISA-KAPASITOR-ELCO-100UF-16V 1 5 20 150 750
 /harga_set ITBISA-KAPASITOR-ELCO-100UF-16V 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-KAPASITOR-ELCO-100UF-16V 150 <grams>g
+/weight_set ITBISA-KAPASITOR-ELCO-100UF-16V 100 150g  # ~1.5 g/pcs (assumed)
 /stock_set ITBISA-KAPASITOR-ELCO-100UF-16V <qty>  # not in 2026 report
 /stock_get ITBISA-KAPASITOR-ELCO-100UF-16V
 
 /variant_set ITBISA-KAPASITOR-ELCO-100UF-25V 1 5 20 150 750
 /harga_set ITBISA-KAPASITOR-ELCO-100UF-25V 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp101 | Harga Sekarang Rp999
-/weight_set ITBISA-KAPASITOR-ELCO-100UF-25V 150 <grams>g
+/weight_set ITBISA-KAPASITOR-ELCO-100UF-25V 100 150g  # ~1.5 g/pcs (assumed)
 /stock_set ITBISA-KAPASITOR-ELCO-100UF-25V 1990
 /stock_get ITBISA-KAPASITOR-ELCO-100UF-25V
 
 /variant_set ITBISA-KAPASITOR-ELCO-100UF-50V 1 5 20 150 750
 /harga_set ITBISA-KAPASITOR-ELCO-100UF-50V 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-KAPASITOR-ELCO-100UF-50V 150 <grams>g
+/weight_set ITBISA-KAPASITOR-ELCO-100UF-50V 100 150g  # ~1.5 g/pcs (assumed)
 /stock_set ITBISA-KAPASITOR-ELCO-100UF-50V <qty>  # not in 2026 report
 /stock_get ITBISA-KAPASITOR-ELCO-100UF-50V
 
 /variant_set ITBISA-KAPASITOR-ELCO-2200UF-25V 1 5 20 150 750
 /harga_set ITBISA-KAPASITOR-ELCO-2200UF-25V 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp663 | Harga Sekarang Rp1.499
-/weight_set ITBISA-KAPASITOR-ELCO-2200UF-25V 150 <grams>g
+/weight_set ITBISA-KAPASITOR-ELCO-2200UF-25V 100 600g  # ~6 g/pcs (assumed)
 /stock_set ITBISA-KAPASITOR-ELCO-2200UF-25V 580
 /stock_get ITBISA-KAPASITOR-ELCO-2200UF-25V
 
 /variant_set ITBISA-KAPASITOR-ELCO-47UF-16V 1 5 20 150 750
 /harga_set ITBISA-KAPASITOR-ELCO-47UF-16V 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-KAPASITOR-ELCO-47UF-16V 150 <grams>g
+/weight_set ITBISA-KAPASITOR-ELCO-47UF-16V 100 100g  # ~1 g/pcs (assumed)
 /stock_set ITBISA-KAPASITOR-ELCO-47UF-16V <qty>  # not in 2026 report
 /stock_get ITBISA-KAPASITOR-ELCO-47UF-16V
 
 /variant_set ITBISA-KAPASITOR-ELCO-47UF-25V 1 5 20 150 750
 /harga_set ITBISA-KAPASITOR-ELCO-47UF-25V 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-KAPASITOR-ELCO-47UF-25V 150 <grams>g
+/weight_set ITBISA-KAPASITOR-ELCO-47UF-25V 100 100g  # ~1 g/pcs (assumed)
 /stock_set ITBISA-KAPASITOR-ELCO-47UF-25V <qty>  # not in 2026 report
 /stock_get ITBISA-KAPASITOR-ELCO-47UF-25V
 
 /variant_set ITBISA-KAPASITOR-ELCO-47UF-50V 1 5 20 150 750
 /harga_set ITBISA-KAPASITOR-ELCO-47UF-50V 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-KAPASITOR-ELCO-47UF-50V 150 <grams>g
+/weight_set ITBISA-KAPASITOR-ELCO-47UF-50V 100 100g  # ~1 g/pcs (assumed)
 /stock_set ITBISA-KAPASITOR-ELCO-47UF-50V 2000
 /stock_get ITBISA-KAPASITOR-ELCO-47UF-50V
 
 /variant_set ITBISA-LCD-16X2-BLUE 1 5 20 150 750
 /harga_set ITBISA-LCD-16X2-BLUE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp9.409 | Harga Sekarang Rp14.999
-/weight_set ITBISA-LCD-16X2-BLUE 150 <grams>g
+/weight_set ITBISA-LCD-16X2-BLUE 100 6000g  # ~60 g/pcs (assumed)
 /stock_set ITBISA-LCD-16X2-BLUE 26
 /stock_get ITBISA-LCD-16X2-BLUE
 
 /variant_set ITBISA-LCD-16X2-GREEN 1 5 20 150 750
 /harga_set ITBISA-LCD-16X2-GREEN 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp11.817 | Harga Sekarang Rp14.999
-/weight_set ITBISA-LCD-16X2-GREEN 150 <grams>g
+/weight_set ITBISA-LCD-16X2-GREEN 100 6000g  # ~60 g/pcs (assumed)
 /stock_set ITBISA-LCD-16X2-GREEN 4
 /stock_get ITBISA-LCD-16X2-GREEN
 
 /variant_set ITBISA-LDR-GL5516 1 5 20 150 750
 /harga_set ITBISA-LDR-GL5516 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp285 | Harga Sekarang Rp999
-/weight_set ITBISA-LDR-GL5516 150 <grams>g
+/weight_set ITBISA-LDR-GL5516 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-LDR-GL5516 73
 /stock_get ITBISA-LDR-GL5516
 
 /variant_set ITBISA-LED-MAX7219-4IN1-GAP 1 5 20 150 750
 /harga_set ITBISA-LED-MAX7219-4IN1-GAP 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-LED-MAX7219-4IN1-GAP 150 <grams>g
+/weight_set ITBISA-LED-MAX7219-4IN1-GAP 100 5000g  # ~50 g/pcs (assumed)
 /stock_set ITBISA-LED-MAX7219-4IN1-GAP 5
 /stock_get ITBISA-LED-MAX7219-4IN1-GAP
 
 /variant_set ITBISA-LED-MAX7219-4IN1-TIGHT 1 5 20 150 750
 /harga_set ITBISA-LED-MAX7219-4IN1-TIGHT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp36.825 | Harga Sekarang Rp44.999
-/weight_set ITBISA-LED-MAX7219-4IN1-TIGHT 150 <grams>g
+/weight_set ITBISA-LED-MAX7219-4IN1-TIGHT 100 5000g  # ~50 g/pcs (assumed)
 /stock_set ITBISA-LED-MAX7219-4IN1-TIGHT 76
 /stock_get ITBISA-LED-MAX7219-4IN1-TIGHT
 
 /variant_set ITBISA-LED-SUPERBRIGHT-5MM-BLUE 1 5 20 150 750
 /harga_set ITBISA-LED-SUPERBRIGHT-5MM-BLUE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp59 | Harga Sekarang Rp999
-/weight_set ITBISA-LED-SUPERBRIGHT-5MM-BLUE 150 <grams>g
+/weight_set ITBISA-LED-SUPERBRIGHT-5MM-BLUE 100 30g  # ~0.3 g/pcs (assumed)
 /stock_set ITBISA-LED-SUPERBRIGHT-5MM-BLUE 4982
 /stock_get ITBISA-LED-SUPERBRIGHT-5MM-BLUE
 
 /variant_set ITBISA-LED-SUPERBRIGHT-5MM-GREEN 1 5 20 150 750
 /harga_set ITBISA-LED-SUPERBRIGHT-5MM-GREEN 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp69 | Harga Sekarang Rp949
-/weight_set ITBISA-LED-SUPERBRIGHT-5MM-GREEN 150 <grams>g
+/weight_set ITBISA-LED-SUPERBRIGHT-5MM-GREEN 100 30g  # ~0.3 g/pcs (assumed)
 /stock_set ITBISA-LED-SUPERBRIGHT-5MM-GREEN 9809
 /stock_get ITBISA-LED-SUPERBRIGHT-5MM-GREEN
 
 /variant_set ITBISA-LED-SUPERBRIGHT-5MM-RED 1 5 20 150 750
 /harga_set ITBISA-LED-SUPERBRIGHT-5MM-RED 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp58 | Harga Sekarang Rp949
-/weight_set ITBISA-LED-SUPERBRIGHT-5MM-RED 150 <grams>g
+/weight_set ITBISA-LED-SUPERBRIGHT-5MM-RED 100 30g  # ~0.3 g/pcs (assumed)
 /stock_set ITBISA-LED-SUPERBRIGHT-5MM-RED 4080
 /stock_get ITBISA-LED-SUPERBRIGHT-5MM-RED
 
 /variant_set ITBISA-LED-SUPERBRIGHT-5MM-WHITE 1 5 20 150 750
 /harga_set ITBISA-LED-SUPERBRIGHT-5MM-WHITE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp77 | Harga Sekarang Rp949
-/weight_set ITBISA-LED-SUPERBRIGHT-5MM-WHITE 150 <grams>g
+/weight_set ITBISA-LED-SUPERBRIGHT-5MM-WHITE 100 30g  # ~0.3 g/pcs (assumed)
 /stock_set ITBISA-LED-SUPERBRIGHT-5MM-WHITE 1727
 /stock_get ITBISA-LED-SUPERBRIGHT-5MM-WHITE
 
 /variant_set ITBISA-LED-SUPERBRIGHT-5MM-YELLOW 1 5 20 150 750
 /harga_set ITBISA-LED-SUPERBRIGHT-5MM-YELLOW 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp65 | Harga Sekarang Rp949
-/weight_set ITBISA-LED-SUPERBRIGHT-5MM-YELLOW 150 <grams>g
+/weight_set ITBISA-LED-SUPERBRIGHT-5MM-YELLOW 100 30g  # ~0.3 g/pcs (assumed)
 /stock_set ITBISA-LED-SUPERBRIGHT-5MM-YELLOW 367
 /stock_get ITBISA-LED-SUPERBRIGHT-5MM-YELLOW
 
 /variant_set ITBISA-MICRO-SD-READER-MINI 1 5 20 150 750
 /harga_set ITBISA-MICRO-SD-READER-MINI 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-MICRO-SD-READER-MINI 150 <grams>g
+/weight_set ITBISA-MICRO-SD-READER-MINI 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-MICRO-SD-READER-MINI 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-MICRO-SD-READER-MINI
 
 /variant_set ITBISA-MOTORDRIVER-L298N-WITH-HEATSINK 1 5 20 150 750
 /harga_set ITBISA-MOTORDRIVER-L298N-WITH-HEATSINK 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-MOTORDRIVER-L298N-WITH-HEATSINK 150 <grams>g
+/weight_set ITBISA-MOTORDRIVER-L298N-WITH-HEATSINK 100 2700g  # ~27 g/pcs (assumed)
 /stock_set ITBISA-MOTORDRIVER-L298N-WITH-HEATSINK 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-MOTORDRIVER-L298N-WITH-HEATSINK
 
 /variant_set ITBISA-NODEMCU-ESP32-MICRO-30PIN 1 5 20 150 750
 /harga_set ITBISA-NODEMCU-ESP32-MICRO-30PIN 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-NODEMCU-ESP32-MICRO-30PIN 150 <grams>g
+/weight_set ITBISA-NODEMCU-ESP32-MICRO-30PIN 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-NODEMCU-ESP32-MICRO-30PIN 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-NODEMCU-ESP32-MICRO-30PIN
 
 /variant_set ITBISA-NODEMCU-ESP32-MICRO-38PIN 1 5 20 150 750
 /harga_set ITBISA-NODEMCU-ESP32-MICRO-38PIN 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-NODEMCU-ESP32-MICRO-38PIN 150 <grams>g
+/weight_set ITBISA-NODEMCU-ESP32-MICRO-38PIN 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-NODEMCU-ESP32-MICRO-38PIN 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-NODEMCU-ESP32-MICRO-38PIN
 
 /variant_set ITBISA-NODEMCU-V3-CH340G-ESP8266-MICRO 1 5 20 150 750
 /harga_set ITBISA-NODEMCU-V3-CH340G-ESP8266-MICRO 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp24.010 | Harga Sekarang Rp31.999
-/weight_set ITBISA-NODEMCU-V3-CH340G-ESP8266-MICRO 150 <grams>g
+/weight_set ITBISA-NODEMCU-V3-CH340G-ESP8266-MICRO 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-NODEMCU-V3-CH340G-ESP8266-MICRO 1
 /stock_get ITBISA-NODEMCU-V3-CH340G-ESP8266-MICRO
 
 /variant_set ITBISA-NODEMCU-V3-CH340G-ESP8266-TYPE-C 1 5 20 150 750
 /harga_set ITBISA-NODEMCU-V3-CH340G-ESP8266-TYPE-C 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-NODEMCU-V3-CH340G-ESP8266-TYPE-C 150 <grams>g
+/weight_set ITBISA-NODEMCU-V3-CH340G-ESP8266-TYPE-C 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-NODEMCU-V3-CH340G-ESP8266-TYPE-C <qty>  # not in 2026 report
 /stock_get ITBISA-NODEMCU-V3-CH340G-ESP8266-TYPE-C
 
 /variant_set ITBISA-NPN-2N2222-TO92 1 5 20 150 750
 /harga_set ITBISA-NPN-2N2222-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp90 | Harga Sekarang Rp999
-/weight_set ITBISA-NPN-2N2222-TO92 150 <grams>g
+/weight_set ITBISA-NPN-2N2222-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-NPN-2N2222-TO92 9797
 /stock_get ITBISA-NPN-2N2222-TO92
 
 /variant_set ITBISA-NPN-2N3904-TO92 1 5 20 150 750
 /harga_set ITBISA-NPN-2N3904-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp108 | Harga Sekarang Rp999
-/weight_set ITBISA-NPN-2N3904-TO92 150 <grams>g
+/weight_set ITBISA-NPN-2N3904-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-NPN-2N3904-TO92 2211
 /stock_get ITBISA-NPN-2N3904-TO92
 
 /variant_set ITBISA-NPN-2N5551-TO92 1 5 20 150 750
 /harga_set ITBISA-NPN-2N5551-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp106 | Harga Sekarang Rp999
-/weight_set ITBISA-NPN-2N5551-TO92 150 <grams>g
+/weight_set ITBISA-NPN-2N5551-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-NPN-2N5551-TO92 1190
 /stock_get ITBISA-NPN-2N5551-TO92
 
 /variant_set ITBISA-NPN-BC337-TO92 1 5 20 150 750
 /harga_set ITBISA-NPN-BC337-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp109 | Harga Sekarang Rp999
-/weight_set ITBISA-NPN-BC337-TO92 150 <grams>g
+/weight_set ITBISA-NPN-BC337-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-NPN-BC337-TO92 2183
 /stock_get ITBISA-NPN-BC337-TO92
 
 /variant_set ITBISA-NPN-BC547-TO92 1 5 20 150 750
 /harga_set ITBISA-NPN-BC547-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp10 | Harga Sekarang Rp999
-/weight_set ITBISA-NPN-BC547-TO92 150 <grams>g
+/weight_set ITBISA-NPN-BC547-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-NPN-BC547-TO92 3288
 /stock_get ITBISA-NPN-BC547-TO92
 
 /variant_set ITBISA-NPN-BC548-TO92 1 5 20 150 750
 /harga_set ITBISA-NPN-BC548-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp110 | Harga Sekarang Rp999
-/weight_set ITBISA-NPN-BC548-TO92 150 <grams>g
+/weight_set ITBISA-NPN-BC548-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-NPN-BC548-TO92 1215
 /stock_get ITBISA-NPN-BC548-TO92
 
 /variant_set ITBISA-NPN-S9013-TO92 1 5 20 150 750
 /harga_set ITBISA-NPN-S9013-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp106 | Harga Sekarang Rp999
-/weight_set ITBISA-NPN-S9013-TO92 150 <grams>g
+/weight_set ITBISA-NPN-S9013-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-NPN-S9013-TO92 975
 /stock_get ITBISA-NPN-S9013-TO92
 
 /variant_set ITBISA-PCB-5X7-COPPER-SINGLE-SIDE 1 5 20 150 750
 /harga_set ITBISA-PCB-5X7-COPPER-SINGLE-SIDE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp911 | Harga Sekarang Rp1.399
-/weight_set ITBISA-PCB-5X7-COPPER-SINGLE-SIDE 150 <grams>g
+/weight_set ITBISA-PCB-5X7-COPPER-SINGLE-SIDE 100 1200g  # ~12 g/pcs (assumed)
 /stock_set ITBISA-PCB-5X7-COPPER-SINGLE-SIDE 45
 /stock_get ITBISA-PCB-5X7-COPPER-SINGLE-SIDE
 
 /variant_set ITBISA-PIN-HEADER-MALE-1X40PIN-L-SAMA 1 5 20 150 750
 /harga_set ITBISA-PIN-HEADER-MALE-1X40PIN-L-SAMA 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp726 | Harga Sekarang Rp999
-/weight_set ITBISA-PIN-HEADER-MALE-1X40PIN-L-SAMA 150 <grams>g
+/weight_set ITBISA-PIN-HEADER-MALE-1X40PIN-L-SAMA 100 300g  # ~3 g/pcs (assumed)
 /stock_set ITBISA-PIN-HEADER-MALE-1X40PIN-L-SAMA 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-PIN-HEADER-MALE-1X40PIN-L-SAMA
 
 /variant_set ITBISA-PIN-HEADER-MALE-1X40PIN-L-SEBELAH 1 5 20 150 750
 /harga_set ITBISA-PIN-HEADER-MALE-1X40PIN-L-SEBELAH 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-PIN-HEADER-MALE-1X40PIN-L-SEBELAH 150 <grams>g
+/weight_set ITBISA-PIN-HEADER-MALE-1X40PIN-L-SEBELAH 100 300g  # ~3 g/pcs (assumed)
 /stock_set ITBISA-PIN-HEADER-MALE-1X40PIN-L-SEBELAH <qty>  # not in 2026 report
 /stock_get ITBISA-PIN-HEADER-MALE-1X40PIN-L-SEBELAH
 
 /variant_set ITBISA-PIN-HEADER-MALE-1X40PIN-LURUS 1 5 20 150 750
 /harga_set ITBISA-PIN-HEADER-MALE-1X40PIN-LURUS 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp370 | Harga Sekarang Rp799
-/weight_set ITBISA-PIN-HEADER-MALE-1X40PIN-LURUS 150 <grams>g
+/weight_set ITBISA-PIN-HEADER-MALE-1X40PIN-LURUS 100 300g  # ~3 g/pcs (assumed)
 /stock_set ITBISA-PIN-HEADER-MALE-1X40PIN-LURUS 1106
 /stock_get ITBISA-PIN-HEADER-MALE-1X40PIN-LURUS
 
 /variant_set ITBISA-PNP-2N3906-TO92 1 5 20 150 750
 /harga_set ITBISA-PNP-2N3906-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp106 | Harga Sekarang Rp999
-/weight_set ITBISA-PNP-2N3906-TO92 150 <grams>g
+/weight_set ITBISA-PNP-2N3906-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-PNP-2N3906-TO92 1073
 /stock_get ITBISA-PNP-2N3906-TO92
 
 /variant_set ITBISA-PNP-2N5401-TO92 1 5 20 150 750
 /harga_set ITBISA-PNP-2N5401-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp106 | Harga Sekarang Rp999
-/weight_set ITBISA-PNP-2N5401-TO92 150 <grams>g
+/weight_set ITBISA-PNP-2N5401-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-PNP-2N5401-TO92 1625
 /stock_get ITBISA-PNP-2N5401-TO92
 
 /variant_set ITBISA-PNP-A1015-TO92 1 5 20 150 750
 /harga_set ITBISA-PNP-A1015-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp106 | Harga Sekarang Rp999
-/weight_set ITBISA-PNP-A1015-TO92 150 <grams>g
+/weight_set ITBISA-PNP-A1015-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-PNP-A1015-TO92 1995
 /stock_get ITBISA-PNP-A1015-TO92
 
 /variant_set ITBISA-PNP-BC557-TO92 1 5 20 150 750
 /harga_set ITBISA-PNP-BC557-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp108 | Harga Sekarang Rp999
-/weight_set ITBISA-PNP-BC557-TO92 150 <grams>g
+/weight_set ITBISA-PNP-BC557-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-PNP-BC557-TO92 2048
 /stock_get ITBISA-PNP-BC557-TO92
 
 /variant_set ITBISA-PNP-BC558-TO92 1 5 20 150 750
 /harga_set ITBISA-PNP-BC558-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp106 | Harga Sekarang Rp999
-/weight_set ITBISA-PNP-BC558-TO92 150 <grams>g
+/weight_set ITBISA-PNP-BC558-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-PNP-BC558-TO92 1473
 /stock_get ITBISA-PNP-BC558-TO92
 
 /variant_set ITBISA-PNP-S8550-TO92 1 5 20 150 750
 /harga_set ITBISA-PNP-S8550-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp106 | Harga Sekarang Rp999
-/weight_set ITBISA-PNP-S8550-TO92 150 <grams>g
+/weight_set ITBISA-PNP-S8550-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-PNP-S8550-TO92 1365
 /stock_get ITBISA-PNP-S8550-TO92
 
 /variant_set ITBISA-PNP-S9012-TO92 1 5 20 150 750
 /harga_set ITBISA-PNP-S9012-TO92 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp106 | Harga Sekarang Rp999
-/weight_set ITBISA-PNP-S9012-TO92 150 <grams>g
+/weight_set ITBISA-PNP-S9012-TO92 100 20g  # ~0.2 g/pcs (assumed)
 /stock_set ITBISA-PNP-S9012-TO92 790
 /stock_get ITBISA-PNP-S9012-TO92
 
 /variant_set ITBISA-RAPID-BOHLAM-E10-2.5V-SCREW 1 5 20 150 750
 /harga_set ITBISA-RAPID-BOHLAM-E10-2.5V-SCREW 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp679 | Harga Sekarang Rp899
-/weight_set ITBISA-RAPID-BOHLAM-E10-2.5V-SCREW 150 <grams>g
+/weight_set ITBISA-RAPID-BOHLAM-E10-2.5V-SCREW 100 150g  # ~1.5 g/pcs (assumed)
 /stock_set ITBISA-RAPID-BOHLAM-E10-2.5V-SCREW 626
 /stock_get ITBISA-RAPID-BOHLAM-E10-2.5V-SCREW
 
 /variant_set ITBISA-RAPID-BOHLAM-E10-3.8V-SCREW 1 5 20 150 750
 /harga_set ITBISA-RAPID-BOHLAM-E10-3.8V-SCREW 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp560 | Harga Sekarang Rp899
-/weight_set ITBISA-RAPID-BOHLAM-E10-3.8V-SCREW 150 <grams>g
+/weight_set ITBISA-RAPID-BOHLAM-E10-3.8V-SCREW 100 150g  # ~1.5 g/pcs (assumed)
 /stock_set ITBISA-RAPID-BOHLAM-E10-3.8V-SCREW 552
 /stock_get ITBISA-RAPID-BOHLAM-E10-3.8V-SCREW
 
 /variant_set ITBISA-RELAY-12V-4PIN-BLUE 1 5 20 150 750
 /harga_set ITBISA-RELAY-12V-4PIN-BLUE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp1.776 | Harga Sekarang Rp2.699
-/weight_set ITBISA-RELAY-12V-4PIN-BLUE 150 <grams>g
+/weight_set ITBISA-RELAY-12V-4PIN-BLUE 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-RELAY-12V-4PIN-BLUE 723
 /stock_get ITBISA-RELAY-12V-4PIN-BLUE
 
 /variant_set ITBISA-RELAY-12V-5PIN-BLUE 1 5 20 150 750
 /harga_set ITBISA-RELAY-12V-5PIN-BLUE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp1.776 | Harga Sekarang Rp3.199
-/weight_set ITBISA-RELAY-12V-5PIN-BLUE 150 <grams>g
+/weight_set ITBISA-RELAY-12V-5PIN-BLUE 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-RELAY-12V-5PIN-BLUE 6465
 /stock_get ITBISA-RELAY-12V-5PIN-BLUE
 
 /variant_set ITBISA-RELAY-5V-1CHANNEL-BLUE-LOW-TRIGGER 1 5 20 150 750
 /harga_set ITBISA-RELAY-5V-1CHANNEL-BLUE-LOW-TRIGGER 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp4.279 | Harga Sekarang Rp6.499
-/weight_set ITBISA-RELAY-5V-1CHANNEL-BLUE-LOW-TRIGGER 150 <grams>g
+/weight_set ITBISA-RELAY-5V-1CHANNEL-BLUE-LOW-TRIGGER 100 1500g  # ~15 g/pcs (assumed)
 /stock_set ITBISA-RELAY-5V-1CHANNEL-BLUE-LOW-TRIGGER 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-RELAY-5V-1CHANNEL-BLUE-LOW-TRIGGER
 
 /variant_set ITBISA-RELAY-5V-4PIN-BLUE 1 5 20 150 750
 /harga_set ITBISA-RELAY-5V-4PIN-BLUE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp1.776 | Harga Sekarang Rp2.699
-/weight_set ITBISA-RELAY-5V-4PIN-BLUE 150 <grams>g
+/weight_set ITBISA-RELAY-5V-4PIN-BLUE 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-RELAY-5V-4PIN-BLUE 1933
 /stock_get ITBISA-RELAY-5V-4PIN-BLUE
 
 /variant_set ITBISA-RELAY-5V-5PIN-BLUE 1 5 20 150 750
 /harga_set ITBISA-RELAY-5V-5PIN-BLUE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp1.897 | Harga Sekarang Rp2.999
-/weight_set ITBISA-RELAY-5V-5PIN-BLUE 150 <grams>g
+/weight_set ITBISA-RELAY-5V-5PIN-BLUE 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-RELAY-5V-5PIN-BLUE 186
 /stock_get ITBISA-RELAY-5V-5PIN-BLUE
 
 /variant_set ITBISA-RESISTOR-10-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-10-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-10-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-10-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-10-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-10-1/4W
 
 /variant_set ITBISA-RESISTOR-100-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-100-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-100-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-100-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-100-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-100-1/4W
 
 /variant_set ITBISA-RESISTOR-100K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-100K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp20 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-100K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-100K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-100K-1/4W 6963
 /stock_get ITBISA-RESISTOR-100K-1/4W
 
 /variant_set ITBISA-RESISTOR-100K-1/4W-5%-CARBON 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-100K-1/4W-5%-CARBON 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-100K-1/4W-5%-CARBON 150 <grams>g
+/weight_set ITBISA-RESISTOR-100K-1/4W-5%-CARBON 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-100K-1/4W-5%-CARBON <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-100K-1/4W-5%-CARBON
 
 /variant_set ITBISA-RESISTOR-10K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-10K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp23 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-10K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-10K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-10K-1/4W 3390
 /stock_get ITBISA-RESISTOR-10K-1/4W
 
 /variant_set ITBISA-RESISTOR-10K-1/4W-1%-METAL 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-10K-1/4W-1%-METAL 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-10K-1/4W-1%-METAL 150 <grams>g
+/weight_set ITBISA-RESISTOR-10K-1/4W-1%-METAL 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-10K-1/4W-1%-METAL <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-10K-1/4W-1%-METAL
 
 /variant_set ITBISA-RESISTOR-11-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-11-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-11-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-11-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-11-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-11-1/4W
 
 /variant_set ITBISA-RESISTOR-110-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-110-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-110-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-110-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-110-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-110-1/4W
 
 /variant_set ITBISA-RESISTOR-110K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-110K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-110K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-110K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-110K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-110K-1/4W
 
 /variant_set ITBISA-RESISTOR-11K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-11K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-11K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-11K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-11K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-11K-1/4W
 
 /variant_set ITBISA-RESISTOR-12-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-12-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-12-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-12-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-12-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-12-1/4W
 
 /variant_set ITBISA-RESISTOR-120-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-120-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-120-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-120-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-120-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-120-1/4W
 
 /variant_set ITBISA-RESISTOR-120K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-120K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp17 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-120K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-120K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-120K-1/4W 980
 /stock_get ITBISA-RESISTOR-120K-1/4W
 
 /variant_set ITBISA-RESISTOR-12K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-12K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp17 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-12K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-12K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-12K-1/4W 980
 /stock_get ITBISA-RESISTOR-12K-1/4W
 
 /variant_set ITBISA-RESISTOR-13-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-13-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-13-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-13-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-13-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-13-1/4W
 
 /variant_set ITBISA-RESISTOR-130-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-130-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-130-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-130-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-130-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-130-1/4W
 
 /variant_set ITBISA-RESISTOR-130K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-130K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-130K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-130K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-130K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-130K-1/4W
 
 /variant_set ITBISA-RESISTOR-13K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-13K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-13K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-13K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-13K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-13K-1/4W
 
 /variant_set ITBISA-RESISTOR-15-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-15-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-15-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-15-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-15-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-15-1/4W
 
 /variant_set ITBISA-RESISTOR-150-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-150-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-150-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-150-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-150-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-150-1/4W
 
 /variant_set ITBISA-RESISTOR-150K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-150K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp16 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-150K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-150K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-150K-1/4W 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-RESISTOR-150K-1/4W
 
 /variant_set ITBISA-RESISTOR-15K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-15K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp16 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-15K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-15K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-15K-1/4W 5468
 /stock_get ITBISA-RESISTOR-15K-1/4W
 
 /variant_set ITBISA-RESISTOR-16-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-16-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-16-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-16-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-16-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-16-1/4W
 
 /variant_set ITBISA-RESISTOR-160-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-160-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-160-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-160-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-160-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-160-1/4W
 
 /variant_set ITBISA-RESISTOR-160K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-160K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-160K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-160K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-160K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-160K-1/4W
 
 /variant_set ITBISA-RESISTOR-16K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-16K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-16K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-16K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-16K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-16K-1/4W
 
 /variant_set ITBISA-RESISTOR-18-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-18-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-18-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-18-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-18-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-18-1/4W
 
 /variant_set ITBISA-RESISTOR-180-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-180-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-180-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-180-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-180-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-180-1/4W
 
 /variant_set ITBISA-RESISTOR-180K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-180K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-180K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-180K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-180K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-180K-1/4W
 
 /variant_set ITBISA-RESISTOR-18K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-18K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp20 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-18K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-18K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-18K-1/4W 3930
 /stock_get ITBISA-RESISTOR-18K-1/4W
 
 /variant_set ITBISA-RESISTOR-1K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp17 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-1K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1K-1/4W 1658
 /stock_get ITBISA-RESISTOR-1K-1/4W
 
 /variant_set ITBISA-RESISTOR-1K1-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1K1-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-1K1-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1K1-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1K1-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-1K1-1/4W
 
 /variant_set ITBISA-RESISTOR-1K2-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1K2-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-1K2-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1K2-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1K2-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-1K2-1/4W
 
 /variant_set ITBISA-RESISTOR-1K3-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1K3-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-1K3-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1K3-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1K3-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-1K3-1/4W
 
 /variant_set ITBISA-RESISTOR-1K5-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1K5-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-1K5-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1K5-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1K5-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-1K5-1/4W
 
 /variant_set ITBISA-RESISTOR-1K6-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1K6-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-1K6-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1K6-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1K6-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-1K6-1/4W
 
 /variant_set ITBISA-RESISTOR-1K8-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1K8-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-1K8-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1K8-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1K8-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-1K8-1/4W
 
 /variant_set ITBISA-RESISTOR-1M-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1M-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp17 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-1M-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1M-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1M-1/4W 940
 /stock_get ITBISA-RESISTOR-1M-1/4W
 
 /variant_set ITBISA-RESISTOR-1M1-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1M1-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-1M1-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1M1-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1M1-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-1M1-1/4W
 
 /variant_set ITBISA-RESISTOR-1M2-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1M2-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-1M2-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1M2-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1M2-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-1M2-1/4W
 
 /variant_set ITBISA-RESISTOR-1M3-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1M3-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-1M3-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1M3-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1M3-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-1M3-1/4W
 
 /variant_set ITBISA-RESISTOR-1M5-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1M5-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-1M5-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1M5-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1M5-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-1M5-1/4W
 
 /variant_set ITBISA-RESISTOR-1M6-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1M6-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-1M6-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1M6-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1M6-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-1M6-1/4W
 
 /variant_set ITBISA-RESISTOR-1M8-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-1M8-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-1M8-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-1M8-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-1M8-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-1M8-1/4W
 
 /variant_set ITBISA-RESISTOR-20-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-20-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-20-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-20-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-20-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-20-1/4W
 
 /variant_set ITBISA-RESISTOR-200-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-200-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-200-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-200-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-200-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-200-1/4W
 
 /variant_set ITBISA-RESISTOR-200K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-200K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-200K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-200K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-200K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-200K-1/4W
 
 /variant_set ITBISA-RESISTOR-20K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-20K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-20K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-20K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-20K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-20K-1/4W
 
 /variant_set ITBISA-RESISTOR-22-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-22-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-22-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-22-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-22-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-22-1/4W
 
 /variant_set ITBISA-RESISTOR-220-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-220-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp21 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-220-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-220-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-220-1/4W 3753
 /stock_get ITBISA-RESISTOR-220-1/4W
 
 /variant_set ITBISA-RESISTOR-220K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-220K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-220K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-220K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-220K-1/4W 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-RESISTOR-220K-1/4W
 
 /variant_set ITBISA-RESISTOR-22K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-22K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp16 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-22K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-22K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-22K-1/4W 7809
 /stock_get ITBISA-RESISTOR-22K-1/4W
 
 /variant_set ITBISA-RESISTOR-24-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-24-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-24-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-24-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-24-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-24-1/4W
 
 /variant_set ITBISA-RESISTOR-240-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-240-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-240-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-240-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-240-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-240-1/4W
 
 /variant_set ITBISA-RESISTOR-240K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-240K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-240K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-240K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-240K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-240K-1/4W
 
 /variant_set ITBISA-RESISTOR-24K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-24K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-24K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-24K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-24K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-24K-1/4W
 
 /variant_set ITBISA-RESISTOR-27-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-27-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-27-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-27-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-27-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-27-1/4W
 
 /variant_set ITBISA-RESISTOR-270-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-270-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp21 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-270-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-270-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-270-1/4W 4926
 /stock_get ITBISA-RESISTOR-270-1/4W
 
 /variant_set ITBISA-RESISTOR-270K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-270K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp16 | Harga Sekarang Rp100
-/weight_set ITBISA-RESISTOR-270K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-270K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-270K-1/4W 3965
 /stock_get ITBISA-RESISTOR-270K-1/4W
 
 /variant_set ITBISA-RESISTOR-27K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-27K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp20 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-27K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-27K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-27K-1/4W 4389
 /stock_get ITBISA-RESISTOR-27K-1/4W
 
 /variant_set ITBISA-RESISTOR-2K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-2K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-2K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-2K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-2K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-2K-1/4W
 
 /variant_set ITBISA-RESISTOR-2K2-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-2K2-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp18 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-2K2-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-2K2-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-2K2-1/4W 4685
 /stock_get ITBISA-RESISTOR-2K2-1/4W
 
 /variant_set ITBISA-RESISTOR-2K2-1/4W-5%-METAL 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-2K2-1/4W-5%-METAL 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-2K2-1/4W-5%-METAL 150 <grams>g
+/weight_set ITBISA-RESISTOR-2K2-1/4W-5%-METAL 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-2K2-1/4W-5%-METAL <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-2K2-1/4W-5%-METAL
 
 /variant_set ITBISA-RESISTOR-2K4-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-2K4-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-2K4-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-2K4-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-2K4-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-2K4-1/4W
 
 /variant_set ITBISA-RESISTOR-2K7-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-2K7-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp16 | Harga Sekarang Rp100
-/weight_set ITBISA-RESISTOR-2K7-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-2K7-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-2K7-1/4W 4947
 /stock_get ITBISA-RESISTOR-2K7-1/4W
 
 /variant_set ITBISA-RESISTOR-2M-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-2M-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-2M-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-2M-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-2M-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-2M-1/4W
 
 /variant_set ITBISA-RESISTOR-2M2-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-2M2-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-2M2-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-2M2-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-2M2-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-2M2-1/4W
 
 /variant_set ITBISA-RESISTOR-2M4-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-2M4-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-2M4-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-2M4-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-2M4-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-2M4-1/4W
 
 /variant_set ITBISA-RESISTOR-2M7-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-2M7-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-2M7-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-2M7-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-2M7-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-2M7-1/4W
 
 /variant_set ITBISA-RESISTOR-30-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-30-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-30-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-30-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-30-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-30-1/4W
 
 /variant_set ITBISA-RESISTOR-300-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-300-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-300-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-300-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-300-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-300-1/4W
 
 /variant_set ITBISA-RESISTOR-300K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-300K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-300K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-300K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-300K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-300K-1/4W
 
 /variant_set ITBISA-RESISTOR-30K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-30K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-30K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-30K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-30K-1/4W 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-RESISTOR-30K-1/4W
 
 /variant_set ITBISA-RESISTOR-33-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-33-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-33-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-33-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-33-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-33-1/4W
 
 /variant_set ITBISA-RESISTOR-330-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-330-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp21 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-330-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-330-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-330-1/4W 3609
 /stock_get ITBISA-RESISTOR-330-1/4W
 
 /variant_set ITBISA-RESISTOR-330K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-330K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-330K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-330K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-330K-1/4W 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-RESISTOR-330K-1/4W
 
 /variant_set ITBISA-RESISTOR-33K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-33K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp21 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-33K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-33K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-33K-1/4W 1600
 /stock_get ITBISA-RESISTOR-33K-1/4W
 
 /variant_set ITBISA-RESISTOR-36-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-36-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-36-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-36-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-36-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-36-1/4W
 
 /variant_set ITBISA-RESISTOR-360-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-360-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-360-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-360-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-360-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-360-1/4W
 
 /variant_set ITBISA-RESISTOR-360K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-360K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-360K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-360K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-360K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-360K-1/4W
 
 /variant_set ITBISA-RESISTOR-36K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-36K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-36K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-36K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-36K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-36K-1/4W
 
 /variant_set ITBISA-RESISTOR-39-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-39-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-39-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-39-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-39-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-39-1/4W
 
 /variant_set ITBISA-RESISTOR-390-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-390-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-390-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-390-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-390-1/4W 1890
 /stock_get ITBISA-RESISTOR-390-1/4W
 
 /variant_set ITBISA-RESISTOR-390K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-390K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-390K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-390K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-390K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-390K-1/4W
 
 /variant_set ITBISA-RESISTOR-39K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-39K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp20 | Harga Sekarang Rp100
-/weight_set ITBISA-RESISTOR-39K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-39K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-39K-1/4W 2920
 /stock_get ITBISA-RESISTOR-39K-1/4W
 
 /variant_set ITBISA-RESISTOR-3K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-3K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-3K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-3K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-3K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-3K-1/4W
 
 /variant_set ITBISA-RESISTOR-3K3-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-3K3-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp18 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-3K3-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-3K3-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-3K3-1/4W 2264
 /stock_get ITBISA-RESISTOR-3K3-1/4W
 
 /variant_set ITBISA-RESISTOR-3K3-1/4W-5%-METAL 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-3K3-1/4W-5%-METAL 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-3K3-1/4W-5%-METAL 150 <grams>g
+/weight_set ITBISA-RESISTOR-3K3-1/4W-5%-METAL 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-3K3-1/4W-5%-METAL <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-3K3-1/4W-5%-METAL
 
 /variant_set ITBISA-RESISTOR-3K6-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-3K6-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-3K6-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-3K6-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-3K6-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-3K6-1/4W
 
 /variant_set ITBISA-RESISTOR-3K9-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-3K9-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-3K9-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-3K9-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-3K9-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-3K9-1/4W
 
 /variant_set ITBISA-RESISTOR-3M-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-3M-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-3M-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-3M-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-3M-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-3M-1/4W
 
 /variant_set ITBISA-RESISTOR-3M3-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-3M3-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-3M3-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-3M3-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-3M3-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-3M3-1/4W
 
 /variant_set ITBISA-RESISTOR-3M6-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-3M6-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-3M6-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-3M6-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-3M6-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-3M6-1/4W
 
 /variant_set ITBISA-RESISTOR-3M9-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-3M9-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-3M9-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-3M9-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-3M9-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-3M9-1/4W
 
 /variant_set ITBISA-RESISTOR-43-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-43-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-43-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-43-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-43-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-43-1/4W
 
 /variant_set ITBISA-RESISTOR-430-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-430-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-430-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-430-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-430-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-430-1/4W
 
 /variant_set ITBISA-RESISTOR-430K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-430K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-430K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-430K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-430K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-430K-1/4W
 
 /variant_set ITBISA-RESISTOR-43K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-43K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-43K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-43K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-43K-1/4W 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-RESISTOR-43K-1/4W
 
 /variant_set ITBISA-RESISTOR-47-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-47-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-47-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-47-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-47-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-47-1/4W
 
 /variant_set ITBISA-RESISTOR-470-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-470-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-470-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-470-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-470-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-470-1/4W
 
 /variant_set ITBISA-RESISTOR-470K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-470K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp22 | Harga Sekarang Rp100
-/weight_set ITBISA-RESISTOR-470K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-470K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-470K-1/4W 795
 /stock_get ITBISA-RESISTOR-470K-1/4W
 
 /variant_set ITBISA-RESISTOR-47K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-47K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp18 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-47K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-47K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-47K-1/4W 3500
 /stock_get ITBISA-RESISTOR-47K-1/4W
 
 /variant_set ITBISA-RESISTOR-4K3-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-4K3-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-4K3-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-4K3-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-4K3-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-4K3-1/4W
 
 /variant_set ITBISA-RESISTOR-4K7-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-4K7-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp22 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-4K7-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-4K7-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-4K7-1/4W 2693
 /stock_get ITBISA-RESISTOR-4K7-1/4W
 
 /variant_set ITBISA-RESISTOR-4K7-1/4W-1%-METAL 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-4K7-1/4W-1%-METAL 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-4K7-1/4W-1%-METAL 150 <grams>g
+/weight_set ITBISA-RESISTOR-4K7-1/4W-1%-METAL 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-4K7-1/4W-1%-METAL <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-4K7-1/4W-1%-METAL
 
 /variant_set ITBISA-RESISTOR-4M3-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-4M3-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-4M3-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-4M3-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-4M3-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-4M3-1/4W
 
 /variant_set ITBISA-RESISTOR-4M7-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-4M7-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-4M7-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-4M7-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-4M7-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-4M7-1/4W
 
 /variant_set ITBISA-RESISTOR-51-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-51-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-51-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-51-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-51-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-51-1/4W
 
 /variant_set ITBISA-RESISTOR-510-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-510-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-510-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-510-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-510-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-510-1/4W
 
 /variant_set ITBISA-RESISTOR-510K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-510K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-510K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-510K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-510K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-510K-1/4W
 
 /variant_set ITBISA-RESISTOR-51K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-51K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-51K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-51K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-51K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-51K-1/4W
 
 /variant_set ITBISA-RESISTOR-56-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-56-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-56-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-56-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-56-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-56-1/4W
 
 /variant_set ITBISA-RESISTOR-560-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-560-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp20 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-560-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-560-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-560-1/4W 4447
 /stock_get ITBISA-RESISTOR-560-1/4W
 
 /variant_set ITBISA-RESISTOR-560K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-560K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-560K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-560K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-560K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-560K-1/4W
 
 /variant_set ITBISA-RESISTOR-56K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-56K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp20 | Harga Sekarang Rp99
-/weight_set ITBISA-RESISTOR-56K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-56K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-56K-1/4W 580
 /stock_get ITBISA-RESISTOR-56K-1/4W
 
 /variant_set ITBISA-RESISTOR-5K1-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-5K1-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-5K1-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-5K1-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-5K1-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-5K1-1/4W
 
 /variant_set ITBISA-RESISTOR-5K6-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-5K6-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp21 | Harga Sekarang Rp100
-/weight_set ITBISA-RESISTOR-5K6-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-5K6-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-5K6-1/4W 6822
 /stock_get ITBISA-RESISTOR-5K6-1/4W
 
 /variant_set ITBISA-RESISTOR-5M1-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-5M1-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-5M1-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-5M1-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-5M1-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-5M1-1/4W
 
 /variant_set ITBISA-RESISTOR-5M6-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-5M6-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-5M6-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-5M6-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-5M6-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-5M6-1/4W
 
 /variant_set ITBISA-RESISTOR-62-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-62-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-62-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-62-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-62-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-62-1/4W
 
 /variant_set ITBISA-RESISTOR-620-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-620-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-620-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-620-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-620-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-620-1/4W
 
 /variant_set ITBISA-RESISTOR-620K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-620K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-620K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-620K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-620K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-620K-1/4W
 
 /variant_set ITBISA-RESISTOR-62K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-62K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-62K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-62K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-62K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-62K-1/4W
 
 /variant_set ITBISA-RESISTOR-68-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-68-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-68-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-68-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-68-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-68-1/4W
 
 /variant_set ITBISA-RESISTOR-680-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-680-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-680-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-680-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-680-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-680-1/4W
 
 /variant_set ITBISA-RESISTOR-680K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-680K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp17 | Harga Sekarang Rp100
-/weight_set ITBISA-RESISTOR-680K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-680K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-680K-1/4W 1865
 /stock_get ITBISA-RESISTOR-680K-1/4W
 
 /variant_set ITBISA-RESISTOR-68K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-68K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-68K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-68K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-68K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-68K-1/4W
 
 /variant_set ITBISA-RESISTOR-6K2-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-6K2-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-6K2-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-6K2-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-6K2-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-6K2-1/4W
 
 /variant_set ITBISA-RESISTOR-6K8-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-6K8-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp18 | Harga Sekarang Rp100
-/weight_set ITBISA-RESISTOR-6K8-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-6K8-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-6K8-1/4W 3860
 /stock_get ITBISA-RESISTOR-6K8-1/4W
 
 /variant_set ITBISA-RESISTOR-6M2-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-6M2-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-6M2-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-6M2-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-6M2-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-6M2-1/4W
 
 /variant_set ITBISA-RESISTOR-6M8-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-6M8-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-6M8-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-6M8-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-6M8-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-6M8-1/4W
 
 /variant_set ITBISA-RESISTOR-75-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-75-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-75-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-75-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-75-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-75-1/4W
 
 /variant_set ITBISA-RESISTOR-750-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-750-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-750-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-750-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-750-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-750-1/4W
 
 /variant_set ITBISA-RESISTOR-750K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-750K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-750K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-750K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-750K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-750K-1/4W
 
 /variant_set ITBISA-RESISTOR-75K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-75K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-75K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-75K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-75K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-75K-1/4W
 
 /variant_set ITBISA-RESISTOR-7K5-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-7K5-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-7K5-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-7K5-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-7K5-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-7K5-1/4W
 
 /variant_set ITBISA-RESISTOR-7M5-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-7M5-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-7M5-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-7M5-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-7M5-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-7M5-1/4W
 
 /variant_set ITBISA-RESISTOR-82-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-82-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-82-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-82-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-82-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-82-1/4W
 
 /variant_set ITBISA-RESISTOR-820-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-820-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-820-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-820-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-820-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-820-1/4W
 
 /variant_set ITBISA-RESISTOR-820K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-820K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-820K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-820K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-820K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-820K-1/4W
 
 /variant_set ITBISA-RESISTOR-82K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-82K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-82K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-82K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-82K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-82K-1/4W
 
 /variant_set ITBISA-RESISTOR-8K2-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-8K2-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-8K2-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-8K2-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-8K2-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-8K2-1/4W
 
 /variant_set ITBISA-RESISTOR-8M2-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-8M2-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-8M2-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-8M2-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-8M2-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-8M2-1/4W
 
 /variant_set ITBISA-RESISTOR-91-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-91-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-91-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-91-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-91-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-91-1/4W
 
 /variant_set ITBISA-RESISTOR-910-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-910-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-910-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-910-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-910-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-910-1/4W
 
 /variant_set ITBISA-RESISTOR-910K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-910K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-910K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-910K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-910K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-910K-1/4W
 
 /variant_set ITBISA-RESISTOR-91K-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-91K-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-91K-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-91K-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-91K-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-91K-1/4W
 
 /variant_set ITBISA-RESISTOR-9K1-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-9K1-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-9K1-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-9K1-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-9K1-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-9K1-1/4W
 
 /variant_set ITBISA-RESISTOR-9M1-1/4W 1 5 20 150 750
 /harga_set ITBISA-RESISTOR-9M1-1/4W 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-RESISTOR-9M1-1/4W 150 <grams>g
+/weight_set ITBISA-RESISTOR-9M1-1/4W 100 35g  # ~0.35 g/pcs (assumed)
 /stock_set ITBISA-RESISTOR-9M1-1/4W <qty>  # not in 2026 report
 /stock_get ITBISA-RESISTOR-9M1-1/4W
 
 /variant_set ITBISA-RFID-RC522-KIT 1 5 20 150 750
 /harga_set ITBISA-RFID-RC522-KIT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp10.690 | Harga Sekarang Rp14.999
-/weight_set ITBISA-RFID-RC522-KIT 150 <grams>g
+/weight_set ITBISA-RFID-RC522-KIT 100 1200g  # ~12 g/pcs (assumed)
 /stock_set ITBISA-RFID-RC522-KIT 146
 /stock_get ITBISA-RFID-RC522-KIT
 
 /variant_set ITBISA-RTC-DS3231M 1 5 20 150 750
 /harga_set ITBISA-RTC-DS3231M 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp18.631 | Harga Sekarang Rp23.999
-/weight_set ITBISA-RTC-DS3231M 150 <grams>g
+/weight_set ITBISA-RTC-DS3231M 100 50g  # ~0.5 g/pcs (assumed)
 /stock_set ITBISA-RTC-DS3231M 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-RTC-DS3231M
 
 /variant_set ITBISA-RTC-DS3231SN 1 5 20 150 750
 /harga_set ITBISA-RTC-DS3231SN 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp13.531 | Harga Sekarang Rp25.999
-/weight_set ITBISA-RTC-DS3231SN 150 <grams>g
+/weight_set ITBISA-RTC-DS3231SN 100 50g  # ~0.5 g/pcs (assumed)
 /stock_set ITBISA-RTC-DS3231SN 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-RTC-DS3231SN
 
 /variant_set ITBISA-SENSOR-SUHU-DHT11 1 5 20 150 750
 /harga_set ITBISA-SENSOR-SUHU-DHT11 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp8.284 | Harga Sekarang Rp10.499
-/weight_set ITBISA-SENSOR-SUHU-DHT11 150 <grams>g
+/weight_set ITBISA-SENSOR-SUHU-DHT11 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-SENSOR-SUHU-DHT11 30
 /stock_get ITBISA-SENSOR-SUHU-DHT11
 
 /variant_set ITBISA-SENSOR-ULTRASONIK-HCSR04 1 5 20 150 750
 /harga_set ITBISA-SENSOR-ULTRASONIK-HCSR04 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp7.101 | Harga Sekarang Rp10.499
-/weight_set ITBISA-SENSOR-ULTRASONIK-HCSR04 150 <grams>g
+/weight_set ITBISA-SENSOR-ULTRASONIK-HCSR04 100 900g  # ~9 g/pcs (assumed)
 /stock_set ITBISA-SENSOR-ULTRASONIK-HCSR04 14
 /stock_get ITBISA-SENSOR-ULTRASONIK-HCSR04
 
 /variant_set ITBISA-SERVO-CHECKER 1 5 20 150 750
 /harga_set ITBISA-SERVO-CHECKER 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp11.667 | Harga Sekarang Rp14.999
-/weight_set ITBISA-SERVO-CHECKER 150 <grams>g
+/weight_set ITBISA-SERVO-CHECKER 100 1000g  # ~10 g/pcs (assumed)
 /stock_set ITBISA-SERVO-CHECKER 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-SERVO-CHECKER
 
 /variant_set ITBISA-SERVO-SG90-180DEG 1 5 20 150 750
 /harga_set ITBISA-SERVO-SG90-180DEG 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp9.821 | Harga Sekarang Rp15.999
-/weight_set ITBISA-SERVO-SG90-180DEG 150 <grams>g
+/weight_set ITBISA-SERVO-SG90-180DEG 100 900g  # ~9 g/pcs (assumed)
 /stock_set ITBISA-SERVO-SG90-180DEG 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-SERVO-SG90-180DEG
 
 /variant_set ITBISA-SERVO-SG90-360DEG 1 5 20 150 750
 /harga_set ITBISA-SERVO-SG90-360DEG 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp9.821 | Harga Sekarang Rp15.999
-/weight_set ITBISA-SERVO-SG90-360DEG 150 <grams>g
+/weight_set ITBISA-SERVO-SG90-360DEG 100 900g  # ~9 g/pcs (assumed)
 /stock_set ITBISA-SERVO-SG90-360DEG 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-SERVO-SG90-360DEG
 
 /variant_set ITBISA-SOCKET-BATERAI-AA-1SLOT 1 5 20 150 750
 /harga_set ITBISA-SOCKET-BATERAI-AA-1SLOT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-SOCKET-BATERAI-AA-1SLOT 150 <grams>g
+/weight_set ITBISA-SOCKET-BATERAI-AA-1SLOT 100 2300g  # ~23 g/pcs (assumed)
 /stock_set ITBISA-SOCKET-BATERAI-AA-1SLOT <qty>  # not in 2026 report
 /stock_get ITBISA-SOCKET-BATERAI-AA-1SLOT
 
 /variant_set ITBISA-SOCKET-BATERAI-AA-2SLOT 1 5 20 150 750
 /harga_set ITBISA-SOCKET-BATERAI-AA-2SLOT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-SOCKET-BATERAI-AA-2SLOT 150 <grams>g
+/weight_set ITBISA-SOCKET-BATERAI-AA-2SLOT 100 2300g  # ~23 g/pcs (assumed)
 /stock_set ITBISA-SOCKET-BATERAI-AA-2SLOT 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-SOCKET-BATERAI-AA-2SLOT
 
 /variant_set ITBISA-SOCKET-BATERAI-AA-3SLOT 1 5 20 150 750
 /harga_set ITBISA-SOCKET-BATERAI-AA-3SLOT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-SOCKET-BATERAI-AA-3SLOT 150 <grams>g
+/weight_set ITBISA-SOCKET-BATERAI-AA-3SLOT 100 2300g  # ~23 g/pcs (assumed)
 /stock_set ITBISA-SOCKET-BATERAI-AA-3SLOT 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-SOCKET-BATERAI-AA-3SLOT
 
 /variant_set ITBISA-SOCKET-BATERAI-AA-4SLOT 1 5 20 150 750
 /harga_set ITBISA-SOCKET-BATERAI-AA-4SLOT 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp2.904 | Harga Sekarang Rp5.999
-/weight_set ITBISA-SOCKET-BATERAI-AA-4SLOT 150 <grams>g
+/weight_set ITBISA-SOCKET-BATERAI-AA-4SLOT 100 2300g  # ~23 g/pcs (assumed)
 /stock_set ITBISA-SOCKET-BATERAI-AA-4SLOT 1
 /stock_get ITBISA-SOCKET-BATERAI-AA-4SLOT
 
 /variant_set ITBISA-SOCKET-IC-DIP14-NARROW 1 5 20 150 750
 /harga_set ITBISA-SOCKET-IC-DIP14-NARROW 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp222 | Harga Sekarang Rp499
-/weight_set ITBISA-SOCKET-IC-DIP14-NARROW 150 <grams>g
+/weight_set ITBISA-SOCKET-IC-DIP14-NARROW 100 150g  # ~1.5 g/pcs (assumed)
 /stock_set ITBISA-SOCKET-IC-DIP14-NARROW 1196
 /stock_get ITBISA-SOCKET-IC-DIP14-NARROW
 
 /variant_set ITBISA-SOCKET-IC-DIP16-NARROW 1 5 20 150 750
 /harga_set ITBISA-SOCKET-IC-DIP16-NARROW 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp450 | Harga Sekarang Rp499
-/weight_set ITBISA-SOCKET-IC-DIP16-NARROW 150 <grams>g
+/weight_set ITBISA-SOCKET-IC-DIP16-NARROW 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-SOCKET-IC-DIP16-NARROW 91
 /stock_get ITBISA-SOCKET-IC-DIP16-NARROW
 
 /variant_set ITBISA-SOCKET-IC-DIP20-NARROW 1 5 20 150 750
 /harga_set ITBISA-SOCKET-IC-DIP20-NARROW 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp329 | Harga Sekarang Rp749
-/weight_set ITBISA-SOCKET-IC-DIP20-NARROW 150 <grams>g
+/weight_set ITBISA-SOCKET-IC-DIP20-NARROW 100 250g  # ~2.5 g/pcs (assumed)
 /stock_set ITBISA-SOCKET-IC-DIP20-NARROW 318
 /stock_get ITBISA-SOCKET-IC-DIP20-NARROW
 
 /variant_set ITBISA-SOCKET-IC-DIP28-NARROW 1 5 20 150 750
 /harga_set ITBISA-SOCKET-IC-DIP28-NARROW 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp456 | Harga Sekarang Rp949
-/weight_set ITBISA-SOCKET-IC-DIP28-NARROW 150 <grams>g
+/weight_set ITBISA-SOCKET-IC-DIP28-NARROW 100 350g  # ~3.5 g/pcs (assumed)
 /stock_set ITBISA-SOCKET-IC-DIP28-NARROW 1218
 /stock_get ITBISA-SOCKET-IC-DIP28-NARROW
 
 /variant_set ITBISA-SOCKET-IC-DIP8-NARROW 1 5 20 150 750
 /harga_set ITBISA-SOCKET-IC-DIP8-NARROW 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp163 | Harga Sekarang Rp299
-/weight_set ITBISA-SOCKET-IC-DIP8-NARROW 150 <grams>g
+/weight_set ITBISA-SOCKET-IC-DIP8-NARROW 100 100g  # ~1 g/pcs (assumed)
 /stock_set ITBISA-SOCKET-IC-DIP8-NARROW 16
 /stock_get ITBISA-SOCKET-IC-DIP8-NARROW
 
 /variant_set ITBISA-TERMINAL-BLOCK-KF301-2P-BLUE 1 5 20 150 750
 /harga_set ITBISA-TERMINAL-BLOCK-KF301-2P-BLUE 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp395 | Harga Sekarang Rp499
-/weight_set ITBISA-TERMINAL-BLOCK-KF301-2P-BLUE 150 <grams>g
+/weight_set ITBISA-TERMINAL-BLOCK-KF301-2P-BLUE 100 200g  # ~2 g/pcs (assumed)
 /stock_set ITBISA-TERMINAL-BLOCK-KF301-2P-BLUE 1108
 /stock_get ITBISA-TERMINAL-BLOCK-KF301-2P-BLUE
 
 /variant_set ITBISA-TIGERHEAD-SENTER-KUNING-FT300 1 5 20 150 750
 /harga_set ITBISA-TIGERHEAD-SENTER-KUNING-FT300 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-TIGERHEAD-SENTER-KUNING-FT300 150 <grams>g
+/weight_set ITBISA-TIGERHEAD-SENTER-KUNING-FT300 100 9000g  # ~90 g/pcs (assumed)
 /stock_set ITBISA-TIGERHEAD-SENTER-KUNING-FT300 1
 /stock_get ITBISA-TIGERHEAD-SENTER-KUNING-FT300
 
 /variant_set ITBISA-TIGERHEAD-SENTER-KUNING-FT700 1 5 20 150 750
 /harga_set ITBISA-TIGERHEAD-SENTER-KUNING-FT700 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-TIGERHEAD-SENTER-KUNING-FT700 150 <grams>g
+/weight_set ITBISA-TIGERHEAD-SENTER-KUNING-FT700 100 13000g  # ~130 g/pcs (assumed)
 /stock_set ITBISA-TIGERHEAD-SENTER-KUNING-FT700 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-TIGERHEAD-SENTER-KUNING-FT700
 
 /variant_set ITBISA-USB-A-TO-B-30CM 1 5 20 150 750
 /harga_set ITBISA-USB-A-TO-B-30CM 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp4.000 | Harga Sekarang Rp5.799
-/weight_set ITBISA-USB-A-TO-B-30CM 150 <grams>g
+/weight_set ITBISA-USB-A-TO-B-30CM 100 2500g  # ~25 g/pcs (assumed)
 /stock_set ITBISA-USB-A-TO-B-30CM 280
 /stock_get ITBISA-USB-A-TO-B-30CM
 
 /variant_set ITBISA-VYBA-SENTER-KUNING-FT300 1 5 20 150 750
 /harga_set ITBISA-VYBA-SENTER-KUNING-FT300 1 <base> 50 <p50> 150 <p150> 750 <p750>  # (tidak ada di report 2026)
-/weight_set ITBISA-VYBA-SENTER-KUNING-FT300 150 <grams>g
+/weight_set ITBISA-VYBA-SENTER-KUNING-FT300 100 9000g  # ~90 g/pcs (assumed)
 /stock_set ITBISA-VYBA-SENTER-KUNING-FT300 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-VYBA-SENTER-KUNING-FT300
 
 /variant_set ITBISA-WEMOS-D1-MINI-ESP8266 1 5 20 150 750
 /harga_set ITBISA-WEMOS-D1-MINI-ESP8266 1 <base> 50 <p50> 150 <p150> 750 <p750>  # HPP/buah Rp20.791 | Harga Sekarang Rp29.999
-/weight_set ITBISA-WEMOS-D1-MINI-ESP8266 150 <grams>g
+/weight_set ITBISA-WEMOS-D1-MINI-ESP8266 100 300g  # ~3 g/pcs (assumed)
 /stock_set ITBISA-WEMOS-D1-MINI-ESP8266 0  # OVERSOLD/0 — verify
 /stock_get ITBISA-WEMOS-D1-MINI-ESP8266

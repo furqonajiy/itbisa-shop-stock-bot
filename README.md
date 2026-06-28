@@ -7,6 +7,12 @@ This repo is used by the Telegram stock commands and GitHub Actions workflows to
 - read stock (`/stock_get`)
 - set stock to a requested total (`/stock_set`)
 - rebalance existing stock while preserving the current total (`/stock_balance`)
+- report base SKUs with low combined stock (`/stock_low`)
+- set tiered ("Harga Grosir"-style) prices (`/harga_set`)
+- rebuild a TikTok Shop product's pack-size variants (`/variant_set`)
+- set per-piece TikTok Shop variant weight (`/weight_set`)
+- audit catalog standardization to an Excel report (`audit.yml`)
+- run several of the above commands sequentially in one job (`batch.yml`)
 
 The bot runs as short-lived GitHub Actions jobs. There is no server, VM, database,
 shared runtime, or cron in this repo.
@@ -139,17 +145,22 @@ Example:
 
 ### Platform split
 
-For `/stock_set SKU TOTAL`, the requested total is split 50:50:
+For production `/stock_set SKU TOTAL` and `/stock_balance SKU` (SKU mode, the
+price-aware runners), the bot first **reserves stock to Shopee** worth
+`SHOPEE_RESERVE_IDR` (Rp200.000, `ceil(SHOPEE_RESERVE_IDR / Shopee 1PCS price)`
+units; best-effort — unknown price or `0` disables it), then splits the remainder
+by `SHOPEE_SPLIT_PERCENT` (**70 → 70:30 Shopee:TikTok Shop**):
 
 ```text
-Shopee target      = ceil(total / 2)
-TikTok Shop target = floor(total / 2)
+tiktokshop = remainder * (100 - 70) // 100
+shopee     = remainder - tiktokshop   # Shopee absorbs the rounding remainder
 ```
 
-Shopee receives the odd remainder.
-
 For `/stock_balance SKU`, the bot first reads the current Shopee + TikTok Shop
-stock, preserves that combined total, then applies the same target split.
+stock, preserves that combined total, then applies the same reserve + split.
+
+Excel-mode `/stock_set` (via `src.main.run_excel_mode`) is the legacy path and
+still uses a plain **50:50** split with no reserve.
 
 ### Shopee
 
@@ -395,12 +406,19 @@ python scripts/stock_balance.py --sku SKU1 SKU2 SKU3
 
 ## GitHub Actions
 
-Current workflows:
+Current workflows (all `workflow_dispatch` only — no cron):
 
 ```text
 .github/workflows/get.yml      # /stock_get, read-only
 .github/workflows/set.yml      # /stock_set, write
 .github/workflows/balance.yml  # /stock_balance, write
+.github/workflows/low.yml      # /stock_low, read-only (throttled 1x/24h in-bot)
+.github/workflows/harga.yml    # /harga_set, write (tiered pricing)
+.github/workflows/variant.yml  # /variant_set, write (TikTok Shop, defaults dry_run)
+.github/workflows/weight.yml   # /weight_set, write (TikTok Shop, defaults dry_run)
+.github/workflows/audit.yml    # catalog standardization audit, read-only (Excel artifact)
+.github/workflows/batch.yml    # batch of stock commands, sequential
+.github/workflows/ci.yml       # pytest quality gate on PRs (no secrets, no bot-state)
 ```
 
 All workflows:
@@ -418,13 +436,21 @@ workflows persist token files after every run.
 Concurrency:
 
 ```text
-stock-get      cancel-in-progress: true
+stock-get      cancel-in-progress: true   # read-only, timeout-minutes: 10
+stock-low      cancel-in-progress: true   # read-only, timeout-minutes: 10
+catalog-audit  cancel-in-progress: true   # read-only, timeout-minutes: 30
 stock-set      cancel-in-progress: false
 stock-balance  cancel-in-progress: false
+stock-harga    cancel-in-progress: false
+stock-variant  cancel-in-progress: false
+stock-weight   cancel-in-progress: false
+stock-batch    cancel-in-progress: false  # timeout-minutes: 45
 ```
 
-`stock-set` and `stock-balance` do not cancel in-progress runs because cancelling
-mid-write could leave a partially applied batch.
+The write paths (`stock-set`, `stock-balance`, `stock-harga`, `stock-variant`,
+`stock-weight`, `stock-batch`) do not cancel in-progress runs because cancelling
+mid-write could leave a partially applied batch. Read-only paths carry a
+runaway-safe `timeout-minutes`.
 
 ## Required secrets
 
@@ -459,6 +485,11 @@ These values live in `src/config.py`, not in GitHub Secrets:
 TIKTOKSHOP_MAX_UNITS_PER_VARIANT = 50    # per-variant unit cap (TikTok Shop allocator)
 DELAY_BETWEEN_CALLS_SECONDS = 1.0
 MAX_SKUS_PER_RUN = 500
+SHOPEE_RESERVE_IDR = 200000              # stock value reserved to Shopee first (0 disables)
+SHOPEE_SPLIT_PERCENT = 70               # Shopee's share of the post-reserve remainder (70:30)
+SHOPEE_MIN_BUY_IDR = 20000              # Shopee min-purchase target (reported, set manually)
+LOW_STOCK_THRESHOLD = 50                # /stock_low flags combined on-hand pieces below this
+LOW_STOCK_MIN_INTERVAL_HOURS = 24       # /stock_low report throttle window
 ```
 
 Change them by editing `src/config.py` and committing the change to `main`.
@@ -472,6 +503,7 @@ Expected mutable files:
 ```text
 data/shopee_tokens.json
 data/tiktokshop_tokens.json
+data/low_stock_throttle.json   # /stock_low 24h throttle timestamp
 ```
 
 This stock bot does **not** need `processed_orders.json`.

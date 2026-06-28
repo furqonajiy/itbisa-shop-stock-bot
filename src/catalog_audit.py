@@ -32,7 +32,7 @@ from datetime import datetime, timedelta, timezone
 
 from src import config, shopee_client, telegram_sender, tiktokshop_client
 from src.shopee_detail_enrichment import _extract_price_idr
-from src.variant_set_tiktok import BUBBLE_WRAP_SELLER_SKU, _sku_price_idr
+from src.variant_set_tiktok import BUBBLE_WRAP_SELLER_SKU, _sku_price_idr, _sku_weight_grams
 
 # Tunables (standardization targets).
 GROSIR_MIN_LAYERS = 3
@@ -164,8 +164,9 @@ def _gather_shopee_info(shopee_catalog: dict[str, list[dict]]) -> dict[str, dict
     return {b: by_item.get(iid, {}) for b, iid in base_to_item.items()}
 
 
-def _gather_tiktok_prices(tiktok_catalog: dict[str, list[dict]]) -> dict[str, int | None]:
-    """base_sku -> 1PCS price, via one product-detail read per unique product."""
+def _gather_tiktok_info(tiktok_catalog: dict[str, list[dict]]) -> dict[str, dict]:
+    """base_sku -> {price, weight_g} for the 1PCS sku, via one product-detail
+    read per unique product."""
     base_to_sku: dict[str, tuple] = {}
     product_ids: set = set()
     for base_sku, variants in tiktok_catalog.items():
@@ -175,7 +176,7 @@ def _gather_tiktok_prices(tiktok_catalog: dict[str, list[dict]]) -> dict[str, in
             if one.get("product_id"):
                 product_ids.add(one["product_id"])
 
-    price_by_sku: dict = {}
+    by_sku: dict = {}
     for pid in product_ids:
         try:
             detail = tiktokshop_client.fetch_product_detail_raw(pid)
@@ -183,10 +184,10 @@ def _gather_tiktok_prices(tiktok_catalog: dict[str, list[dict]]) -> dict[str, in
             print(f"  [audit] TikTok detail {pid} failed: {e}")
             continue
         for s in (detail.get("skus") or []):
-            price_by_sku[s.get("id")] = _sku_price_idr(s)
+            by_sku[s.get("id")] = {"price": _sku_price_idr(s), "weight_g": _sku_weight_grams(s)}
         time.sleep(config.DELAY_BETWEEN_CALLS_SECONDS)
 
-    return {b: price_by_sku.get(sid) for b, (pid, sid) in base_to_sku.items()}
+    return {b: (by_sku.get(sid) or {}) for b, (pid, sid) in base_to_sku.items()}
 
 
 # ----------------------------------------------------------------------
@@ -203,7 +204,7 @@ def run_catalog_audit(output_path: str) -> int:
         print("Walking TikTok Shop catalog...")
         tiktok_catalog = tiktokshop_client.fetch_catalog()
         shopee_info = _gather_shopee_info(shopee_catalog)
-        tiktok_prices = _gather_tiktok_prices(tiktok_catalog)
+        tiktok_info = _gather_tiktok_info(tiktok_catalog)
     except Exception as e:  # noqa: BLE001 - surface any walk/auth failure to Telegram
         msg = f"Gagal membaca katalog untuk audit: {e}"
         print(f"✗ {msg}")
@@ -213,14 +214,20 @@ def run_catalog_audit(output_path: str) -> int:
     rows = []
     for base_sku in sorted(set(shopee_catalog) | set(tiktok_catalog)):
         info = shopee_info.get(base_sku) or {}
-        rows.append(audit_sku(
+        tk = tiktok_info.get(base_sku) or {}
+        row = audit_sku(
             base_sku,
             shopee_catalog.get(base_sku) or [],
             tiktok_catalog.get(base_sku) or [],
             shopee_price=info.get("price"),
             grosir_layers=info.get("grosir_layers", 0),
-            tiktok_price=tiktok_prices.get(base_sku),
-        ))
+            tiktok_price=tk.get("price"),
+        )
+        # Current live per-piece weights (read-only) for weight-standardization judgment.
+        one_sv = _one_pcs_variant(shopee_catalog.get(base_sku) or [])
+        row["shopee_weight_g"] = one_sv.get("weight_grams") if one_sv else None
+        row["tiktok_weight_g"] = tk.get("weight_g")
+        rows.append(row)
 
     _write_audit_workbook(output_path, rows)
 
@@ -344,6 +351,24 @@ def _write_audit_workbook(path: str, rows: list[dict]) -> None:
             r["shopee_min_buy_target"] if r["shopee_min_buy_target"] is not None else "—",
             _fmt_price(r["tiktok_price"]) if r["on_tiktok"] else "—",
             r["tiktok_min_buy_target"] if r["tiktok_min_buy_target"] is not None else "—",
+        ])
+    ws.freeze_panes = "A4"
+
+    # ---- 03_Current_Weights (live per-piece weight, read-only) ----
+    ws = wb.create_sheet("03_Current_Weights")
+    ws.append([f"Berat per-pcs saat ini (live) — {generated}"])
+    ws["A1"].font = title_font
+    ws.append([])
+    _header(ws, ["Base SKU", "Shopee 1PCS (g)", "TikTok 1PCS (g)"], [40, 18, 18])
+    for r in rows:
+        if not (r["on_shopee"] or r["on_tiktok"]):
+            continue
+        sw = r.get("shopee_weight_g")
+        tw = r.get("tiktok_weight_g")
+        ws.append([
+            r["base_sku"],
+            round(sw, 2) if isinstance(sw, (int, float)) and sw else "—",
+            round(tw, 2) if isinstance(tw, (int, float)) and tw else "—",
         ])
     ws.freeze_panes = "A4"
 

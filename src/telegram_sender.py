@@ -105,6 +105,9 @@ def send_single_sku_summary(report: dict) -> None:
         report.get("shopee_lines") or [],
         sku,
     ))
+    shopee_min_buy = report.get("shopee_min_buy_units")
+    if shopee_min_buy:
+        lines.append(f"🛒 Min. pesanan: {_fmt_int(shopee_min_buy)} (set manual di Seller Center)")
     lines.append(f"*{TIKTOKSHOP_LABEL}*")
     lines.extend(_variant_detail_table_lines(
         report.get("tiktokshop_detail_variants"),
@@ -382,6 +385,9 @@ def send_harga_set_summary(report: dict) -> None:
             lines.extend(_render_table(["Qty", "Harga"], shopee_rows))
         if shopee.get("wholesale_applied") is False and shopee.get("wholesale_tiers"):
             lines.append("⚠️ Harga Grosir di atas set manual di Seller Center (API Shopee belum mendukung).")
+        min_buy = shopee.get("min_buy_units")
+        if min_buy:
+            lines.append(f"🛒 Min. pesanan: {_fmt_int(min_buy)} (set manual di Seller Center)")
         packs = shopee.get("skipped_packs") or []
         if packs:
             lines.append(f"⏭️ {len(packs)} produk pack-size dilewati")

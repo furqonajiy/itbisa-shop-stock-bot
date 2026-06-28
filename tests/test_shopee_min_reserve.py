@@ -2,9 +2,30 @@
 
 import pytest
 
-from src.stock_allocator import shopee_min_reserve_units, split_with_shopee_min_reserve
+from src.stock_allocator import (
+    shopee_min_buy_units,
+    shopee_min_reserve_units,
+    split_with_shopee_min_reserve,
+)
 
 MIN = 15000  # arbitrary reserve value exercising the pure-function math
+
+
+# ----------------------------------------------------------------------
+# shopee_min_buy_units (listing minimum-purchase target = ceil(idr / base))
+# ----------------------------------------------------------------------
+def test_min_buy_units_rounds_up():
+    assert shopee_min_buy_units(2199, 20000) == 10   # ceil(9.09)
+    assert shopee_min_buy_units(3199, 20000) == 7     # ceil(6.25)
+    assert shopee_min_buy_units(1000, 20000) == 20
+    assert shopee_min_buy_units(20000, 20000) == 1
+    assert shopee_min_buy_units(25000, 20000) == 1    # ceil(0.8)
+
+
+def test_min_buy_units_unknown_or_disabled():
+    assert shopee_min_buy_units(None, 20000) is None
+    assert shopee_min_buy_units(0, 20000) is None
+    assert shopee_min_buy_units(2199, 0) is None       # disabled
 
 
 # ----------------------------------------------------------------------

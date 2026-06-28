@@ -8,7 +8,11 @@ from src.main import (
     _make_set_skip_result,
 )
 from src.shopee_detail_enrichment import enrich_shopee_prices
-from src.stock_allocator import shopee_min_reserve_units, split_with_shopee_min_reserve
+from src.stock_allocator import (
+    shopee_min_buy_units,
+    shopee_min_reserve_units,
+    split_with_shopee_min_reserve,
+)
 from src.stock_balance_price_rule import (
     _allocate_tiktokshop_balance,
     _build_shopee_detail_variants,
@@ -204,6 +208,9 @@ def _set_one_sku(
         ),
         "shopee_status": shopee_status,
         "tiktokshop_status": tiktokshop_status,
+        "shopee_min_buy_units": shopee_min_buy_units(
+            shopee_unit_price, config.SHOPEE_MIN_BUY_IDR
+        ),
     }
 
 
@@ -250,6 +257,9 @@ def _set_shopee_only(
         "tiktokshop_detail_variants": [],
         "shopee_status": shopee_status,
         "tiktokshop_status": "tidak ada di TikTok Shop",
+        "shopee_min_buy_units": shopee_min_buy_units(
+            _shopee_unit_price(shopee_variants), config.SHOPEE_MIN_BUY_IDR
+        ),
     }
 
 

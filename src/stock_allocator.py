@@ -195,6 +195,31 @@ def shopee_min_reserve_units(
     return min(min_units, total_pieces)
 
 
+def shopee_min_buy_units(
+        base_price_idr: int | float | None,
+        min_buy_idr: int,
+) -> int | None:
+    """
+    Standardized Shopee minimum-purchase quantity: `ceil(min_buy_idr / base_price)`
+    units, so the minimum order is worth at least `min_buy_idr`.
+
+    Returns None when the price is unknown / non-positive, or when `min_buy_idr`
+    is disabled (<= 0). Pure. Distinct from `shopee_min_reserve_units`: this sizes
+    the listing's MIN PURCHASE setting (reported, set manually in Seller Center),
+    not the stock reserved to Shopee before the split.
+
+    Examples (min_buy_idr=20000):
+      shopee_min_buy_units(2199, 20000) -> 10   # ceil(9.09)
+      shopee_min_buy_units(3199, 20000) -> 7    # ceil(6.25)
+      shopee_min_buy_units(None, 20000) -> None
+    """
+    if not base_price_idr or base_price_idr <= 0:
+        return None
+    if not min_buy_idr or min_buy_idr <= 0:
+        return None
+    return math.ceil(min_buy_idr / base_price_idr)
+
+
 def split_with_shopee_min_reserve(
         total_pieces: int,
         shopee_unit_price_idr: int | float | None,

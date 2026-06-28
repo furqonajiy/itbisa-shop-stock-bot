@@ -117,6 +117,12 @@ SHOPEE_RESERVE_IDR = 200000
 # rounding remainder. Same split for /stock_balance and /stock_set.
 SHOPEE_SPLIT_PERCENT = 70
 
+# Shopee minimum-purchase target (IDR). The standardized Shopee "minimum pesanan"
+# is ceil(SHOPEE_MIN_BUY_IDR / base unit price) units, e.g. Rp20.000 / Rp2.199 = 10.
+# Shopee's Open API cannot set minimum purchase (it is a Seller Center setting),
+# so /stock_set and /harga_set REPORT this target for the operator to set manually.
+SHOPEE_MIN_BUY_IDR = 20000
+
 # Low-stock report (/stock_low): a base SKU is "low" when its combined on-hand
 # stock (Shopee + TikTok Shop, in pieces) is below this threshold.
 LOW_STOCK_THRESHOLD = 50

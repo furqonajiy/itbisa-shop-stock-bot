@@ -421,6 +421,22 @@ def send_weight_set_summary(report: dict) -> None:
     _send(_join(lines))
 
 
+def send_catalog_audit_summary(report: dict) -> None:
+    """Read-only catalog standardization audit (from /catalog_audit)."""
+    lines = [
+        "🧾 *Audit Standardisasi Katalog* — Selesai",
+        "",
+        f"Total SKU: {_fmt_int(report.get('total', 0))}",
+        f"Tidak standar (rule 1/2): {_fmt_int(report.get('not_standard', 0))}",
+        f"• Shopee Harga Grosir < 3 layer: {_fmt_int(report.get('rule1_fail', 0))}",
+        f"• TikTok ≤Rp5.000 tanpa varian pack: {_fmt_int(report.get('rule2_fail', 0))}",
+        "",
+        f"📎 Laporan Excel `{report.get('output_name', 'catalog_audit.xlsx')}` "
+        "ada di artifact run GitHub Actions.",
+    ]
+    _send(_join(lines))
+
+
 def send_alert(text: str, mode: str = "Set Stock") -> None:
     decorated = _decorate_platforms(text)
     _send(f"🚨 *{mode}* — Error\n\n{decorated}")

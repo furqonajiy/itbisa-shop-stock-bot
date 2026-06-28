@@ -1,35 +1,4 @@
-"""
-harga_set_price.py
-------------------
-/harga_set runner — set tiered ("Harga Grosir"-style) prices on **both**
-Shopee and TikTok Shop for one exact base SKU.
-
-Tier model
-----------
-A tier list is `[(start_qty, unit_price_idr), ...]`, ascending by `start_qty`,
-covering `1..∞`. For a given quantity `q`, the unit price is the tier whose
-`start_qty` is the largest value `<= q`.
-
-Example tiers `1=749, 50=739, 100=699` → 1–49=Rp749, 50–99=Rp739, 100+=Rp699.
-
-TikTok Shop — per pack-size variant
-------------------------------------
-Each pack-size variant (multiplier `M`) is priced by the tier `M` bands into;
-listing price = `unit_price × M`, then charm-rounded UP to the next nearby
-9-ending price via `tiktokshop_client.update_price_batch`.
-Variants below the lowest tier are skipped + reported (best-effort). Charm
-rounding is TikTok-only — Shopee keeps the exact grosir unit prices.
-
-Shopee — Harga Grosir on the 1PCS listing
------------------------------------------
-Shopee expresses bulk pricing as "Harga Grosir" (wholesale tiers) on a single
-listing. The `multiplier == 1` Shopee listing gets:
-  - base/normal price = the tier covering quantity 1 (e.g. 749), and
-  - wholesale tiers for the bands starting at ≥ 2 (50–99=739, 100+=699), via
-    `shopee_client.update_price` + `shopee_client.set_wholesale`.
-Any Shopee pack-size products (multiplier > 1) are skipped + reported.
-(Shopee wholesale endpoints are best-effort pending live verification.)
-"""
+"""Tiered price runner for /harga_set."""
 
 from __future__ import annotations
 
@@ -38,17 +7,12 @@ import time
 from src import config, shopee_auth, shopee_client, telegram_sender, tiktokshop_client
 from src.stock_allocator import shopee_min_buy_units
 
-# Upper bound for Shopee's open-ended top wholesale band (e.g. "100+").
 _WHOLESALE_TOP_MAX = 999999
+_TIKTOKSHOP_TIER_SCALE_NUMERATOR = 2
+_TIKTOKSHOP_TIER_SCALE_DENOMINATOR = 5
 
 
 def parse_tiers(tokens: list[str]) -> list[tuple[int, int]]:
-    """Parse `[q1, p1, q2, p2, ...]` into sorted `(start_qty, unit_price)` tiers.
-
-    Pure. Raises ValueError (Bahasa Indonesia message) on malformed input:
-    odd token count, non-integer values, qty < 1, negative price, or a
-    duplicate start quantity.
-    """
     if not tokens or len(tokens) % 2 != 0:
         raise ValueError("Tier harus berpasangan: JUMLAH HARGA [JUMLAH HARGA ...].")
 
@@ -76,11 +40,6 @@ def parse_tiers(tokens: list[str]) -> list[tuple[int, int]]:
 
 
 def unit_price_for_quantity(tiers: list[tuple[int, int]], qty: int) -> int | None:
-    """Unit price for `qty`: the tier with the largest `start_qty <= qty`.
-
-    Returns None when `qty` is below the lowest tier start. `tiers` must be
-    sorted ascending by start_qty (as returned by `parse_tiers`). Pure.
-    """
     chosen: int | None = None
     for start, price in tiers:
         if start <= qty:
@@ -90,15 +49,18 @@ def unit_price_for_quantity(tiers: list[tuple[int, int]], qty: int) -> int | Non
     return chosen
 
 
-def charm_round_up_to_nines(price: int) -> int:
-    """Round a price UP to a nearby 9-ending price without changing its tier.
+def tiktokshop_tier_start_qty(shopee_tier_start_qty: int) -> int:
+    numerator = int(shopee_tier_start_qty) * _TIKTOKSHOP_TIER_SCALE_NUMERATOR
+    scaled = (numerator + _TIKTOKSHOP_TIER_SCALE_DENOMINATOR - 1) // _TIKTOKSHOP_TIER_SCALE_DENOMINATOR
+    return max(scaled, 1)
 
-    The previous implementation kept only the top two digits, so large pack
-    prices could jump too far (for example 1.161.750 -> 1.199.999). Cap the
-    rounding unit at 1.000 so large packs stay close to their tier basis:
-    8.495 -> 8.499, 33.980 -> 33.999, 239.850 -> 239.999,
-    1.161.750 -> 1.161.999. Always >= input; prices below 100 are unchanged.
-    """
+
+def unit_price_for_tiktokshop_pack(tiers: list[tuple[int, int]], multiplier: int) -> int | None:
+    scaled_tiers = [(tiktokshop_tier_start_qty(start), price) for start, price in tiers]
+    return unit_price_for_quantity(scaled_tiers, multiplier)
+
+
+def charm_round_up_to_nines(price: int) -> int:
     price = int(price)
     if price < 100:
         return price
@@ -109,16 +71,6 @@ def charm_round_up_to_nines(price: int) -> int:
 def compute_shopee_pricing(
         tiers: list[tuple[int, int]],
 ) -> tuple[int, list[tuple[int, int, int]]]:
-    """Map tiers to a Shopee 1PCS listing: `(base_price, wholesale_tiers)`.
-
-    - `base_price` = unit price for quantity 1 (falls back to the lowest tier's
-      price if no tier starts at 1).
-    - `wholesale_tiers` = `[(min_count, max_count, unit_price)]` for tiers
-      starting at ≥ 2, contiguous, the last band open to `_WHOLESALE_TOP_MAX`.
-
-    Pure. e.g. `[(1,749),(50,739),(100,699)]` →
-    `(749, [(50,99,739),(100,999999,699)])`.
-    """
     base_price = unit_price_for_quantity(tiers, 1)
     if base_price is None:
         base_price = tiers[0][1]
@@ -136,11 +88,6 @@ def _format_tiers(tiers: list[tuple[int, int]]) -> str:
 
 
 def run_harga_set(base_sku: str, tier_tokens: list[str], dry_run: bool) -> int:
-    """Set tiered prices for one base SKU on Shopee + TikTok Shop.
-
-    Returns a process exit code: 0 ok/dry-run, 1 not found / write failure,
-    2 invalid tier input.
-    """
     print("=" * 70)
     print(f"ITBisa Shop Stock Bot — Harga mode {'(DRY RUN)' if dry_run else ''}")
     print("=" * 70)
@@ -162,15 +109,11 @@ def run_harga_set(base_sku: str, tier_tokens: list[str], dry_run: bool) -> int:
         print("Walking Shopee catalog...")
         shopee_catalog = shopee_client.fetch_catalog()
     except shopee_auth.RefreshTokenExpiredError as e:
-        msg = (
-            f"🔐 Otorisasi Shopee kadaluarsa. Mohon otorisasi ulang aplikasi "
-            f"di Shopee Open Platform Console, lalu update file "
-            f"data/shopee_tokens.json di branch bot-state. ({e})"
-        )
+        msg = f"Otorisasi Shopee kadaluarsa. Perlu otorisasi ulang. ({e})"
         print(f"✗ {msg}")
         telegram_sender.send_alert(msg, mode="Harga")
         return 1
-    except Exception as e:  # noqa: BLE001 - surface any walk/auth failure to Telegram
+    except Exception as e:
         msg = f"Gagal membaca katalog: {e}"
         print(f"✗ {msg}")
         telegram_sender.send_alert(msg, mode="Harga")
@@ -205,9 +148,6 @@ def run_harga_set(base_sku: str, tier_tokens: list[str], dry_run: bool) -> int:
     return 0 if all("❌" not in s for s in statuses) else 1
 
 
-# ----------------------------------------------------------------------
-# TikTok Shop
-# ----------------------------------------------------------------------
 def _run_tiktok_harga(
         tiers: list[tuple[int, int]],
         variants: list[dict],
@@ -218,14 +158,12 @@ def _run_tiktok_harga(
     skipped: list[dict] = []
     for v in variants:
         mult = int(v["multiplier"])
-        unit_price = unit_price_for_quantity(tiers, mult)
+        unit_price = unit_price_for_tiktokshop_pack(tiers, mult)
         if unit_price is None:
             skipped.append(v)
             print(f"  ⏭️ {v['raw_sku']} (×{mult}): di bawah tier terendah; dilewati.")
             continue
         raw_price = unit_price * mult
-        # Charm-price the TikTok listing so it ends in 9s, but keep it close
-        # to the grosir basis so large packs don't jump into the next tier.
         variant_price = charm_round_up_to_nines(raw_price)
         priced.append({
             "raw_sku": v["raw_sku"],
@@ -249,7 +187,6 @@ def _run_tiktok_harga(
 
 
 def _push_tiktok_prices(priced: list[dict]) -> str:
-    """Group priced variants by product_id and push via update_price_batch."""
     by_product: dict[str, list[tuple[str, int]]] = {}
     for p in priced:
         by_product.setdefault(p["product_id"], []).append(
@@ -259,14 +196,11 @@ def _push_tiktok_prices(priced: list[dict]) -> str:
     for product_id, sku_prices in by_product.items():
         try:
             tiktokshop_client.update_price_batch(product_id, sku_prices)
-        except Exception as e:  # noqa: BLE001 - report platform write failure
+        except Exception as e:
             return f"❌ gagal: product {product_id}: {e}"
     return "✅ berhasil"
 
 
-# ----------------------------------------------------------------------
-# Shopee (Harga Grosir on the 1PCS listing)
-# ----------------------------------------------------------------------
 def _run_shopee_harga(
         tiers: list[tuple[int, int]],
         variants: list[dict],
@@ -318,24 +252,16 @@ def _push_shopee_prices(
         base_price: int,
         wholesale_tiers: list[tuple[int, int, int]],
 ) -> tuple[str, bool | None]:
-    """Set base price (API) + best-effort Harga Grosir on each 1PCS listing.
-
-    Returns `(status, wholesale_applied)`. The base price write is required (a
-    failure → ❌). The Harga Grosir write is best-effort and verified: Shopee's
-    Open API has no working wholesale endpoint, so if it doesn't apply we keep
-    the (successful) base price and report that Harga Grosir must be set manually
-    — not a hard failure. `wholesale_applied` is None when there are no tiers.
-    """
     wholesale_applied: bool | None = True if wholesale_tiers else None
     for v in ones:
         try:
             shopee_client.update_price(v["item_id"], v["model_id"], base_price)
-        except Exception as e:  # noqa: BLE001 - base price failure is fatal for Shopee
+        except Exception as e:
             return f"❌ gagal set harga dasar: {v['raw_sku']}: {e}", False
         if wholesale_tiers:
             try:
                 shopee_client.set_wholesale(v["item_id"], wholesale_tiers)
-            except Exception as e:  # noqa: BLE001 - wholesale write is best-effort
+            except Exception as e:
                 wholesale_applied = False
                 print(f"  [shopee] Harga Grosir tidak diterapkan ({v['raw_sku']}): {e}")
         time.sleep(config.DELAY_BETWEEN_CALLS_SECONDS)

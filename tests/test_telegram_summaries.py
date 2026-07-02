@@ -49,7 +49,7 @@ def test_variant_summary_success_is_valid_markdown(monkeypatch):
         "dry_run": False,
     })
     _assert_legacy_markdown_ok(text)
-    assert "`/stock_set`" in text  # hint still tap-to-copy
+    assert "`/stok_set`" in text  # hint still tap-to-copy
 
 
 def test_variant_summary_dry_run_is_valid_markdown(monkeypatch):

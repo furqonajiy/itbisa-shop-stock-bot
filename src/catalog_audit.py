@@ -301,7 +301,7 @@ def _write_audit_workbook(path: str, rows: list[dict]) -> None:
     notes = [
         "Rule 1 (Harga Grosir) & rule 3 (min beli Shopee) hanya bisa di-set MANUAL di Seller Center "
         "(Open API Shopee tidak mendukung).",
-        "Rule 2 (varian pack TikTok) bisa diperbaiki via /variant_set.",
+        "Rule 2 (varian pack TikTok) bisa diperbaiki via /varian_set.",
         "Rule 3 & 4 (min beli): nilai sekarang tidak terbaca via API — kolom adalah TARGET yang harus di-set.",
     ]
     for i, n in enumerate(notes, start=12):

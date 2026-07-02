@@ -409,7 +409,7 @@ def send_variant_set_summary(report: dict) -> None:
     for vn in report.get("value_names") or []:
         lines.append(f"• {vn}")
     if not dry_run and "✅" in report.get("status", ""):
-        lines.extend(["", "Stok di-set 0 — jalankan `/stock_set` untuk mengisi ulang total."])
+        lines.extend(["", "Stok di-set 0 — jalankan `/stok_set` untuk mengisi ulang total."])
     if dry_run:
         lines.extend(["", "_Dry run — tidak ada write API yang dipanggil._"])
     _send(_join(lines))

@@ -13,6 +13,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -40,6 +41,14 @@ SUPPORTED_COMMANDS = {
     "/varian_set",
     "/berat_set",
 }
+# Commands that mutate the TikTok Shop product via Edit Product (202309,
+# full-replace). The result propagates on TikTok's clock (often minutes) to
+# both the 202309 product detail and the 202502 search, and a variation
+# rebuild reissues sku_ids — so a later command on the SAME base SKU must
+# wait for the catalog to settle first (see _gate_after).
+TIKTOK_MUTATING_COMMANDS = {"/varian_set", "/berat_set"}
+SETTLE_TIMEOUT_S = 360
+SETTLE_INTERVAL_S = 20
 
 
 def parse_args() -> argparse.Namespace:
@@ -174,6 +183,136 @@ def parse_command_lines(text: str) -> list[tuple[str, list[str], str]]:
     return commands
 
 
+def _line_base_sku(args: list[str]) -> str | None:
+    """Base SKU of a command line = first argument token, uppercased."""
+    tokens, _dry = strip_dry_flag(args)
+    if not tokens:
+        return None
+    return tokens[0].upper()
+
+
+def _gate_after(
+    command: str,
+    raw_args: list[str],
+    remaining: list[tuple[str, list[str], str]],
+) -> tuple[str, list[int] | None] | None:
+    """Decide whether to wait for TikTok Shop to settle after this command.
+
+    /varian_set and /berat_set edit the product via full-replace; TikTok
+    takes minutes to propagate the result. Running the next same-SKU command
+    immediately means: the next Edit Product rebuilds its full-replace
+    payload from a stale detail snapshot and silently wipes the pending
+    variant, and a stock/price write lands on the reissued (dead) sku_ids
+    the stale search still returns.
+
+    Returns (base_sku, required_packs) when a settle wait is needed —
+    required_packs is the requested pack list for /varian_set, None for
+    /berat_set (sku-id consistency only). Returns None when no wait is
+    needed: non-mutating command, dry-run line (nothing written), or no
+    later line referencing the same base SKU.
+    """
+    if command not in TIKTOK_MUTATING_COMMANDS:
+        return None
+    tokens, dry_run = strip_dry_flag(raw_args)
+    if dry_run or not tokens:
+        return None
+    base_sku = tokens[0].upper()
+    if not any(_line_base_sku(later_args) == base_sku for _cmd, later_args, _raw in remaining):
+        return None
+    required_packs: list[int] | None = None
+    if command == "/varian_set":
+        packs = [int(t) for t in tokens[1:] if t.isdigit()]
+        required_packs = packs or None
+    return base_sku, required_packs
+
+
+def _settle_check(client, base_sku: str, required_packs: list[int] | None) -> str | None:
+    """One settle poll. Returns None when settled, else a short reason.
+
+    Settled means: the search catalog shows the base SKU (with every
+    requested pack size when given), AND for each of its products the
+    sku_id set the search returned equals the sku_id set in the product
+    detail — the equality is what catches sku_ids reissued by a variation
+    rebuild that the search snapshot still serves stale. The search set is
+    collected across the WHOLE catalog because a product's siblings can
+    group under other base keys (e.g. ITBISA-BUBBLE-WRAP).
+    """
+    try:
+        catalog = client.fetch_catalog()
+    except Exception as e:  # noqa: BLE001 - best-effort poll, retry next round
+        return f"katalog belum bisa dibaca ({e})"
+    variants = catalog.get(base_sku) or []
+    if not variants:
+        return "SKU belum terlihat di hasil search"
+    if required_packs:
+        present = {v.get("multiplier") for v in variants}
+        missing = sorted(set(required_packs) - present)
+        if missing:
+            return "varian belum lengkap (kurang: " + ", ".join(f"{m}PCS" for m in missing) + ")"
+    search_ids_by_product: dict[str, set] = {}
+    for base_variants in catalog.values():
+        for v in base_variants:
+            search_ids_by_product.setdefault(v.get("product_id"), set()).add(v.get("sku_id"))
+    for product_id in sorted({v.get("product_id") for v in variants}):
+        try:
+            detail = client.fetch_product_detail_raw(product_id)
+        except Exception as e:  # noqa: BLE001 - best-effort poll, retry next round
+            return f"detail produk belum bisa dibaca ({e})"
+        detail_ids = {s.get("id") for s in (detail.get("skus") or []) if s.get("id")}
+        if detail_ids != search_ids_by_product.get(product_id, set()):
+            return "sku_id hasil search belum sama dengan detail produk"
+    return None
+
+
+def _wait_tiktokshop_settled(
+    base_sku: str,
+    required_packs: list[int] | None = None,
+    timeout_s: int = SETTLE_TIMEOUT_S,
+    interval_s: int = SETTLE_INTERVAL_S,
+    client=None,
+    sleep=time.sleep,
+) -> bool:
+    """Poll until TikTok Shop shows the settled catalog for base_sku.
+
+    Every failure mode of a poll just means "belum siap" — retry next round.
+    True when settled, False on timeout. `client` and `sleep` are injectable
+    for tests; production lazily imports the real client here so the pure
+    parsing above stays importable without platform secrets.
+    """
+    if client is None:
+        sys.path.insert(0, str(PROJECT_ROOT))
+        from src import tiktokshop_client as client
+    deadline = time.monotonic() + timeout_s
+    attempt = 0
+    while True:
+        attempt += 1
+        reason = _settle_check(client, base_sku, required_packs)
+        if reason is None:
+            print(f"✅ Varian TikTok Shop untuk {base_sku} sudah konsisten (search = detail) — lanjut.")
+            return True
+        if time.monotonic() >= deadline:
+            print(
+                f"✗ TikTok Shop untuk {base_sku} belum stabil sampai batas waktu — {reason}",
+                file=sys.stderr,
+            )
+            return False
+        print(
+            f"⏳ Menunggu varian TikTok Shop siap (SKU {base_sku}): "
+            f"percobaan {attempt} — {reason}, tunggu {int(interval_s)} dtk"
+        )
+        sleep(interval_s)
+
+
+def _send_batch_abort_alert(text: str) -> None:
+    """Best-effort Telegram alert — a send failure must not mask the abort."""
+    try:
+        sys.path.insert(0, str(PROJECT_ROOT))
+        from src.telegram_sender import send_alert
+        send_alert(text, mode="Batch")
+    except Exception as e:  # noqa: BLE001 - alert is best-effort
+        print(f"  (peringatan Telegram gagal terkirim: {e})", file=sys.stderr)
+
+
 def main() -> int:
     args = parse_args()
     text = args.commands_file.read_text(encoding="utf-8")
@@ -201,6 +340,24 @@ def main() -> int:
         if result.returncode != 0:
             print(f"✗ Command failed with exit code {result.returncode}: {raw_line}", file=sys.stderr)
             return result.returncode
+
+        gate = _gate_after(command, raw_args, commands[idx:])
+        if gate is not None:
+            base_sku, required_packs = gate
+            print()
+            print(
+                f"⏳ Perintah berikutnya memakai SKU {base_sku} juga — "
+                f"menunggu perubahan TikTok Shop stabil dulu..."
+            )
+            if not _wait_tiktokshop_settled(base_sku, required_packs=required_packs):
+                minutes = SETTLE_TIMEOUT_S // 60
+                message = (
+                    f"Varian TikTok Shop untuk '{base_sku}' belum muncul setelah {minutes} menit "
+                    f"— sisa perintah batch dibatalkan, jalankan ulang nanti."
+                )
+                print(f"✗ {message}", file=sys.stderr)
+                _send_batch_abort_alert(message)
+                return 1
 
     print()
     print("=" * 70)

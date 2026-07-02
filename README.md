@@ -430,6 +430,26 @@ Current workflows (all `workflow_dispatch` only — no cron):
 .github/workflows/ci.yml       # pytest quality gate on PRs (no secrets, no bot-state)
 ```
 
+### Batch runner (`batch.yml` / `scripts/command_batch.py`)
+
+Executes one `/command` per line sequentially by delegating to the existing
+CLI scripts, so each command keeps its own validation, logging, and Telegram
+summary.
+
+After a non-dry `/varian_set` or `/berat_set`, if any later line references
+the same base SKU, the runner waits for TikTok Shop to settle before
+continuing (poll every 20 s, timeout 6 min). Both commands edit the product
+via Edit Product (202309), a full-replace built from the product detail, and
+TikTok propagates the edit over minutes while a variation rebuild reissues
+`sku_id`s — so without the wait the next same-SKU edit silently wipes the
+still-propagating variant, a stock write lands on the dead `sku_id`s the
+stale search still returns (stock reads 0 afterwards), and a price write
+misses the new variant. Settled means the search catalog shows every
+requested pack size (`/varian_set`) and the per-product `sku_id` set from the
+search equals the product detail's. On timeout the batch aborts (exit 1) with
+a Telegram alert instead of running the remaining commands; dry-run lines and
+batches with no later same-SKU line never wait.
+
 All workflows:
 
 - checkout `main`

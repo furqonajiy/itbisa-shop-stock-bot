@@ -12,6 +12,8 @@ import pytest
 from scripts.command_batch import (
     COMMAND_ALIASES,
     SUPPORTED_COMMANDS,
+    _gate_after,
+    _wait_tiktokshop_settled,
     build_invocation,
     parse_command_lines,
 )
@@ -144,3 +146,139 @@ def test_berat_set_bad_args_rejected_with_canonical_name(command):
 def test_unknown_command_rejected():
     with pytest.raises(ValueError, match="Unsupported command"):
         build_invocation("/resi_all", [])
+
+
+# ---------------------------------------------------------------------------
+# Settle gate decision — which commands must wait for TikTok Shop, and how
+# ---------------------------------------------------------------------------
+
+def _line(text):
+    [(command, args, raw)] = parse_command_lines(text)
+    return command, args, raw
+
+
+def test_varian_set_followed_by_same_sku_gates_with_packs():
+    remaining = [_line("/harga_set ITBISA-A 1 749 50 739"), _line("/stok_set ITBISA-A 100")]
+    assert _gate_after("/varian_set", ["itbisa-a", "1", "20", "50"], remaining) == (
+        "ITBISA-A",
+        [1, 20, 50],
+    )
+
+
+def test_berat_set_followed_by_same_sku_gates_without_packs():
+    remaining = [_line("/stok_set ITBISA-A 100")]
+    assert _gate_after("/berat_set", ["itbisa-a", "1000pcs", "1700g"], remaining) == (
+        "ITBISA-A",
+        None,
+    )
+
+
+def test_mutation_with_no_later_same_sku_line_needs_no_gate():
+    remaining = [_line("/stok_set ITBISA-B 100"), _line("/stok_low")]
+    assert _gate_after("/varian_set", ["ITBISA-A", "1", "20"], remaining) is None
+    assert _gate_after("/varian_set", ["ITBISA-A", "1", "20"], []) is None
+
+
+def test_dry_run_mutation_never_gates():
+    remaining = [_line("/stok_set ITBISA-A 100")]
+    assert _gate_after("/varian_set", ["ITBISA-A", "1", "20", "dry"], remaining) is None
+    assert _gate_after("/berat_set", ["ITBISA-A", "1000", "1700g", "dry"], remaining) is None
+
+
+def test_non_mutating_commands_never_gate():
+    remaining = [_line("/stok_get ITBISA-A")]
+    assert _gate_after("/stok_get", ["ITBISA-A"], remaining) is None
+    assert _gate_after("/stok_set", ["ITBISA-A", "100"], remaining) is None
+    assert _gate_after("/harga_set", ["ITBISA-A", "1", "749"], remaining) is None
+
+
+def test_later_line_sku_match_is_case_insensitive():
+    remaining = [_line("/stok_get itbisa-a")]
+    assert _gate_after("/varian_set", ["ITBISA-A", "1", "20"], remaining) == (
+        "ITBISA-A",
+        [1, 20],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Settle polling — injected fake client, no network, no real sleeps
+# ---------------------------------------------------------------------------
+
+class _FakeClient:
+    """Serves catalog snapshots in order (last one repeats) + fixed details."""
+
+    def __init__(self, catalogs, details):
+        self._catalogs = catalogs
+        self._details = details
+        self.calls = 0
+
+    def fetch_catalog(self):
+        snapshot = self._catalogs[min(self.calls, len(self._catalogs) - 1)]
+        self.calls += 1
+        return snapshot
+
+    def fetch_product_detail_raw(self, product_id):
+        detail = self._details[product_id]
+        if isinstance(detail, Exception):
+            raise detail
+        return detail
+
+
+def _variant(mult, sku_id, product_id="P1"):
+    return {"multiplier": mult, "sku_id": sku_id, "product_id": product_id}
+
+
+def test_wait_settles_once_packs_and_sku_ids_agree():
+    stale = {"ITBISA-A": [_variant(1, "old-1")]}
+    fresh = {"ITBISA-A": [_variant(1, "new-1"), _variant(20, "new-20")]}
+    details = {"P1": {"skus": [{"id": "new-1"}, {"id": "new-20"}]}}
+    client = _FakeClient([stale, fresh], details)
+    assert _wait_tiktokshop_settled(
+        "ITBISA-A", required_packs=[1, 20],
+        timeout_s=60, interval_s=0, client=client, sleep=lambda _s: None,
+    ) is True
+    assert client.calls == 2
+
+
+def test_wait_times_out_when_requested_pack_never_appears():
+    stale = {"ITBISA-A": [_variant(1, "old-1")]}
+    details = {"P1": {"skus": [{"id": "old-1"}]}}
+    client = _FakeClient([stale], details)
+    assert _wait_tiktokshop_settled(
+        "ITBISA-A", required_packs=[1, 20],
+        timeout_s=0, interval_s=0, client=client, sleep=lambda _s: None,
+    ) is False
+
+
+def test_wait_detects_reissued_sku_ids_via_search_detail_mismatch():
+    # The search snapshot still returns the pre-edit (dead) sku_id while the
+    # detail already shows the reissued one — not settled.
+    search = {"ITBISA-A": [_variant(1, "dead-1")]}
+    details = {"P1": {"skus": [{"id": "new-1"}]}}
+    client = _FakeClient([search], details)
+    assert _wait_tiktokshop_settled(
+        "ITBISA-A", timeout_s=0, interval_s=0, client=client, sleep=lambda _s: None,
+    ) is False
+
+
+def test_wait_counts_sibling_skus_grouped_under_other_bases():
+    # ITBISA-BUBBLE-WRAP shares the product but groups under its own base
+    # key, so the search sku_id set must be collected catalog-wide.
+    catalog = {
+        "ITBISA-A": [_variant(1, "a-1"), _variant(20, "a-20")],
+        "ITBISA-BUBBLE-WRAP": [_variant(1, "bw-1")],
+    }
+    details = {"P1": {"skus": [{"id": "a-1"}, {"id": "a-20"}, {"id": "bw-1"}]}}
+    client = _FakeClient([catalog], details)
+    assert _wait_tiktokshop_settled(
+        "ITBISA-A", required_packs=[1, 20],
+        timeout_s=0, interval_s=0, client=client, sleep=lambda _s: None,
+    ) is True
+
+
+def test_wait_retries_after_detail_read_failure():
+    catalog = {"ITBISA-A": [_variant(1, "a-1")]}
+    client = _FakeClient([catalog], {"P1": RuntimeError("HTTP 500")})
+    assert _wait_tiktokshop_settled(
+        "ITBISA-A", timeout_s=0, interval_s=0, client=client, sleep=lambda _s: None,
+    ) is False

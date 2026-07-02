@@ -21,14 +21,24 @@ DRY_FLAG_RE = re.compile(r"^(dry|dryrun|dry-run)$", re.IGNORECASE)
 QTY_TOKEN_RE = re.compile(r"^(\d+)\s*([a-zA-Z]*)$")
 PCS_UNIT_RE = re.compile(r"^(pcs|pc)?$", re.IGNORECASE)
 GRAM_UNIT_RE = re.compile(r"^(g|gr|gram|grams)?$", re.IGNORECASE)
+# Legacy English command names stay accepted forever as aliases of the
+# Indonesian primaries (same convention as /berat_set with alias /weight_set).
+COMMAND_ALIASES = {
+    "/stock_set": "/stok_set",
+    "/stock_get": "/stok_get",
+    "/stock_balance": "/stok_balance",
+    "/stock_low": "/stok_low",
+    "/variant_set": "/varian_set",
+    "/weight_set": "/berat_set",
+}
 SUPPORTED_COMMANDS = {
-    "/stock_set",
-    "/stock_get",
-    "/stock_balance",
-    "/stock_low",
+    "/stok_set",
+    "/stok_get",
+    "/stok_balance",
+    "/stok_low",
     "/harga_set",
-    "/variant_set",
-    "/weight_set",
+    "/varian_set",
+    "/berat_set",
 }
 
 
@@ -63,11 +73,12 @@ def parse_qty(token: str, unit_re: re.Pattern[str]) -> int | None:
 
 def build_invocation(command: str, args: list[str]) -> list[str]:
     command = command.lower()
+    command = COMMAND_ALIASES.get(command, command)
 
-    if command == "/stock_set":
+    if command == "/stok_set":
         tokens, dry_run = strip_dry_flag(args)
         if len(tokens) < 2 or len(tokens) % 2 != 0:
-            raise ValueError("/stock_set requires SKU JUMLAH pairs")
+            raise ValueError("/stok_set requires SKU JUMLAH pairs")
         skus = [tokens[i].upper() for i in range(0, len(tokens), 2)]
         pieces = [tokens[i] for i in range(1, len(tokens), 2)]
         cmd = [sys.executable, "scripts/stock_set_price.py", "--sku", *skus, "--pieces", *pieces]
@@ -75,21 +86,21 @@ def build_invocation(command: str, args: list[str]) -> list[str]:
             cmd.append("--dry-run")
         return cmd
 
-    if command == "/stock_get":
+    if command == "/stok_get":
         if not args:
-            raise ValueError("/stock_get requires at least one SKU or keyword")
+            raise ValueError("/stok_get requires at least one SKU or keyword")
         return [sys.executable, "scripts/stock_get.py", "--sku", "\n".join(a.upper() for a in args)]
 
-    if command == "/stock_balance":
+    if command == "/stok_balance":
         tokens, dry_run = strip_dry_flag(args)
         if not tokens:
-            raise ValueError("/stock_balance requires at least one SKU")
+            raise ValueError("/stok_balance requires at least one SKU")
         cmd = [sys.executable, "scripts/stock_balance.py", "--sku", *[t.upper() for t in tokens]]
         if dry_run:
             cmd.append("--dry-run")
         return cmd
 
-    if command == "/stock_low":
+    if command == "/stok_low":
         return [sys.executable, "scripts/stock_low.py"]
 
     if command == "/harga_set":
@@ -105,10 +116,10 @@ def build_invocation(command: str, args: list[str]) -> list[str]:
             cmd.append("--dry-run")
         return cmd
 
-    if command == "/variant_set":
+    if command == "/varian_set":
         tokens, dry_run = strip_dry_flag(args)
         if len(tokens) < 2:
-            raise ValueError("/variant_set requires SKU and at least one pack size")
+            raise ValueError("/varian_set requires SKU and at least one pack size")
         sku = tokens[0].upper()
         packs = tokens[1:]
         cmd = [sys.executable, "scripts/variant_set.py", "--sku", sku, "--packs", *packs]
@@ -116,15 +127,15 @@ def build_invocation(command: str, args: list[str]) -> list[str]:
             cmd.append("--dry-run")
         return cmd
 
-    if command == "/weight_set":
+    if command == "/berat_set":
         tokens, dry_run = strip_dry_flag(args)
         if len(tokens) != 3:
-            raise ValueError("/weight_set requires SKU REF_PCS BERAT")
+            raise ValueError("/berat_set requires SKU REF_PCS BERAT")
         sku = tokens[0].upper()
         ref_pcs = parse_qty(tokens[1], PCS_UNIT_RE)
         grams = parse_qty(tokens[2], GRAM_UNIT_RE)
         if ref_pcs is None or ref_pcs < 1 or grams is None or grams < 1:
-            raise ValueError("/weight_set REF_PCS and BERAT must be positive numbers")
+            raise ValueError("/berat_set REF_PCS and BERAT must be positive numbers")
         cmd = [
             sys.executable,
             "scripts/weight_set.py",
@@ -156,6 +167,7 @@ def parse_command_lines(text: str) -> list[tuple[str, list[str], str]]:
         if at_idx > 0:
             command = command[:at_idx]
         command = command.lower()
+        command = COMMAND_ALIASES.get(command, command)
         if command not in SUPPORTED_COMMANDS:
             raise ValueError(f"Line {line_no}: unsupported command {command}")
         commands.append((command, parts[1:], line))

@@ -4,15 +4,24 @@ Cross-platform stock tooling for Shopee Indonesia and TikTok Shop Indonesia.
 
 This repo is used by the Telegram stock commands and GitHub Actions workflows to:
 
-- read stock (`/stock_get`)
-- set stock to a requested total (`/stock_set`)
-- rebalance existing stock while preserving the current total (`/stock_balance`)
-- report base SKUs with low combined stock (`/stock_low`)
+- read stock (`/stok_get`)
+- set stock to a requested total (`/stok_set`)
+- rebalance existing stock while preserving the current total (`/stok_balance`)
+- report base SKUs with low combined stock (`/stok_low`)
 - set tiered ("Harga Grosir"-style) prices (`/harga_set`)
-- rebuild a TikTok Shop product's pack-size variants (`/variant_set`)
-- set per-piece TikTok Shop variant weight (`/weight_set`)
+- rebuild a TikTok Shop product's pack-size variants (`/varian_set`)
+- set per-piece TikTok Shop variant weight (`/berat_set`)
 - audit catalog standardization to an Excel report (`audit.yml`)
 - run several of the above commands sequentially in one job (`batch.yml`)
+
+The command names above are the primary (Indonesian) spellings. The legacy
+English names — `/stock_get`, `/stock_set`, `/stock_balance`, `/stock_low`,
+`/variant_set`, `/weight_set` — remain permanently accepted as backward-compat
+aliases (in the Telegram Worker and in this repo's batch runner through the
+`COMMAND_ALIASES` map in `scripts/command_batch.py`). Internal names do not
+change: script filenames, workflow filenames (`set.yml`, `variant.yml`,
+`weight.yml`, ...), workflow inputs, and concurrency groups keep their English
+names.
 
 The bot runs as short-lived GitHub Actions jobs. There is no server, VM, database,
 shared runtime, or cron in this repo.
@@ -21,12 +30,12 @@ Runtime token files live on the `bot-state` branch. Source code lives on `main`.
 
 ## Commands and workflows
 
-### `/stock_get SKU`
+### `/stok_get SKU`
 
 Read-only stock inspection for one base SKU.
 
 ```text
-Telegram /stock_get SKU
+Telegram /stok_get SKU
   -> Cloudflare Worker workflow_dispatch
   -> GitHub Actions .github/workflows/get.yml
   -> scripts/stock_get.py --sku SKU
@@ -39,12 +48,12 @@ Telegram /stock_get SKU
 Use a base SKU only. Do not pass pack-size variants like
 `20PCS-ITBISA-IC-NE555P-DIP8`.
 
-### `/stock_set SKU PIECES`
+### `/stok_set SKU PIECES`
 
 Sets one or more base SKUs to a requested total physical stock count.
 
 ```text
-Telegram /stock_set SKU PIECES
+Telegram /stok_set SKU PIECES
   -> Cloudflare Worker workflow_dispatch
   -> GitHub Actions .github/workflows/set.yml
   -> scripts/stock_set_price.py --sku SKU --pieces PIECES
@@ -65,7 +74,7 @@ The workflow intentionally keeps `$INPUT_SKU` and `$INPUT_PIECES` unquoted when
 calling `scripts/stock_set_price.py` so shell word-splitting feeds argparse's
 multi-value parsing.
 
-### `/stock_set` Excel mode
+### `/stok_set` Excel mode
 
 Excel mode is still supported and intentionally uses the older Excel path:
 
@@ -85,13 +94,13 @@ Excel file format:
 | A      | Base SKU                    |
 | B      | Total physical stock pieces |
 
-### `/stock_balance SKU`
+### `/stok_balance SKU`
 
 Rebalances the existing combined stock between Shopee and TikTok Shop while
 preserving the current total.
 
 ```text
-Telegram /stock_balance SKU
+Telegram /stok_balance SKU
   -> Cloudflare Worker workflow_dispatch
   -> GitHub Actions .github/workflows/balance.yml
   -> scripts/stock_balance.py --sku SKU
@@ -145,7 +154,7 @@ Example:
 
 ### Platform split
 
-For production `/stock_set SKU TOTAL` and `/stock_balance SKU` (SKU mode, the
+For production `/stok_set SKU TOTAL` and `/stok_balance SKU` (SKU mode, the
 price-aware runners), the bot first **reserves stock to Shopee** worth
 `SHOPEE_RESERVE_IDR` (Rp200.000, `ceil(SHOPEE_RESERVE_IDR / Shopee 1PCS price)`
 units; best-effort — unknown price or `0` disables it), then splits the remainder
@@ -156,10 +165,10 @@ tiktokshop = remainder * (100 - 70) // 100
 shopee     = remainder - tiktokshop   # Shopee absorbs the rounding remainder
 ```
 
-For `/stock_balance SKU`, the bot first reads the current Shopee + TikTok Shop
+For `/stok_balance SKU`, the bot first reads the current Shopee + TikTok Shop
 stock, preserves that combined total, then applies the same reserve + split.
 
-Excel-mode `/stock_set` (via `src.main.run_excel_mode`) is the legacy path and
+Excel-mode `/stok_set` (via `src.main.run_excel_mode`) is the legacy path and
 still uses a plain **50:50** split with no reserve.
 
 ### Shopee
@@ -186,8 +195,8 @@ The TikTok Shop low-price rule is price-based, not hardcoded SKU-based.
 
 It applies to:
 
-- `/stock_balance`
-- `/stock_set` SKU mode through `scripts/stock_set_price.py`
+- `/stok_balance`
+- `/stok_set` SKU mode through `scripts/stock_set_price.py`
 
 It does **not** apply to Excel mode.
 
@@ -203,7 +212,7 @@ If TikTok Shop 1PCS variant price < Rp5.000:
 Example:
 
 ```text
-/stock_set ITBISA-IC-ULN2803APG-DIP18 18
+/stok_set ITBISA-IC-ULN2803APG-DIP18 18
 
 Initial target split:
 Shopee      = 9 pcs
@@ -296,7 +305,7 @@ If price is missing, the price suffix is omitted:
 • 1PCS: 17 unit = 17 pcs — 2 g
 ```
 
-### `/stock_get` example
+### `/stok_get` example
 
 ```text
 📊 Stock Get — Selesai
@@ -319,7 +328,7 @@ Total gabungan: 18 pcs
 • 1000PCS: 0 unit = 0 pcs — 2.001 g — Rp2.100.000
 ```
 
-### `/stock_set` example
+### `/stok_set` example
 
 ```text
 📦 Set Stock — Selesai
@@ -341,7 +350,7 @@ Total: 18 pcs
 • 1000PCS: 0 unit = 0 pcs — 2.001 g — Rp2.100.000
 ```
 
-### `/stock_balance` example
+### `/stok_balance` example
 
 ```text
 🔄 Balance Stock — Selesai
@@ -409,13 +418,13 @@ python scripts/stock_balance.py --sku SKU1 SKU2 SKU3
 Current workflows (all `workflow_dispatch` only — no cron):
 
 ```text
-.github/workflows/get.yml      # /stock_get, read-only
-.github/workflows/set.yml      # /stock_set, write
-.github/workflows/balance.yml  # /stock_balance, write
-.github/workflows/low.yml      # /stock_low, read-only (throttled 1x/24h in-bot)
+.github/workflows/get.yml      # /stok_get, read-only
+.github/workflows/set.yml      # /stok_set, write
+.github/workflows/balance.yml  # /stok_balance, write
+.github/workflows/low.yml      # /stok_low, read-only (throttled 1x/24h in-bot)
 .github/workflows/harga.yml    # /harga_set, write (tiered pricing)
-.github/workflows/variant.yml  # /variant_set, write (TikTok Shop, defaults dry_run)
-.github/workflows/weight.yml   # /weight_set, write (TikTok Shop, defaults dry_run)
+.github/workflows/variant.yml  # /varian_set, write (TikTok Shop, defaults dry_run)
+.github/workflows/weight.yml   # /berat_set, write (TikTok Shop, defaults dry_run)
 .github/workflows/audit.yml    # catalog standardization audit, read-only (Excel artifact)
 .github/workflows/batch.yml    # batch of stock commands, sequential
 .github/workflows/ci.yml       # pytest quality gate on PRs (no secrets, no bot-state)
@@ -488,8 +497,8 @@ MAX_SKUS_PER_RUN = 500
 SHOPEE_RESERVE_IDR = 200000              # stock value reserved to Shopee first (0 disables)
 SHOPEE_SPLIT_PERCENT = 70               # Shopee's share of the post-reserve remainder (70:30)
 SHOPEE_MIN_BUY_IDR = 20000              # Shopee min-purchase target (reported, set manually)
-LOW_STOCK_THRESHOLD = 50                # /stock_low flags combined on-hand pieces below this
-LOW_STOCK_MIN_INTERVAL_HOURS = 24       # /stock_low report throttle window
+LOW_STOCK_THRESHOLD = 50                # /stok_low flags combined on-hand pieces below this
+LOW_STOCK_MIN_INTERVAL_HOURS = 24       # /stok_low report throttle window
 ```
 
 Change them by editing `src/config.py` and committing the change to `main`.
@@ -503,7 +512,7 @@ Expected mutable files:
 ```text
 data/shopee_tokens.json
 data/tiktokshop_tokens.json
-data/low_stock_throttle.json   # /stock_low 24h throttle timestamp
+data/low_stock_throttle.json   # /stok_low 24h throttle timestamp
 ```
 
 This stock bot does **not** need `processed_orders.json`.
@@ -529,8 +538,8 @@ The bot:
 
 - aborts before API writes when Excel row count exceeds `MAX_SKUS_PER_RUN`
 - skips and reports a SKU that is missing on both platforms
-- skips and reports `/stock_set` or `/stock_balance` when the SKU exists only on one platform
-- allows `/stock_get` to report a SKU that exists only on one platform
+- skips and reports `/stok_set` or `/stok_balance` when the SKU exists only on one platform
+- allows `/stok_get` to report a SKU that exists only on one platform
 - reports platform API update failures in Telegram
 - keeps Shopee and TikTok Shop API writes independent per SKU, so one platform failure does not prevent the other platform attempt for that SKU
 - sets absolute stock units per variant, not deltas

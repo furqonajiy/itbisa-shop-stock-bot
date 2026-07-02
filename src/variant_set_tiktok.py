@@ -439,7 +439,7 @@ def run_variant_set(base_sku: str, pack_sizes: list[int], dry_run: bool) -> int:
     if not missing:
         status = "✅ berhasil"
     else:
-        status = "✅ berhasil — varian baru bisa perlu beberapa menit tampil di TikTok (cek `/stock_get`)"
+        status = "✅ berhasil — varian baru bisa perlu beberapa menit tampil di TikTok (cek `/stok_get`)"
         print(f"  [variant] not yet visible after edit (TikTok propagation): {missing}")
 
     telegram_sender.send_variant_set_summary({

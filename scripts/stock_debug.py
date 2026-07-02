@@ -39,7 +39,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Diagnose why a SKU is missing from /stock_get",
+        description="Diagnose why a SKU is missing from /stok_get",
     )
     parser.add_argument(
         "--sku",
@@ -98,7 +98,7 @@ def _diagnose_platform(
         print()
     else:
         print("[1] EXACT case-sensitive lookup: MISS")
-        print("    → this is what /stock_get reports today")
+        print("    → this is what /stok_get reports today")
         print()
 
     # --- 2. Case-insensitive lookup over base keys ---
@@ -114,7 +114,7 @@ def _diagnose_platform(
             print()
         if not exact:
             print("    ⚠ DIAGNOSIS: the SKU exists but with different case.")
-            print("      The /stock_get lookup is case-sensitive on dict keys.")
+            print("      The /stok_get lookup is case-sensitive on dict keys.")
             print()
     else:
         print("[2] Case-INSENSITIVE base-key match: 0 hits")
